@@ -67,6 +67,8 @@ async def find_candidates(
     # поста: у поста-мнения («скорее всего продлят…») близость к сухим новостям о том же
     # событии ниже порога, и половина ядра уходит в «другие события» (проверено 12.10.2026).
     core = [d for i, d in found.items() if sims[i] >= cfg.clustering.strong_threshold]
+    if not core:
+        core = _tight_neighbours(seed, found, sims, cfg)
     if core:
         vectors = [seed_vec, *(_unit(d.embedding) for d in core)]
         centroid = _unit([sum(xs) for xs in zip(*vectors, strict=True)])
@@ -90,6 +92,33 @@ async def find_candidates(
         for doc in rows:
             candidates.setdefault(doc.id, Candidate(doc, None))
     return list(candidates.values())
+
+
+def _tight_neighbours(
+    seed: Document, found: dict[int, Document], sims: dict[int, float], cfg: ScoringConfig
+) -> list[Document]:
+    """Ядро для короткого сухого текста (указ, сообщение ведомства), у которого своего ядра нет.
+
+    Его близость к пересказам ~0.83 — ниже порога, и без этого история с него разваливалась
+    до 4 публикаций из ~30 (проверка устойчивости 12.10.2026). Берём ближайших соседей рядом
+    по времени, но только если они плотно похожи друг на друга — значит, это одно событие.
+    У «соседей по теме» (разные удары, реакции) взаимная близость ниже, и они не проходят.
+    """
+    c = cfg.clustering
+    seed_time = seed.published_at or seed.first_seen_at
+    near = [
+        found[i]
+        for i in sorted(found, key=lambda i: -sims[i])
+        if sims[i] >= c.include_threshold
+        and abs((found[i].published_at or found[i].first_seen_at) - seed_time)
+        <= timedelta(hours=c.near_hours)
+    ][:5]
+    if len(near) < 3:
+        return []
+    vectors = [_unit(d.embedding) for d in near]
+    pairs = [(a, b) for i, a in enumerate(vectors) for b in vectors[i + 1 :]]
+    mutual = sum(_dot(a, b) for a, b in pairs) / len(pairs)
+    return near if mutual >= c.strong_threshold else []
 
 
 def _unit(vector) -> list[float]:
@@ -156,8 +185,13 @@ def is_same_event(
 
 
 async def build_story(
-    session: AsyncSession, seed: Document, cfg: ScoringConfig | None = None
+    session: AsyncSession,
+    seed: Document,
+    cfg: ScoringConfig | None = None,
+    *,
+    persist: bool = True,
 ) -> StoryResult:
+    """persist=False — только посчитать (проверка устойчивости), без записи в БД."""
     cfg = cfg or get_scoring()
     candidates = await find_candidates(session, seed, cfg)
     all_sources = {s.id: _source_info(s) for s in await session.scalars(select(Source))}
@@ -179,6 +213,8 @@ async def build_story(
     docs = [seed, *(c.document for c in members)]
     nodes = [to_node(d, all_sources) for d in docs]
     graph = build_graph(nodes, list(all_sources.values()), cfg.graph)
+    if not persist:
+        return StoryResult(0, seed, members, borderline, nodes, graph, all_sources)
 
     # Повторная проверка той же публикации дополняет её историю, а не плодит новую:
     # иначе одно событие висит в очереди аналитика несколько раз и разметка дробится.

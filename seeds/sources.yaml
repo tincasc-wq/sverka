@@ -64,10 +64,98 @@ sources:
   - {name: Коммерсантъ (TG), type: tg, handle_or_domain: "@kommersant", owner: Коммерсантъ}
   - {name: Интерфакс (TG), type: tg, handle_or_domain: "@interfaxonline", owner: Интерфакс}
   - {name: Раньше всех. Ну почти, type: tg, handle_or_domain: "@bbbreaking", aliases: [Раньше всех]}
-  - {name: Mash, type: tg, handle_or_domain: "@breakingmash", aliases: [Mash]}
+  - {name: Mash, type: tg, handle_or_domain: "@breakingmash", owner: Mash, aliases: [Mash]}
   - {name: SHOT, type: tg, handle_or_domain: "@shot_shot", aliases: [SHOT, Shot]}
   - {name: Readovka, type: tg, handle_or_domain: "@readovkanews", aliases: [Readovka]}
   - {name: Минобороны России, type: official, handle_or_domain: "@mod_russia", owner: Минобороны России,
      aliases: [Минобороны, Министерство обороны, Министерства обороны, МО РФ]}
   - {name: МЧС России, type: official, handle_or_domain: "@mchs_official", owner: МЧС России,
      aliases: [МЧС]}
+
+  # ---- Расширение 12.10.2026 (ленты и каналы проверены; owner = бренд, холдинги уточнить) ----
+
+  # СМИ
+  - {name: Газета.Ru, type: media, handle_or_domain: gazeta.ru, owner: Газета.Ru,
+     rss: "https://www.gazeta.ru/export/rss/first.xml", aliases: [Газета.Ru, Газеты.Ru, Gazeta.ru]}
+  - {name: RT на русском, type: media, handle_or_domain: russian.rt.com, owner: RT,
+     rss: "https://russian.rt.com/rss", aliases: [RT]}
+  - {name: ВЗГЛЯД, type: media, handle_or_domain: vz.ru, owner: ВЗГЛЯД,
+     rss: "https://vz.ru/rss.xml", aliases: [ВЗГЛЯД.РУ, газета ВЗГЛЯД, газете ВЗГЛЯД, «ВЗГЛЯД»]}
+  - {name: Независимая газета, type: media, handle_or_domain: ng.ru, owner: Независимая газета,
+     rss: "https://www.ng.ru/rss/", aliases: [Независимая газета, Независимой газеты, «НГ»]}
+  - {name: Парламентская газета, type: media, handle_or_domain: pnp.ru, owner: Парламентская газета,
+     rss: "https://www.pnp.ru/rss/index.xml", aliases: [Парламентская газета, Парламентской газеты, Парламентской газете]}
+  - {name: Звезда, type: media, handle_or_domain: tvzvezda.ru, owner: Звезда,
+     rss: "https://tvzvezda.ru/export/rss.xml", aliases: [телеканал «Звезда», телеканалу «Звезда», «Звезда», «Звезды»]}
+  - {name: EADaily, type: agency, handle_or_domain: eadaily.com, owner: EADaily,
+     rss: "https://eadaily.com/ru/rss/index.xml", aliases: [EADaily]}
+  - {name: Life, type: media, handle_or_domain: life.ru, owner: Life,
+     rss: "https://life.ru/rss", aliases: [Life, Life.ru, Лайф]}
+  - {name: Агентство «Москва», type: agency, handle_or_domain: mskagency.ru, owner: Агентство «Москва»,
+     rss: "https://www.mskagency.ru/rss/index.rss", aliases: [агентство «Москва», агентству «Москва», агентства «Москва»]}
+  - {name: BFM, type: media, handle_or_domain: bfm.ru, owner: BFM,
+     rss: "https://www.bfm.ru/news.rss", aliases: [BFM, BFM.ru, Business FM]}
+  - {name: Рамблер/новости, type: media, handle_or_domain: news.rambler.ru, owner: Рамблер,
+     rss: "https://news.rambler.ru/rss/head/", aliases: [Рамблер, Rambler]}
+  - {name: Банки.ру, type: media, handle_or_domain: banki.ru, owner: Банки.ру,
+     rss: "https://www.banki.ru/xml/news.rss", aliases: [Банки.ру, Banki.ru]}
+  - {name: CNews, type: media, handle_or_domain: cnews.ru, owner: CNews,
+     rss: "https://www.cnews.ru/inc/rss/news.xml", aliases: [CNews]}
+  - {name: Frank Media, type: media, handle_or_domain: frankmedia.ru, owner: Frank Media,
+     rss: "https://frankmedia.ru/feed", aliases: [Frank Media]}
+  - {name: Новости VL.ru, type: media, handle_or_domain: newsvl.ru, owner: VL.ru,
+     rss: "https://www.newsvl.ru/rss/", aliases: [VL.ru, Новости VL.ru]}
+
+  # Официальные (сайты)
+  - {name: Совет Федерации, type: official, handle_or_domain: council.gov.ru, owner: Совет Федерации,
+     rss: "http://council.gov.ru/events/news/rss/", aliases: [Совет Федерации, Совета Федерации, Совфед, Совфеда]}
+  - {name: МИД России, type: official, handle_or_domain: mid.ru, owner: МИД России,
+     rss: "https://mid.ru/ru/rss.php", aliases: [МИД России, МИД РФ, Министерство иностранных дел, МИДа]}
+  - {name: Банк России, type: official, handle_or_domain: cbr.ru, owner: Банк России,
+     rss: "https://www.cbr.ru/rss/eventrss", aliases: [Банк России, Банка России, ЦБ РФ, Центробанк, Центробанка]}
+  - {name: МЧС России (сайт), type: official, handle_or_domain: mchs.gov.ru, owner: МЧС России,
+     rss: "https://mchs.gov.ru/deyatelnost/press-centr/novosti/rss"}
+  - {name: Мэрия Москвы (mos.ru), type: official, handle_or_domain: mos.ru, owner: Правительство Москвы,
+     rss: "https://www.mos.ru/rss", aliases: [мэрия Москвы, мэрии Москвы, портал mos.ru]}
+
+  # Telegram: каналы редакций (owner = как у сайта — одна группа)
+  - {name: Ведомости (TG), type: tg, handle_or_domain: "@vedomosti", owner: Ведомости}
+  - {name: Газета.Ru (TG), type: tg, handle_or_domain: "@gazetaru", owner: Газета.Ru}
+  - {name: ВЗГЛЯД (TG), type: tg, handle_or_domain: "@vzglyad_ru", owner: ВЗГЛЯД}
+  - {name: Forbes Russia (TG), type: tg, handle_or_domain: "@forbesrussia", owner: Forbes Россия}
+  - {name: АиФ (TG), type: tg, handle_or_domain: "@aifonline", owner: Аргументы и факты}
+  - {name: Вести (TG), type: tg, handle_or_domain: "@vestiru24", owner: ВГТРК, aliases: [«Вести», Вести.ру]}
+  - {name: URA.RU (TG), type: tg, handle_or_domain: "@ura_ru", owner: URA.RU}
+  - {name: Кремлёвский пул РИА, type: tg, handle_or_domain: "@kremlinpool_ria", owner: МИА «Россия сегодня»}
+  - {name: Mash (2), type: tg, handle_or_domain: "@mash", owner: Mash}
+
+  # Telegram: новостные и авторские каналы
+  - {name: Colonelcassad, type: tg, handle_or_domain: "@boris_rozhin", aliases: [Colonelcassad]}
+  - {name: Рыбарь, type: tg, handle_or_domain: "@rybar", aliases: [Рыбарь, «Рыбарь»]}
+  - {name: Русская Весна, type: tg, handle_or_domain: "@rusvesnasu", aliases: [Русская весна, «Русская весна»]}
+  - {name: Военная хроника, type: tg, handle_or_domain: "@Warhronika", aliases: [«Военная хроника»]}
+  - {name: СОЛОВЬЁВ, type: tg, handle_or_domain: "@SolovievLive"}
+  - {name: Baza, type: tg, handle_or_domain: "@bazabazon", aliases: [Baza]}
+  - {name: Осторожно, новости, type: tg, handle_or_domain: "@ostorozhno_novosti", aliases: [«Осторожно, новости»]}
+  - {name: Лентач, type: tg, handle_or_domain: "@lentachold", aliases: [Лентач]}
+  - {name: Новости Москвы, type: tg, handle_or_domain: "@moscowmap"}
+  - {name: Полит.Ру, type: tg, handle_or_domain: "@polit_ru", aliases: [Полит.ру, Полит.Ру]}
+  - {name: Банкста, type: tg, handle_or_domain: "@banksta", aliases: [Банкста]}
+  - {name: Банки, деньги, два офшора, type: tg, handle_or_domain: "@bankrollo"}
+  - {name: Сигналы РЦБ, type: tg, handle_or_domain: "@cbrstocks", aliases: [Сигналы РЦБ]}
+  - {name: Фонтанка (TG), type: tg, handle_or_domain: "@fontankaspb", aliases: [Фонтанка, «Фонтанка»]}
+  - {name: E1.RU (TG), type: tg, handle_or_domain: "@e1_news", aliases: [E1.RU, E1.ru]}
+  - {name: НГС (TG), type: tg, handle_or_domain: "@ngs_news", aliases: [НГС]}
+
+  # Telegram: официальные
+  - {name: МИД России (TG), type: official, handle_or_domain: "@mid_russia", owner: МИД России}
+  - {name: Следственный комитет, type: official, handle_or_domain: "@sledcom_press", owner: СК России,
+     aliases: [СК России, СКР, Следственный комитет, Следственного комитета, Следкома]}
+  - {name: Генпрокуратура России, type: official, handle_or_domain: "@genprocrf", owner: Генпрокуратура России,
+     aliases: [Генпрокуратура, Генпрокуратуры, Генеральная прокуратура, Генеральной прокуратуры]}
+  - {name: Дума ТВ, type: media, handle_or_domain: "@dumatv", owner: Госдума, aliases: [Дума ТВ]}
+  - {name: Вячеслав Володин, type: official, handle_or_domain: "@vv_volodin", owner: Госдума}
+  - {name: Сергей Собянин, type: official, handle_or_domain: "@mos_sobyanin", owner: Правительство Москвы}
+
+  # Не собираются из ЕС-прокси (превью скрыто): @izvestia, @rt_russian, @ria_novosti, @ntvnews, @kpru,
+  # @life, @znakcom, @business_gazeta, @rbc_breaking — добавить после Telethon или шлюза в Казахстане.

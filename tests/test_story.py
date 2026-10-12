@@ -226,3 +226,57 @@ async def test_official_short_text_close_in_time_is_core(session: AsyncSession) 
 
     membership = {c.document.id: c.membership for c in result.members}
     assert membership == {decree.id: "core", media.id: "probable"}
+
+
+async def test_short_official_seed_gets_core_from_tight_neighbours(session: AsyncSession) -> None:
+    kremlin = Source(type="official", name="Кремль", handle_or_domain="kremlin.ru")
+    session.add(kremlin)
+    await session.flush()
+    # Указ: к каждому пересказу ~0.83, а пересказы между собой очень похожи (ось 5).
+    decree = Document(
+        url="https://kremlin.ru/1",
+        text="Указ",
+        published_at=T0,
+        source_id=kremlin.id,
+        embedding=unit_mix((0, 1.0), (5, 0.67)),
+    )
+    session.add(decree)
+    retellings = [
+        Document(
+            url=f"https://m{i}.ru/1",
+            text="пересказ",
+            published_at=T0 + timedelta(minutes=50 + i),
+            embedding=unit_mix((5, 1.0), (0, 0.55), (20 + i, 0.1)),
+        )
+        for i in range(4)
+    ]
+    session.add_all(retellings)
+    await session.flush()
+
+    result = await build_story(session, decree, persist=False)
+
+    membership = {c.document.url: c.membership for c in result.members}
+    assert all(membership.get(d.url) == "core" for d in retellings)
+
+
+async def test_loose_topic_neighbours_do_not_form_core(session: AsyncSession) -> None:
+    seed = Document(
+        url="https://a.ru/1", text="удар", published_at=T0, embedding=unit_mix((0, 1.0), (1, 0.6))
+    )
+    session.add(seed)
+    # Соседи по теме: к посту ~0.83, но каждый про своё (разные оси) — между собой не похожи.
+    others = [
+        Document(
+            url=f"https://o{i}.ru/1",
+            text="другое",
+            published_at=T0 + timedelta(hours=1),
+            embedding=unit_mix((0, 1.0), (30 + i, 0.6)),
+        )
+        for i in range(4)
+    ]
+    session.add_all(others)
+    await session.flush()
+
+    result = await build_story(session, seed, persist=False)
+
+    assert all(c.membership == "probable" for c in result.members)

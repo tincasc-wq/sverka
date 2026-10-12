@@ -33,6 +33,7 @@ python -m app.cli stats              # метрики приёмки этапа 
 python -m app.check <url|doc:ID>     # история, граф, первоисточник (JSON); без эмбеддинга — в worker
 python -m app.cli ratings            # пересчёт рейтинга сейчас (воркер делает это в 03:00 МСК)
 python -m app.cli stats --since <ISO-время>  # поток публикаций с момента (суточный замер)
+python -m app.quality.consistency story:<id>|doc:<id> [--seeds N]  # проверка устойчивости (ТЗ, раздел 13)
 ```
 
 Админка: http://localhost:8000/admin — вход по `ADMIN_TOKEN` из `.env` (временно, до Telegram Login). API: `GET /api/sources/{домен|@канал}`, `POST /api/feedback`.
