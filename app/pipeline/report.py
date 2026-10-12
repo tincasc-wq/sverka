@@ -13,7 +13,7 @@ def _short(text: str | None, limit: int = 140) -> str | None:
 
 
 def _source_name(node: Node) -> str:
-    return node.source.name if node.source else node.group
+    return node.source.display_name if node.source else node.group
 
 
 def build_report(result: StoryResult, cfg: GraphConfig) -> dict:

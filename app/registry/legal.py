@@ -1,0 +1,22 @@
+"""Правовые пометки источников в выдаче (legal_flags в реестре).
+
+Пометка — факт о статусе источника в РФ, на рейтинг она не влияет. Порядок — от более
+строгого статуса к менее строгому; показывается одна, самая строгая.
+"""
+
+LABELS = {
+    "undesirable": "нежелательная организация в РФ",
+    "foreign_agent": "иностранный агент",
+    "blocked_in_ru": "заблокировано в РФ",
+}
+
+
+def legal_note(flags: dict | None) -> str | None:
+    for key, label in LABELS.items():
+        if (flags or {}).get(key):
+            return label
+    return None
+
+
+def display_name(name: str, note: str | None) -> str:
+    return f"{name} ({note})" if note else name

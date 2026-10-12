@@ -115,3 +115,15 @@ async def test_stance_for_foreign_document_is_rejected(session: AsyncSession) ->
             DecidedBy.ANALYST,
             stances={999999: Stance.SUPPORTS},
         )
+
+
+def test_legal_note_picks_strictest_status() -> None:
+    from app.registry.legal import display_name, legal_note
+
+    assert (
+        legal_note({"blocked_in_ru": "x", "undesirable": "y"}) == "нежелательная организация в РФ"
+    )
+    assert legal_note({"geo_blocks_ru": "x", "needs_legal_review": "y"}) is None
+    assert display_name("BBC News", legal_note({"blocked_in_ru": "x"})) == (
+        "BBC News (заблокировано в РФ)"
+    )

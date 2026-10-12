@@ -190,7 +190,7 @@ async def analyze(
             )
             report_claims[idx]["evidence"].append(
                 {
-                    "source": node.source.name if node.source else node.group,
+                    "source": node.source.display_name if node.source else node.group,
                     "url": node.url,
                     "stance": r.stance if flag else stance,
                     "quote": r.quote,

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.scoring import ScoringConfig, get_scoring
 from app.models import Derivation, Document, Source, Story, StoryDocument
 from app.pipeline.graph import GraphResult, Node, SourceInfo, build_graph
+from app.registry.legal import legal_note
 
 
 class SeedNotEmbedded(Exception):
@@ -186,6 +187,7 @@ def _source_info(source: Source) -> SourceInfo:
         owner=source.owner,
         aliases=tuple(source.aliases or ()),
         tracked_since=source.created_at,
+        legal_note=legal_note(source.legal_flags),
     )
 
 

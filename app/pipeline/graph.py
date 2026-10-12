@@ -27,6 +27,11 @@ class SourceInfo:
     owner: str | None = None
     aliases: tuple[str, ...] = ()
     tracked_since: datetime | None = None  # с какого момента сборщик следит за источником
+    legal_note: str | None = None  # «заблокировано в РФ» и т.п. — показывается в выдаче
+
+    @property
+    def display_name(self) -> str:
+        return f"{self.name} ({self.legal_note})" if self.legal_note else self.name
 
     @property
     def group(self) -> str:

@@ -242,3 +242,11 @@ def test_english_attribution_phrases() -> None:
     assert attributed_sources(ru, [*SOURCES, nyt], 60) == {nyt.id}
     post = node(1, MASH, 0, "The strike killed 12 people, according to Reuters.")
     assert build_graph([post], SOURCES, CFG).external_attributions == {1: ["Reuters"]}
+
+
+def test_blocked_source_is_labelled_in_report() -> None:
+    from app.pipeline.report import build_report  # noqa: F401 — имя берётся из display_name
+
+    bbc = SourceInfo(9, "BBC News", "bbc.com", "media", legal_note="заблокировано в РФ")
+    assert bbc.display_name == "BBC News (заблокировано в РФ)"
+    assert TASS.display_name == "ТАСС"
