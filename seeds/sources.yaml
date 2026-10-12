@@ -159,3 +159,157 @@ sources:
 
   # Не собираются из ЕС-прокси (превью скрыто): @izvestia, @rt_russian, @ria_novosti, @ntvnews, @kpru,
   # @life, @znakcom, @business_gazeta, @rbc_breaking — добавить после Telethon или шлюза в Казахстане.
+
+  # ---------------------------------------------------------------------------------------
+  # Англоязычные источники (13.10.2026). Ленты проверены пробой: напрямую из РФ и через шлюз.
+  # via_gateway: true — из РФ не открываются (таймаут: блокировка) или сайт не пускает
+  # российские адреса (403). legal_flags — факты наблюдения, а не юридическая оценка.
+  # ВЛАДЕЛЬЦУ: до продакшена сверить ВСЕ источники с перечнями Минюста (нежелательные
+  # организации, иноагенты) — распространение материалов нежелательной организации наказуемо.
+  # Особенно: украинские издания (Kyiv Independent, Kyiv Post, Украинская правда), DW.
+  # Не добавлены: AP, Reuters (нет публичных лент), CNN, WSJ, Xinhua (ленты заброшены),
+  # RT (недоступен), ООН, НАТО, Госдеп, gov.uk (ленты убраны или закрыты), Kyodo, Arab News,
+  # Euractiv, The Independent, CBC (403/429/таймаут).
+
+  # Информагентства
+  - {name: TASS (English), type: agency, handle_or_domain: tass.com, owner: ТАСС, lang: en,
+     rss: "https://tass.com/rss/v2.xml", aliases: [TASS]}
+  - {name: Anadolu, type: agency, handle_or_domain: aa.com.tr, owner: Anadolu, lang: en,
+     rss: "https://www.aa.com.tr/en/rss/default?cat=world", aliases: [Anadolu, Анадолу]}
+  - {name: Yonhap, type: agency, handle_or_domain: en.yna.co.kr, owner: Yonhap, lang: en,
+     rss: "https://en.yna.co.kr/RSS/news.xml", aliases: [Yonhap, Рёнхап, Йонхап]}
+  - {name: UPI, type: agency, handle_or_domain: upi.com, owner: UPI, lang: en,
+     rss: "https://rss.upi.com/news/top_news.rss", aliases: [UPI]}
+
+  # Официальные
+  - {name: Kremlin (English), type: official, handle_or_domain: en.kremlin.ru, owner: Администрация Президента,
+     lang: en, rss: "http://en.kremlin.ru/events/all/feed"}
+  - {name: White House, type: official, handle_or_domain: whitehouse.gov, owner: Администрация США,
+     lang: en, rss: "https://www.whitehouse.gov/news/feed/", aliases: [White House]}
+  - {name: US Department of Defense, type: official, handle_or_domain: defense.gov, owner: Администрация США,
+     lang: en, via_gateway: true, legal_flags: {geo_blocks_ru: "403 для российских адресов, 12.10.2026"},
+     rss: "https://www.defense.gov/DesktopModules/ArticleCS/RSS.ashx?max=10&ContentType=1&Site=945",
+     aliases: [Pentagon, Пентагон, Пентагона, Department of Defense]}
+  - {name: European Commission, type: official, handle_or_domain: ec.europa.eu, owner: Еврокомиссия,
+     lang: en, rss: "https://ec.europa.eu/commission/presscorner/api/rss?language=en",
+     aliases: [European Commission, Еврокомиссия, Еврокомиссии, Еврокомиссией]}
+  - {name: IAEA, type: official, handle_or_domain: iaea.org, owner: МАГАТЭ, lang: en,
+     rss: "https://www.iaea.org/feeds/topnews", aliases: [IAEA, МАГАТЭ]}
+
+  # США
+  - {name: The New York Times, type: media, handle_or_domain: nytimes.com, owner: The New York Times Company,
+     lang: en, rss: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+     aliases: [The New York Times, New York Times, NYT, Нью-Йорк таймс]}
+  - {name: The Washington Post, type: media, handle_or_domain: washingtonpost.com, owner: Nash Holdings,
+     lang: en, rss: "https://feeds.washingtonpost.com/rss/world",
+     aliases: [The Washington Post, Washington Post, Вашингтон пост]}
+  - {name: Bloomberg, type: media, handle_or_domain: bloomberg.com, owner: Bloomberg L.P., lang: en,
+     rss: "https://feeds.bloomberg.com/politics/news.rss", aliases: [Bloomberg, Блумберг]}
+  - {name: Fox News, type: media, handle_or_domain: foxnews.com, owner: Fox Corporation, lang: en,
+     rss: "https://moxie.foxnews.com/google-publisher/world.xml", aliases: [Fox News, Фокс ньюс]}
+  - {name: NBC News, type: media, handle_or_domain: nbcnews.com, owner: NBCUniversal, lang: en,
+     rss: "https://feeds.nbcnews.com/nbcnews/public/world", aliases: [NBC News, NBC]}
+  - {name: CNBC, type: media, handle_or_domain: cnbc.com, owner: NBCUniversal, lang: en,
+     rss: "https://www.cnbc.com/id/100727362/device/rss/rss.html", aliases: [CNBC]}
+  - {name: CBS News, type: media, handle_or_domain: cbsnews.com, owner: Paramount, lang: en,
+     rss: "https://www.cbsnews.com/latest/rss/world", aliases: [CBS News, CBS]}
+  - {name: ABC News, type: media, handle_or_domain: abcnews.go.com, owner: Disney, lang: en,
+     rss: "https://abcnews.go.com/abcnews/internationalheadlines", aliases: [ABC News]}
+  - {name: NPR, type: media, handle_or_domain: npr.org, owner: NPR, lang: en,
+     rss: "https://feeds.npr.org/1004/rss.xml", aliases: [NPR]}
+  - {name: Politico, type: media, handle_or_domain: politico.com, owner: Axel Springer, lang: en,
+     via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026"},
+     rss: "https://rss.politico.com/politics-news.xml", aliases: [Politico]}
+  - {name: Axios, type: media, handle_or_domain: axios.com, owner: Cox Enterprises, lang: en,
+     via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026"},
+     rss: "https://api.axios.com/feed/", aliases: [Axios]}
+  - {name: The Hill, type: media, handle_or_domain: thehill.com, owner: Nexstar, lang: en,
+     rss: "https://thehill.com/news/feed/", aliases: [The Hill]}
+  - {name: Newsweek, type: media, handle_or_domain: newsweek.com, owner: Newsweek, lang: en,
+     via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026"},
+     rss: "https://www.newsweek.com/rss", aliases: [Newsweek, Ньюсуик]}
+
+  # Великобритания и Ирландия
+  - {name: BBC News, type: media, handle_or_domain: bbc.com, owner: BBC, lang: en,
+     via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026"},
+     rss: "https://feeds.bbci.co.uk/news/world/rss.xml", aliases: [BBC, Би-би-си]}
+  - {name: The Guardian, type: media, handle_or_domain: theguardian.com, owner: Guardian Media Group,
+     lang: en, rss: "https://www.theguardian.com/world/rss", aliases: [The Guardian, Guardian, Гардиан]}
+  - {name: Financial Times, type: media, handle_or_domain: ft.com, owner: Nikkei, lang: en,
+     rss: "https://www.ft.com/world?format=rss", aliases: [Financial Times, Файнэншл таймс, FT]}
+  - {name: The Telegraph, type: media, handle_or_domain: telegraph.co.uk, owner: Telegraph Media Group,
+     lang: en, via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026"},
+     rss: "https://www.telegraph.co.uk/rss.xml", aliases: [The Telegraph, Telegraph, Daily Telegraph]}
+  - {name: Sky News, type: media, handle_or_domain: news.sky.com, owner: Comcast, lang: en,
+     rss: "https://feeds.skynews.com/feeds/rss/world.xml", aliases: [Sky News]}
+  - {name: Daily Mail, type: media, handle_or_domain: dailymail.co.uk, owner: DMG Media, lang: en,
+     via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026"},
+     rss: "https://www.dailymail.co.uk/news/worldnews/index.rss", aliases: [Daily Mail]}
+  - {name: The Irish Times, type: media, handle_or_domain: irishtimes.com, owner: Irish Times Trust,
+     lang: en, via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026"},
+     rss: "https://www.irishtimes.com/arc/outboundfeeds/feed-world/?outputType=xml",
+     aliases: [The Irish Times, Irish Times]}
+
+  # Европа
+  - {name: Politico Europe, type: media, handle_or_domain: politico.eu, owner: Axel Springer, lang: en,
+     via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026"},
+     rss: "https://www.politico.eu/feed/", aliases: [Politico Europe]}
+  - {name: France 24, type: media, handle_or_domain: france24.com, owner: France Medias Monde, lang: en,
+     rss: "https://www.france24.com/en/rss", aliases: [France 24, France24]}
+  - {name: Le Monde (English), type: media, handle_or_domain: lemonde.fr, owner: Le Monde, lang: en,
+     via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026"},
+     rss: "https://www.lemonde.fr/en/rss/une.xml", aliases: [Le Monde]}
+  - {name: Deutsche Welle, type: media, handle_or_domain: dw.com, owner: Deutsche Welle, lang: en,
+     via_gateway: true,
+     legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026", needs_legal_review: "сверить с перечнями Минюста"},
+     rss: "https://rss.dw.com/xml/rss-en-all", aliases: [Deutsche Welle, DW]}
+  - {name: Euronews, type: media, handle_or_domain: euronews.com, owner: Euronews, lang: en,
+     via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026"},
+     rss: "https://www.euronews.com/rss?level=theme&name=news", aliases: [Euronews, Евроньюс]}
+
+  # Украина
+  - {name: The Kyiv Independent, type: media, handle_or_domain: kyivindependent.com,
+     owner: The Kyiv Independent, lang: en, via_gateway: true,
+     legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026", needs_legal_review: "сверить с перечнями Минюста"},
+     rss: "https://kyivindependent.com/news-archive/rss/", aliases: [The Kyiv Independent, Kyiv Independent]}
+  - {name: Kyiv Post, type: media, handle_or_domain: kyivpost.com, owner: Kyiv Post, lang: en,
+     via_gateway: true,
+     legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026", needs_legal_review: "сверить с перечнями Минюста"},
+     rss: "https://www.kyivpost.com/feed", aliases: [Kyiv Post]}
+  - {name: Ukrainska Pravda (English), type: media, handle_or_domain: pravda.com.ua,
+     owner: Украинская правда, lang: en, via_gateway: true,
+     legal_flags: {blocked_in_ru: "таймаут из РФ, 12.10.2026", needs_legal_review: "сверить с перечнями Минюста"},
+     rss: "https://www.pravda.com.ua/eng/rss/", aliases: [Ukrainska Pravda, Украинская правда]}
+
+  # Ближний Восток
+  - {name: Al Jazeera, type: media, handle_or_domain: aljazeera.com, owner: Al Jazeera Media Network,
+     lang: en, rss: "https://www.aljazeera.com/xml/rss/all.xml", aliases: [Al Jazeera, Аль-Джазира]}
+  - {name: The Times of Israel, type: media, handle_or_domain: timesofisrael.com, owner: The Times of Israel,
+     lang: en, via_gateway: true, legal_flags: {geo_blocks_ru: "403 для российских адресов, 12.10.2026"},
+     rss: "https://www.timesofisrael.com/feed/", aliases: [The Times of Israel, Times of Israel]}
+  - {name: The Jerusalem Post, type: media, handle_or_domain: jpost.com, owner: The Jerusalem Post,
+     lang: en, rss: "https://www.jpost.com/rss/rssfeedsfrontpage.aspx",
+     aliases: [The Jerusalem Post, Jerusalem Post]}
+  - {name: Tehran Times, type: media, handle_or_domain: tehrantimes.com, owner: Islamic Propagation Organization,
+     lang: en, rss: "https://www.tehrantimes.com/rss", aliases: [Tehran Times]}
+
+  # Азия и Океания
+  - {name: South China Morning Post, type: media, handle_or_domain: scmp.com, owner: Alibaba, lang: en,
+     rss: "https://www.scmp.com/rss/91/feed", aliases: [South China Morning Post, SCMP]}
+  - {name: CGTN, type: media, handle_or_domain: cgtn.com, owner: China Media Group, lang: en,
+     rss: "https://www.cgtn.com/subscribe/rss/section/world.xml", aliases: [CGTN]}
+  - {name: The Times of India, type: media, handle_or_domain: timesofindia.indiatimes.com,
+     owner: Bennett Coleman, lang: en, rss: "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
+     aliases: [The Times of India, Times of India]}
+  - {name: The Hindu, type: media, handle_or_domain: thehindu.com, owner: The Hindu Group, lang: en,
+     rss: "https://www.thehindu.com/news/international/feeder/default.rss", aliases: [The Hindu]}
+  - {name: Dawn, type: media, handle_or_domain: dawn.com, owner: Dawn Media Group, lang: en,
+     rss: "https://www.dawn.com/feeds/home"}
+  - {name: The Japan Times, type: media, handle_or_domain: japantimes.co.jp, owner: The Japan Times,
+     lang: en, rss: "https://www.japantimes.co.jp/feed/", aliases: [The Japan Times, Japan Times]}
+  - {name: The Straits Times, type: media, handle_or_domain: straitstimes.com, owner: SPH Media, lang: en,
+     rss: "https://www.straitstimes.com/news/world/rss.xml", aliases: [The Straits Times, Straits Times]}
+  - {name: Bangkok Post, type: media, handle_or_domain: bangkokpost.com, owner: Post Publishing, lang: en,
+     rss: "https://www.bangkokpost.com/rss/data/world.xml", aliases: [Bangkok Post]}
+  - {name: ABC Australia, type: media, handle_or_domain: abc.net.au, owner: ABC Australia, lang: en,
+     rss: "https://www.abc.net.au/news/feed/51120/rss.xml", aliases: [ABC Australia]}

@@ -231,3 +231,14 @@ def test_four_word_names_and_unknown_channels_are_named() -> None:
 
     assert post.group == "@Warhronika"
     assert graph.external_attributions == {1: ["The Wall Street Journal"]}
+
+
+def test_english_attribution_phrases() -> None:
+    nyt = SourceInfo(8, "The New York Times", "nytimes.com", "media", aliases=("New York Times",))
+    text = "Two officials were detained, according to The New York Times, citing police sources."
+    ru = "Как пишет The New York Times, задержаны двое чиновников."
+
+    assert attributed_sources(text, [*SOURCES, nyt], 60) == {nyt.id}
+    assert attributed_sources(ru, [*SOURCES, nyt], 60) == {nyt.id}
+    post = node(1, MASH, 0, "The strike killed 12 people, according to Reuters.")
+    assert build_graph([post], SOURCES, CFG).external_attributions == {1: ["Reuters"]}

@@ -100,6 +100,8 @@ def score_news(
         return NewsScore(None, "no_checkable_claims", scores)
     if not any_independent and hours_since_publication < cfg.too_early_hours:
         return NewsScore(None, "too_early", scores)
+    if not any_independent:
+        # Число здесь отражало бы только репутацию первоисточника — не показываем его.
+        return NewsScore(None, "no_independent", scores)
     index = round(sum(i * w for i, w in weighted) / sum(w for _, w in weighted), 1)
-    status = status_for(index, cfg) if any_independent else "not_confirmed"
-    return NewsScore(index, status, scores)
+    return NewsScore(index, status_for(index, cfg), scores)

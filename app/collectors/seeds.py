@@ -20,6 +20,9 @@ class SeedSource(BaseModel):
     affiliation: str | None = None
     aliases: list[str] = []
     is_tracked: bool = True
+    lang: str = "ru"
+    via_gateway: bool = False
+    legal_flags: dict[str, str] = {}
 
 
 def read_seeds(path: Path) -> list[SeedSource]:
@@ -47,5 +50,8 @@ async def load_seeds(session: AsyncSession, seeds: list[SeedSource]) -> tuple[in
         source.affiliation = seed.affiliation
         source.aliases = seed.aliases
         source.is_tracked = seed.is_tracked
+        source.lang = seed.lang
+        source.via_gateway = seed.via_gateway
+        source.legal_flags = seed.legal_flags
     await session.commit()
     return added, updated

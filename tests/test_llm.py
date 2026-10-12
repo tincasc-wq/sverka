@@ -187,7 +187,7 @@ def test_news_index_statuses() -> None:
     assert score_news([[]], [False], 50, 1, CFG).status == "no_checkable_claims"
     assert score_news([[]], [True], 50, 1, CFG).status == "too_early"
     late = score_news([[]], [True], 50, 48, CFG)
-    assert late.index == 50 and late.status == "not_confirmed"  # нет ни одного подтверждения
+    assert late.index is None and late.status == "no_independent"
     trusted = score_claim([], 90, CFG)
     assert trusted.index > 75 and trusted.status == "not_confirmed"
     # Главное утверждение весит вдвое: (75·2 + 50) / 3
@@ -298,3 +298,23 @@ async def test_check_survives_unavailable_llm(session: AsyncSession) -> None:
 
     assert check.status == "done"
     assert "error" in report["analysis"] and report["publications"] == 1
+
+
+async def test_old_news_before_full_collection_is_archive_gap(session: AsyncSession) -> None:
+    sources = [Source(type="media", name=f"s{i}", handle_or_domain=f"s{i}.ru") for i in range(4)]
+    session.add_all(sources)
+    await session.flush()
+    seed = await _doc(session, "https://s0.ru/old", 1.0, -60 * 24, sources[0], "Горит склад")
+    for s in sources[1:]:  # остальные источники пишут только сегодня
+        await _doc(session, f"https://{s.handle_or_domain}/new", 0.0, 0, s, "Другое")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "<claims>" in json.loads(request.content)["messages"][1]["content"]:
+            return answer({"results": [{"claim": 1, "stance": "unrelated"}]})
+        return fake_model(request)
+
+    check = await run_check(session, f"doc:{seed.id}", FakeEmbedder(), llm=client(handler))
+    analysis = json.loads(check.summary)["analysis"]
+
+    assert analysis["status"] == "archive_gap" and analysis["index"] is None
+    assert "1 из 4 источников" in analysis["status_text"]

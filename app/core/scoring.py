@@ -74,6 +74,10 @@ class IndexConfig(BaseModel):
         "not_confirmed": 25,
     }
     max_verify_documents: int = 12  # со сколькими публикациями истории сверять утверждения
+    # Полнота архива на момент новости: доля источников, от которых есть публикации в окне
+    # ±coverage_window_hours, среди источников, активных за последние сутки.
+    coverage_window_hours: float = 6
+    coverage_min_share: float = 0.5
 
 
 class ScoringConfig(BaseModel):

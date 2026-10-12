@@ -3,7 +3,7 @@
 Результат пишется в claims / claim_evidence и возвращается секцией отчёта.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +25,8 @@ STATUS_RU = {
     "refuted": "есть опровержения",
     "too_early": "слишком рано: независимых сообщений ещё нет",
     "no_checkable_claims": "нет проверяемых утверждений",
+    "no_independent": "не подтверждено: независимых сообщений в архиве нет",
+    "archive_gap": "мало данных: архив за это время неполный",
 }
 
 
@@ -64,6 +66,29 @@ async def latest_ratings(session: AsyncSession, source_ids: set[int]) -> dict[in
     )
     rows = await session.scalars(select(SourceScore).where(SourceScore.id.in_(latest)))
     return {s.source_id: s.score for s in rows}
+
+
+async def archive_coverage(
+    session: AsyncSession, moment: datetime, window_hours: float
+) -> tuple[int, int]:
+    """Сколько источников писали около moment и сколько активно сейчас (за сутки).
+
+    Сбор по всем источникам идёт с какого-то дня; для более ранних новостей в архиве только
+    те, что ещё оставались в лентах. «Нет подтверждений» тогда значит «нет данных».
+    """
+    published = func.coalesce(Document.published_at, Document.first_seen_at)
+    window = timedelta(hours=window_hours)
+    around = await session.scalar(
+        select(func.count(func.distinct(Document.source_id))).where(
+            published.between(moment - window, moment + window)
+        )
+    )
+    active = await session.scalar(
+        select(func.count(func.distinct(Document.source_id))).where(
+            Document.first_seen_at >= datetime.now(UTC) - timedelta(days=1)
+        )
+    )
+    return int(around or 0), int(active or 0)
 
 
 async def analyze(
@@ -185,14 +210,25 @@ async def analyze(
         rc["status"] = score.status
         rc["independent_groups"] = len(score.independent_groups)
 
+    status, status_text = news.status, STATUS_RU.get(news.status, news.status)
+    coverage = None
+    if news.status in ("no_independent", "not_confirmed", "too_early"):
+        icfg = cfg.confirmation_index
+        around, active = await archive_coverage(session, seed_time, icfg.coverage_window_hours)
+        coverage = {"sources_around": around, "sources_active": active}
+        if active and around < active * icfg.coverage_min_share:
+            status = "archive_gap"
+            status_text = f"{STATUS_RU[status]} ({around} из {active} источников)"
+
     cost = await session.scalar(
         select(func.coalesce(func.sum(LlmCall.cost_usd), 0)).where(LlmCall.check_id == check_id)
     )
     await session.flush()
     return {
         "index": news.index,
-        "status": news.status,
-        "status_text": STATUS_RU.get(news.status, news.status),
+        "status": status,
+        "status_text": status_text,
+        "coverage": coverage,
         "claims": report_claims,
         "verified_documents": len(verified),
         "rejected_quotes": rejected,

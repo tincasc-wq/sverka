@@ -112,7 +112,9 @@ class GraphResult:
 _ATTRIBUTION = re.compile(
     r"по данным|по информации|по сведениям|со ссылкой на|ссылаясь на|"
     r"сообща\w*|сообщил\w*|переда[её]т\w*|передал\w*|пиш\w+|пишет|информиру\w*|"
-    r"рассказал\w*|выяснил\w*|узнал\w*|уточнил\w*|заявил\w*|утвержда\w*",
+    r"рассказал\w*|выяснил\w*|узнал\w*|уточнил\w*|заявил\w*|утвержда\w*|"
+    # англоязычные: «according to Reuters», «citing Bloomberg», «reported by CNN», «told Axios»
+    r"according to|citing|cited by|reported\w*|reports|told|quoted by",
     re.IGNORECASE,
 )
 
@@ -135,7 +137,7 @@ def cites_official_document(text: str) -> bool:
 # Формула атрибуции — без учёта регистра, имя источника — с заглавной буквы.
 _NAMED_ATTRIBUTION = re.compile(
     r"(?i:сообща\w*|пиш\w+|по данным|по информации|со ссылкой на|ссылаясь на|"
-    r"переда[её]т\w*|передал\w*)\s+"
+    r"переда[её]т\w*|передал\w*|according to|citing|reported by|told)\s+"
     r"(?:(?i:газет|издани|агентств|телеграм-канал|канал|портал|сайт)\w*\s+)?[«\"]?"
     # Имя — до четырёх слов с заглавной через пробел (The Wall Street Journal);
     # перевод строки имя обрывает.

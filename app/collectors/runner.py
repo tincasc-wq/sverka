@@ -117,13 +117,33 @@ async def poll_sources(
 
 
 async def poll_rss(sessionmaker, client: httpx.AsyncClient | None = None) -> Counter:
-    return await poll_sources(
+    settings = get_settings()
+    total = await poll_sources(
         sessionmaker,
-        Source.feed_url.is_not(None),
+        Source.feed_url.is_not(None) & Source.via_gateway.is_(False),
         fetch_rss_source,
-        full_text=get_settings().fetch_full_text,
+        full_text=settings.fetch_full_text,
         client=client,
     )
+    # Источники, недоступные из РФ (или не пускающие российские адреса), — через шлюз.
+    proxy = settings.collector_proxy or settings.telegram_proxy
+    if client is None and not proxy:
+        return total
+    gateway = client or make_client(proxy=proxy)
+    try:
+        total.update(
+            await poll_sources(
+                sessionmaker,
+                Source.feed_url.is_not(None) & Source.via_gateway.is_(True),
+                fetch_rss_source,
+                full_text=settings.fetch_full_text,
+                client=gateway,
+            )
+        )
+    finally:
+        if client is None:
+            await gateway.aclose()
+    return total
 
 
 async def poll_telegram(sessionmaker, client: httpx.AsyncClient | None = None) -> Counter:
