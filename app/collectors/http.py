@@ -1,3 +1,7 @@
+import asyncio
+import ipaddress
+import socket
+
 import httpx
 
 from app.core.config import get_settings
@@ -5,13 +9,36 @@ from app.core.config import get_settings
 MAX_BODY_BYTES = 5_000_000
 
 
-def make_client(proxy: str | None = None) -> httpx.AsyncClient:
+class UnsafeUrl(ValueError):
+    """Ссылка ведёт на внутренний адрес — защита от SSRF (раздел 9)."""
+
+
+async def assert_public_host(host: str) -> None:
+    try:
+        infos = await asyncio.get_running_loop().getaddrinfo(host, None)
+    except socket.gaierror as exc:
+        raise UnsafeUrl(f"cannot resolve {host}") from exc
+    for *_, sockaddr in infos:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if not ip.is_global:
+            raise UnsafeUrl(f"{host} resolves to non-public address {ip}")
+
+
+async def _guard_request(request: httpx.Request) -> None:
+    if request.url.scheme not in ("http", "https"):
+        raise UnsafeUrl(f"scheme not allowed: {request.url.scheme}")
+    await assert_public_host(request.url.host)
+
+
+def make_client(proxy: str | None = None, *, public_only: bool = False) -> httpx.AsyncClient:
+    """public_only — для ссылок от пользователей: каждый запрос, включая редиректы, проверяется."""
     settings = get_settings()
     return httpx.AsyncClient(
         timeout=settings.http_timeout_s,
         follow_redirects=True,
         headers={"User-Agent": settings.user_agent},
         proxy=proxy or None,
+        event_hooks={"request": [_guard_request]} if public_only else None,
     )
 
 

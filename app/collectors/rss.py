@@ -2,7 +2,9 @@
 
 import asyncio
 import calendar
+import re
 from datetime import UTC, datetime
+from html import unescape
 
 import feedparser
 import httpx
@@ -50,6 +52,17 @@ def extract_article_text(html: bytes | str, url: str) -> str | None:
     return trafilatura.extract(html, url=url, include_comments=False, include_tables=False)
 
 
+_REF = re.compile(r'<ref target="([^"]+)"')
+
+
+def extract_article_links(html: bytes | str, url: str) -> list[str]:
+    """Ссылки из тела статьи (без меню и подвала) — по ним строятся рёбра explicit_link."""
+    xml = trafilatura.extract(
+        html, url=url, output_format="xml", include_links=True, include_comments=False
+    )
+    return [unescape(m) for m in _REF.findall(xml or "")]
+
+
 async def enrich_full_text(client: httpx.AsyncClient, docs: list[DocumentIn]) -> None:
     """Подменяет аннотацию из ленты полным текстом статьи, если его удалось извлечь."""
     semaphore = asyncio.Semaphore(get_settings().collector_concurrency)
@@ -63,5 +76,6 @@ async def enrich_full_text(client: httpx.AsyncClient, docs: list[DocumentIn]) ->
             text = await asyncio.to_thread(extract_article_text, html, doc.url)
             if text and len(text) > len(doc.text or ""):
                 doc.text = text
+                doc.links = await asyncio.to_thread(extract_article_links, html, doc.url)
 
     await asyncio.gather(*(one(d) for d in docs))

@@ -12,6 +12,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import EMBEDDING_DIM, Base, enum_check
@@ -50,6 +51,8 @@ class Document(Base):
         DateTime(timezone=True), server_default=func.now(), index=True
     )
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM))
+    # Исходящие ссылки на другие сайты и каналы (нормализованные) — рёбра explicit_link (6.3).
+    links: Mapped[list[str]] = mapped_column(JSONB, server_default="[]", default=list)
     content_hash: Mapped[str | None] = mapped_column(String(64), index=True)
     simhash: Mapped[int | None] = mapped_column(BigInteger, index=True)
 

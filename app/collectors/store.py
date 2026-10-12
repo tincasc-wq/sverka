@@ -1,6 +1,6 @@
 """Запись собранных публикаций в архив с дедупликацией и учётом правок (ФТ-3.2, ФТ-3.3)."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 
@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.collectors.fingerprint import content_hash, simhash
-from app.collectors.urls import normalize_url
+from app.collectors.urls import domain_of, normalize_url
 from app.models import Document, DocumentVersion
 from app.models.enums import ChangeType
 
@@ -22,6 +22,7 @@ class DocumentIn:
     text: str | None = None
     published_at: datetime | None = None
     lang: str | None = "ru"
+    links: list[str] = field(default_factory=list)
 
 
 class SaveResult(StrEnum):
@@ -33,6 +34,22 @@ class SaveResult(StrEnum):
 
 def _body(doc: DocumentIn) -> str:
     return "\n".join(part for part in (doc.title, doc.text) if part)
+
+
+def external_links(doc_url: str, links: list[str]) -> list[str]:
+    """Ссылки на другие сайты и каналы; внутренние («читайте также») для графа — шум."""
+    own = domain_of(doc_url)
+    own_channel = doc_url.split("/")[3] if own == "t.me" else None
+    result: list[str] = []
+    for link in links:
+        if not link.startswith(("http://", "https://")):
+            continue
+        url = normalize_url(link)
+        if domain_of(url) == own and (own != "t.me" or url.split("/")[3] == own_channel):
+            continue
+        if url not in result:
+            result.append(url)
+    return result
 
 
 async def save_document(session: AsyncSession, doc: DocumentIn) -> SaveResult:
@@ -76,6 +93,7 @@ async def save_document(session: AsyncSession, doc: DocumentIn) -> SaveResult:
             text=doc.text,
             lang=doc.lang,
             published_at=doc.published_at,
+            links=external_links(url, doc.links),
             content_hash=chash,
             simhash=simhash(body) if body else None,
         )

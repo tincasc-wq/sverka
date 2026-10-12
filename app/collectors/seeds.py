@@ -18,6 +18,7 @@ class SeedSource(BaseModel):
     rss: str | None = None
     owner: str | None = None
     affiliation: str | None = None
+    aliases: list[str] = []
     is_tracked: bool = True
 
 
@@ -44,6 +45,7 @@ async def load_seeds(session: AsyncSession, seeds: list[SeedSource]) -> tuple[in
         source.feed_url = seed.rss
         source.owner = seed.owner
         source.affiliation = seed.affiliation
+        source.aliases = seed.aliases
         source.is_tracked = seed.is_tracked
     await session.commit()
     return added, updated

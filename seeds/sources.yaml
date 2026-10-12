@@ -3,46 +3,71 @@
 # ЧЕРНОВИК для разработки (12.10.2026): RSS-ленты проверены — отвечают из локальной сети.
 # Перекос в сторону крупных федеральных СМИ — это технический набор, а не итоговый реестр.
 # Владельцу проекта нужно: добавить региональные, отраслевые и независимые источники,
-# заполнить owner/affiliation (от этого зависит подсчёт независимых подтверждений) и решить
-# по зарубежным русскоязычным изданиям и ресурсам со статусом иноагента/блокировки.
+# проверить owner (группа владения: сайт и TG-канал одной редакции, издания одного холдинга —
+# одно подтверждение, 6.3) и решить по зарубежным русскоязычным изданиям и ресурсам
+# со статусом иноагента/блокировки.
 #
 # type: media | tg | vk | official | agency
 # rss — для media/official/agency; для tg — handle_or_domain вида @канал.
+# aliases — как источник называют в чужих текстах («по данным ТАСС», «сообщают „Известия“»),
+#   включая падежные формы. Используются для рёбер attribution в графе заимствований.
 
 sources:
   # Информагентства
-  - {name: ТАСС, type: agency, handle_or_domain: tass.ru, rss: "https://tass.ru/rss/v2.xml"}
-  - {name: РИА Новости, type: agency, handle_or_domain: ria.ru, rss: "https://ria.ru/export/rss2/archive/index.xml"}
-  - {name: Интерфакс, type: agency, handle_or_domain: interfax.ru, rss: "https://www.interfax.ru/rss.asp"}
-  - {name: Regnum, type: agency, handle_or_domain: regnum.ru, rss: "https://regnum.ru/rss"}
+  - {name: ТАСС, type: agency, handle_or_domain: tass.ru, owner: ТАСС,
+     rss: "https://tass.ru/rss/v2.xml", aliases: [ТАСС]}
+  - {name: РИА Новости, type: agency, handle_or_domain: ria.ru, owner: МИА «Россия сегодня»,
+     rss: "https://ria.ru/export/rss2/archive/index.xml", aliases: [РИА Новости, РИА]}
+  - {name: Интерфакс, type: agency, handle_or_domain: interfax.ru, owner: Интерфакс,
+     rss: "https://www.interfax.ru/rss.asp", aliases: [Интерфакс, Интерфакса, Интерфаксу]}
+  - {name: Regnum, type: agency, handle_or_domain: regnum.ru, owner: Regnum,
+     rss: "https://regnum.ru/rss", aliases: [Regnum, Регнум, ИА Регнум]}
 
   # Официальные
-  - {name: Президент России, type: official, handle_or_domain: kremlin.ru, rss: "http://kremlin.ru/events/all/feed"}
-  - {name: Правительство России, type: official, handle_or_domain: government.ru, rss: "http://government.ru/all/rss/"}
+  - {name: Президент России, type: official, handle_or_domain: kremlin.ru, owner: Администрация Президента,
+     rss: "http://kremlin.ru/events/all/feed", aliases: [Кремль, Кремля, пресс-служба Кремля, сайт Кремля]}
+  - {name: Правительство России, type: official, handle_or_domain: government.ru, owner: Правительство РФ,
+     rss: "http://government.ru/all/rss/", aliases: [правительства РФ, правительство РФ, кабмина]}
 
   # СМИ
-  - {name: РБК, type: media, handle_or_domain: rbc.ru, rss: "https://rssexport.rbc.ru/rbcnews/news/30/full.rss"}
-  - {name: Коммерсантъ, type: media, handle_or_domain: kommersant.ru, rss: "https://www.kommersant.ru/RSS/news.xml"}
-  - {name: Ведомости, type: media, handle_or_domain: vedomosti.ru, rss: "https://www.vedomosti.ru/rss/news"}
-  - {name: Forbes Россия, type: media, handle_or_domain: forbes.ru, rss: "https://www.forbes.ru/newrss.xml"}
-  - {name: Лента.ру, type: media, handle_or_domain: lenta.ru, rss: "https://lenta.ru/rss/news"}
-  - {name: Известия, type: media, handle_or_domain: iz.ru, rss: "https://iz.ru/xml/rss/all.xml"}
-  - {name: Российская газета, type: media, handle_or_domain: rg.ru, rss: "https://rg.ru/xml/index.xml"}
-  - {name: Московский комсомолец, type: media, handle_or_domain: mk.ru, rss: "https://www.mk.ru/rss/index.xml"}
-  - {name: Комсомольская правда, type: media, handle_or_domain: kp.ru, rss: "https://www.kp.ru/rss/allsections.xml"}
-  - {name: Аргументы и факты, type: media, handle_or_domain: aif.ru, rss: "https://aif.ru/rss/news.php"}
-  - {name: Москва 24, type: media, handle_or_domain: m24.ru, rss: "https://www.m24.ru/rss.xml"}
-  - {name: URA.RU, type: media, handle_or_domain: ura.news, rss: "https://ura.news/rss"}
+  - {name: РБК, type: media, handle_or_domain: rbc.ru, owner: РБК,
+     rss: "https://rssexport.rbc.ru/rbcnews/news/30/full.rss", aliases: [РБК]}
+  - {name: Коммерсантъ, type: media, handle_or_domain: kommersant.ru, owner: Коммерсантъ,
+     rss: "https://www.kommersant.ru/RSS/news.xml",
+     aliases: [Коммерсантъ, Коммерсант, Коммерсанта, Коммерсанту, Ъ]}
+  - {name: Ведомости, type: media, handle_or_domain: vedomosti.ru, owner: Ведомости,
+     rss: "https://www.vedomosti.ru/rss/news", aliases: [Ведомости, Ведомостей, Ведомостям]}
+  - {name: Forbes Россия, type: media, handle_or_domain: forbes.ru, owner: Forbes Россия,
+     rss: "https://www.forbes.ru/newrss.xml", aliases: [Forbes]}
+  - {name: Лента.ру, type: media, handle_or_domain: lenta.ru, owner: Лента.ру,
+     rss: "https://lenta.ru/rss/news", aliases: [Лента.ру, Ленты.ру, Lenta.ru]}
+  - {name: Известия, type: media, handle_or_domain: iz.ru, owner: Известия,
+     rss: "https://iz.ru/xml/rss/all.xml", aliases: [Известия, Известий, Известиям]}
+  - {name: Российская газета, type: media, handle_or_domain: rg.ru, owner: Российская газета,
+     rss: "https://rg.ru/xml/index.xml", aliases: [Российская газета, Российской газеты, РГ]}
+  - {name: Московский комсомолец, type: media, handle_or_domain: mk.ru, owner: Московский комсомолец,
+     rss: "https://www.mk.ru/rss/index.xml", aliases: [МК, Московский комсомолец, Московского комсомольца]}
+  - {name: Комсомольская правда, type: media, handle_or_domain: kp.ru, owner: Комсомольская правда,
+     rss: "https://www.kp.ru/rss/allsections.xml", aliases: [КП, Комсомольская правда, Комсомольской правды]}
+  - {name: Аргументы и факты, type: media, handle_or_domain: aif.ru, owner: Аргументы и факты,
+     rss: "https://aif.ru/rss/news.php", aliases: [АиФ, Аргументы и факты]}
+  - {name: Москва 24, type: media, handle_or_domain: m24.ru, owner: Москва 24,
+     rss: "https://www.m24.ru/rss.xml", aliases: [Москва 24, Москвы 24, M24]}
+  - {name: URA.RU, type: media, handle_or_domain: ura.news, owner: URA.RU,
+     rss: "https://ura.news/rss", aliases: [URA.RU, Ura.ru, Уралинформбюро]}
 
-  # Telegram-каналы (веб-превью t.me/s; из WSL нужен TELEGRAM_PROXY, см. CLAUDE.md)
-  - {name: РИА Новости (TG), type: tg, handle_or_domain: "@rian_ru"}
-  - {name: ТАСС (TG), type: tg, handle_or_domain: "@tass_agency"}
-  - {name: РБК (TG), type: tg, handle_or_domain: "@rbc_news"}
-  - {name: Коммерсантъ (TG), type: tg, handle_or_domain: "@kommersant"}
-  - {name: Интерфакс (TG), type: tg, handle_or_domain: "@interfaxonline"}
-  - {name: Раньше всех. Ну почти, type: tg, handle_or_domain: "@bbbreaking"}
-  - {name: Mash, type: tg, handle_or_domain: "@breakingmash"}
-  - {name: SHOT, type: tg, handle_or_domain: "@shot_shot"}
-  - {name: Readovka, type: tg, handle_or_domain: "@readovkanews"}
-  - {name: Минобороны России, type: official, handle_or_domain: "@mod_russia"}
-  - {name: МЧС России, type: official, handle_or_domain: "@mchs_official"}
+  # Telegram-каналы (веб-превью t.me/s; локально через прокси Hiddify, см. CLAUDE.md).
+  # Каналы редакций — та же группа владения, что и сайт: owner совпадает.
+  - {name: РИА Новости (TG), type: tg, handle_or_domain: "@rian_ru", owner: МИА «Россия сегодня»}
+  - {name: ТАСС (TG), type: tg, handle_or_domain: "@tass_agency", owner: ТАСС}
+  - {name: РБК (TG), type: tg, handle_or_domain: "@rbc_news", owner: РБК}
+  - {name: Коммерсантъ (TG), type: tg, handle_or_domain: "@kommersant", owner: Коммерсантъ}
+  - {name: Интерфакс (TG), type: tg, handle_or_domain: "@interfaxonline", owner: Интерфакс}
+  - {name: Раньше всех. Ну почти, type: tg, handle_or_domain: "@bbbreaking", aliases: [Раньше всех]}
+  - {name: Mash, type: tg, handle_or_domain: "@breakingmash", aliases: [Mash]}
+  - {name: SHOT, type: tg, handle_or_domain: "@shot_shot", aliases: [SHOT, Shot]}
+  - {name: Readovka, type: tg, handle_or_domain: "@readovkanews", aliases: [Readovka]}
+  - {name: Минобороны России, type: official, handle_or_domain: "@mod_russia", owner: Минобороны России,
+     aliases: [Минобороны, Министерство обороны, Министерства обороны, МО РФ]}
+  - {name: МЧС России, type: official, handle_or_domain: "@mchs_official", owner: МЧС России,
+     aliases: [МЧС]}

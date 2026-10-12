@@ -23,6 +23,8 @@ class Source(CreatedAtMixin, Base):
     # Иноагент, блокировка РКН и т.п. — только как факт, не влияет на рейтинг автоматически.
     legal_flags: Mapped[dict] = mapped_column(JSONB, server_default="{}", default=dict)
     is_tracked: Mapped[bool] = mapped_column(Boolean, server_default="true", default=True)
+    # Как источник называют в чужих текстах: «по данным ТАСС», «сообщает „Коммерсантъ“» (6.3).
+    aliases: Mapped[list[str]] = mapped_column(JSONB, server_default="[]", default=list)
 
     # Состояние сборщика: RSS-лента (для tg/vk адрес берётся из handle_or_domain).
     feed_url: Mapped[str | None] = mapped_column(Text)

@@ -22,17 +22,26 @@ confirmation_index:
 
 clustering:
   window_hours: 72
-  include_threshold: 0.82
-  llm_review_from: 0.72
+  # Калибровка на архиве 12.10.2026 (bge-m3): перепечатки одного события 0.88–0.95,
+  # та же тема / другое событие 0.82–0.86, короткие тексты того же события ~0.83.
+  strong_threshold: 0.88      # одно событие в любой точке окна
+  include_threshold: 0.80     # одно событие, если не дальше near_hours от исходной публикации
+  near_hours: 12
+  llm_review_from: 0.75       # ниже порога, но выше этого — «пограничные», решит LLM
   candidates_top_k: 50
+  title_trgm_threshold: 0.5   # похожие заголовки без эмбеддинга тоже в кандидаты
 
 graph:
   near_copy_max_hamming: 3
+  near_copy_min_words: 20      # короче — simhash не различает тексты
   confidence:
     explicit_link: 0.95
     attribution: 0.8
+    official_document: 0.6     # «следует из указа» при официальной публикации раньше в истории
     near_copy: 0.7
   unreliable_date_hours: 2
+  clock_tolerance_minutes: 10  # заявленная дата может опережать наш first_seen_at на интервал опроса
+  attribution_window_chars: 60 # сколько символов вокруг «по данным / сообщает» искать имя источника
 
 source_rating:
   half_life_days: 180

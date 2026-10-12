@@ -32,6 +32,7 @@ def parse_channel_page(html: bytes | str, source_id: int | None) -> list[Documen
         text = text_node.text(separator="\n").strip() if text_node else ""
         if not post or not text:
             continue  # пост без текста (только медиа) нечего сверять
+        links = [a.attributes.get("href") or "" for a in text_node.css("a[href]")]
         time_node = message.css_first("time[datetime]")
         published = datetime.fromisoformat(time_node.attributes["datetime"]) if time_node else None
         docs.append(
@@ -41,6 +42,7 @@ def parse_channel_page(html: bytes | str, source_id: int | None) -> list[Documen
                 title=None,
                 text=text,
                 published_at=published,
+                links=links,
             )
         )
     return docs
