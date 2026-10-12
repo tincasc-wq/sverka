@@ -1,26 +1,57 @@
-# Маршрутизация LLM по шагам конвейера (ТЗ, раздел 8.1). Используется с этапа 3.
-# Порядок в списке = порядок перехода на резерв.
+# Маршрутизация LLM по шагам конвейера (ТЗ, раздел 8.1).
+# Порядок в списке = порядок перехода на резерв. Решение владельца от 12.10.2026:
+# по умолчанию DeepSeek; госконтур — только российские модели; Claude — выключен.
+
+providers:
+  deepseek:
+    enabled: true
+    base_url: https://api.deepseek.com
+    via_gateway: true            # через LLM_PROXY (шлюз за рубежом)
+  qwen:
+    enabled: true
+    base_url: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+    via_gateway: true
+  yandex:
+    enabled: true
+    base_url: https://llm.api.cloud.yandex.net/v1   # OpenAI-совместимый API Yandex AI Studio
+    via_gateway: false           # из РФ напрямую
+  anthropic:
+    # Запасной вариант на случай законного доступа (изменение условий Anthropic или договор
+    # через юрлицо в поддерживаемой стране). Обход региональных ограничений через шлюз
+    # нарушает условия Anthropic — не включать без такого основания.
+    enabled: false
+    via_gateway: false
 
 routes:
   extract_claims:
-    - {provider: anthropic, model: claude-haiku-5-5}
     - {provider: deepseek, model: deepseek-flash}
+    - {provider: qwen, model: qwen-flash}
     - {provider: yandex, model: alice-ai-llm-flash}
   same_event:
-    - {provider: anthropic, model: claude-haiku-5-5}
     - {provider: deepseek, model: deepseek-flash}
+    - {provider: qwen, model: qwen-flash}
     - {provider: yandex, model: alice-ai-llm-flash}
   verify:
-    - {provider: anthropic, model: claude-haiku-5-5}
     - {provider: deepseek, model: deepseek-flash}
+    - {provider: qwen, model: qwen-flash}
     - {provider: yandex, model: deepseek-v4-flash}
   verify_disputed:
-    - {provider: anthropic, model: claude-sonnet-5-5}
     - {provider: deepseek, model: deepseek-v4-pro}
+    - {provider: qwen, model: qwen-max}
     - {provider: yandex, model: alice-ai-llm}
 
-# Дневной потолок расходов по провайдеру, USD. При превышении — оповещение и переход дальше по списку.
+# Госконтур (организации с флагом ru_only): только эти маршруты, мимо шлюза.
+ru_only_routes:
+  extract_claims: [{provider: yandex, model: alice-ai-llm-flash}]
+  same_event: [{provider: yandex, model: alice-ai-llm-flash}]
+  verify: [{provider: yandex, model: deepseek-v4-flash}]
+  verify_disputed: [{provider: yandex, model: alice-ai-llm}]
+
+# Дневной потолок расходов по провайдеру, USD. При превышении — оповещение и переход дальше.
 daily_budget_usd:
-  anthropic: 5
   deepseek: 5
+  qwen: 5
   yandex: 5
+  anthropic: 0
+
+# Названия моделей уточнить по документации провайдеров при подключении (этап 3, LLM).

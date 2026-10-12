@@ -60,7 +60,8 @@ python -m app.cli stats --since <ISO-время>  # поток публикац�
 - `app/web/admin.py` + `templates/` — админка (Jinja2), `app/web/api.py` — карточка источника и жалобы, `app/web/auth.py` — вход по токену.
 - `app/bot` — этап 4: `main.py` aiogram-бот (принимает и ставит в очередь `bot_check`), `service.py` пользователи, лимит, проверка для чата, поиск по тексту, `texts.py` ответы, `inputs.py` разбор сообщения, `telegram.py` клиент Bot API через прокси. Ответ в чат шлёт воркер (`bot_check` в `app/workers/main.py`).
 - `app/web/report.py` — публичный отчёт `/r/<public_token>` (ссылка из бота).
-- `app/llm` — этап 3 (LLM).
+- `app/llm` — этап 3 (LLM). Провайдеры и маршруты — `config/llm.yaml`: по умолчанию DeepSeek (через шлюз `LLM_PROXY`), госконтур — Yandex AI Studio напрямую, Claude выключен (в РФ API Anthropic недоступен; обход через шлюз нарушает условия Anthropic — включать только при законном доступе).
+- Целевое размещение (ТЗ, раздел 8): ядро и все данные — VPS в РФ; шлюз в Казахстане — только исходящий прокси к Telegram и зарубежным LLM, ничего не хранит.
 - `migrations/` — Alembic; `config/` — веса и маршрутизация LLM; `seeds/` — стартовый реестр; `prompts/` — промпты LLM.
 
 ## Правила

@@ -36,9 +36,13 @@ class Settings(BaseSettings):
     recheck_hours: float = 6  # кнопка «Проверить снова позже» (ФТ-7.4)
     text_search_days: int = 7  # окно поиска для произвольного текста (сценарий 3)
 
-    anthropic_api_key: str = ""
+    # LLM (раздел 8.1): по умолчанию DeepSeek; к зарубежным провайдерам — через шлюз LLM_PROXY.
+    llm_proxy: str = ""
     deepseek_api_key: str = ""
+    qwen_api_key: str = ""
     yandex_ai_studio_api_key: str = ""
+    # Запасной вариант, выключен в config/llm.yaml — только при законном доступе к API.
+    anthropic_api_key: str = ""
 
 
 @lru_cache
