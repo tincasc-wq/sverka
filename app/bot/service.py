@@ -127,4 +127,8 @@ async def check_for_chat(
     card = None
     if seed and seed.source_id:
         card = await source_card(session, await session.get(Source, seed.source_id))
-    return ChatReply(texts.format_check(report, card, report_url(check)), check.id)
+    handle = None
+    if seed and not card:
+        parts = seed.url.split("/")
+        handle = "@" + parts[3] if parts[2] == "t.me" else parts[2]
+    return ChatReply(texts.format_check(report, card, report_url(check), handle), check.id)

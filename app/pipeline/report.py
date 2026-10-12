@@ -86,7 +86,22 @@ def build_report(result: StoryResult, cfg: GraphConfig) -> dict:
         if primary
         else None,
         "core_publications": sum(1 for n in result.nodes if membership[n.id] == "core"),
+        # Более ранние публикации на ту же тему, принадлежность которых к событию не подтверждена.
+        "earlier_related": [
+            {"time": e["time"], "source": e["source"], "url": e["url"], "title": e["title"]}
+            for e in timeline
+            if e["membership"] == "probable"
+            and e["time"] < next(x["time"] for x in timeline if x["membership"] == "core")
+        ][:3],
         "independent_reports": len(graph.independent_groups),
+        # То же, но только по ядру события — «вероятные» публикации могут быть о другом.
+        "independent_core": len(
+            {
+                n.group
+                for n in result.nodes
+                if membership[n.id] == "core" and n.id not in has_incoming
+            }
+        ),
         "independent_groups": graph.independent_groups,
         "timeline": timeline,
         "borderline": [

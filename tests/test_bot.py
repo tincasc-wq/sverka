@@ -87,7 +87,10 @@ REPORT = {
 def test_summary_is_short_escaped_and_has_disclaimer() -> None:
     card = {"name": "РБК", "rating": {"score": 70, "ci": [50, 85], "shown": False, "outcomes": 2}}
 
-    text = texts.format_check(REPORT, card, "http://localhost:8000/r/abc")
+    core_primary = {**REPORT["primary"], "membership": "core", "notes": []}
+    text = texts.format_check(
+        {**REPORT, "primary": core_primary}, card, "http://localhost:8000/r/abc"
+    )
 
     assert "&lt;безвиз&gt;" in text  # заголовок из чужого текста экранирован
     assert "Президент России" in text and "14:00" in text  # время по Москве
@@ -204,3 +207,44 @@ async def test_public_report_page() -> None:
         async with SessionLocal() as s:
             await s.execute(delete(Check).where(Check.public_token == "tok123"))
             await s.commit()
+
+
+def test_probable_primary_is_not_called_primary() -> None:
+    report = {
+        **REPORT,
+        "core_publications": 1,
+        "publications": 5,
+        "primary": {
+            **REPORT["primary"],
+            "earliest_core_root": {"url": "https://rbc.ru/1", "source": "РБК"},
+        },
+        "timeline": [
+            {**REPORT["timeline"][0], "url": "https://kremlin.ru/1", "title": "Ранее по теме"},
+            {
+                "time": "2026-10-12T12:00:00+00:00",
+                "source": "@vzglyad_ru",
+                "membership": "core",
+                "role": "independent",
+                "is_seed": True,
+                "url": "https://rbc.ru/1",
+                "attributes_outside_archive": ["Wyborcza"],
+            },
+        ],
+        "earlier_related": [
+            {
+                "time": "2026-10-12T11:00:00+00:00",
+                "source": "Коммерсантъ",
+                "url": "https://k.ru/1",
+                "title": "МВД Польши заявило",
+            }
+        ],
+    }
+
+    text = texts.format_check(report, None, "http://x/r/1", "@vzglyad_ru")
+
+    assert "Первоисточник" not in text
+    assert "Более ранних публикаций именно об этом в архиве нет" in text
+    assert "ссылается на: Wyborcza" in text
+    assert "и ещё 4 на ту же тему" in text
+    assert "Раньше по той же теме" in text and "Коммерсантъ" in text
+    assert "@vzglyad_ru нет в реестре" in text

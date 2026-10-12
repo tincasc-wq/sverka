@@ -187,3 +187,25 @@ def test_backfilled_publication_is_not_flagged_as_unreliable() -> None:
 
     assert not backfill.date_unreliable(CFG)
     assert suspicious.date_unreliable(CFG)
+
+
+def test_attribution_to_source_outside_registry_is_named() -> None:
+    post = node(
+        1,
+        MASH,
+        0,
+        "В организации покушения подозревают «правых экстремистов», сообщает Wyborcza "
+        "со ссылкой на неназванного чиновника. По данным МВД Польши, задержан один человек.",
+    )
+
+    graph = build_graph([post], SOURCES, CFG)
+
+    assert graph.external_attributions == {1: ["Wyborcza", "МВД Польши"]}
+
+
+def test_known_source_is_not_duplicated_as_unknown_name() -> None:
+    post = node(1, MASH, 0, "Как сообщает ТАСС, в Подольске горит склад.")
+
+    graph = build_graph([post], SOURCES, CFG)
+
+    assert graph.external_attributions == {1: ["ТАСС"]}

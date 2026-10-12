@@ -37,9 +37,10 @@ def _time(iso: str) -> str:
     return datetime.fromisoformat(iso).astimezone(MSK).strftime("%d.%m %H:%M")
 
 
-def _rating_line(card: dict | None) -> str:
+def _rating_line(card: dict | None, seed_handle: str | None = None) -> str:
     if not card:
-        return "Источник ссылки не в реестре."
+        who = f"{escape(seed_handle)} " if seed_handle else "Источника ссылки "
+        return f"{who}нет в реестре источников — рейтинга нет."
     rating = card.get("rating")
     name = escape(card["name"])
     if not rating or not rating["shown"]:
@@ -48,37 +49,54 @@ def _rating_line(card: dict | None) -> str:
     return f"Источник ссылки — {name}: рейтинг {rating['score']:g} из 100 ({low:g}–{high:g})."
 
 
-def format_check(report: dict, seed_card: dict | None, report_url: str) -> str:
+def _link(item: dict) -> str:
+    return f'<a href="{escape(item["url"])}">{escape(item["source"])}</a>'
+
+
+def format_check(
+    report: dict, seed_card: dict | None, report_url: str, seed_handle: str | None = None
+) -> str:
     """Краткий итог для бота (ФТ-7.1): первоисточник, охват, ранние публикации, источник."""
     lines = [f"<b>{escape(report['seed']['title'] or 'Публикация')}</b>", ""]
     primary = report.get("primary")
-    if primary:
-        mark = (
-            " (принадлежность к событию не подтверждена)"
-            if primary.get("membership") == "probable"
-            else ""
-        )
-        lines.append(
-            f'Первоисточник: <a href="{escape(primary["url"])}">{escape(primary["source"])}</a>, '
-            f"{_time(primary['time'])}{mark}"
-        )
-        for note in primary.get("notes") or []:
-            lines.append(f"⚠️ {escape(note)}")
-    lines.append(
-        f"Публикаций о событии: {report['publications']}, "
-        f"независимых групп источников: {report['independent_reports']}"
-    )
+    seed_entry = next((t for t in report["timeline"] if t.get("is_seed")), None)
+
+    if primary and primary.get("membership") != "probable":
+        lines.append(f"Первоисточник: {_link(primary)}, {_time(primary['time'])}")
+    elif primary:
+        # Ранние публикации из полосы «вероятно то же событие» первоисточником не называем.
+        root = primary.get("earliest_core_root")
+        if not root or root["url"] == report["seed"]["url"]:
+            lines.append("Более ранних публикаций именно об этом в архиве нет.")
+        else:
+            lines.append(f"Самая ранняя публикация именно об этом: {_link(root)}")
+    if seed_entry and seed_entry.get("attributes_outside_archive"):
+        names = escape(", ".join(seed_entry["attributes_outside_archive"]))
+        lines.append(f"Публикация ссылается на: {names} — в нашем архиве этого источника нет.")
+
+    core = report.get("core_publications", report["publications"])
+    related = report["publications"] - core
+    count = f"Публикаций именно об этом: {core}"
+    if related:
+        count += f" (и ещё {related} на ту же тему)"
+    independent = report.get("independent_core", report["independent_reports"])
+    lines.append(f"{count}; независимых групп источников: {independent}")
+
     early = [t for t in report["timeline"] if t["membership"] == "core"][:4]
     if len(early) > 1:
-        lines.append("")
-        lines.append("Хронология:")
+        lines += ["", "Хронология:"]
         for t in early:
             lines.append(
                 f"• {_time(t['time'])} {escape(t['source'])} — {ROLE.get(t['role'], t['role'])}"
             )
+    if report.get("earlier_related"):
+        lines += ["", "Раньше по той же теме (возможно, другое событие):"]
+        for t in report["earlier_related"]:
+            lines.append(f"• {_time(t['time'])} {escape(t['source'])}: {escape(t['title'] or '')}")
+
     lines += [
         "",
-        _rating_line(seed_card),
+        _rating_line(seed_card, seed_handle),
         "",
         f"Полный отчёт: {escape(report_url)}",
         "",

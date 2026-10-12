@@ -125,6 +125,26 @@ def cites_official_document(text: str) -> bool:
     return bool(text and _OFFICIAL_DOCUMENT.search(text))
 
 
+# «сообщает Wyborcza», «со ссылкой на Reuters», «по данным МВД», «пишет газета „Известия“».
+# Формула атрибуции — без учёта регистра, имя источника — с заглавной буквы.
+_NAMED_ATTRIBUTION = re.compile(
+    r"(?i:сообща\w*|пиш\w+|по данным|по информации|со ссылкой на|ссылаясь на|"
+    r"переда[её]т\w*|передал\w*)\s+"
+    r"(?:(?i:газет|издани|агентств|телеграм-канал|канал|портал|сайт)\w*\s+)?[«\"]?"
+    r"([A-ZА-ЯЁ][\w.\-]*(?:\s+[A-ZА-ЯЁ][\w.\-]*){0,2})"
+)
+
+
+def attributed_names(text: str) -> list[str]:
+    """Имена источников после формулы атрибуции — в том числе тех, кого нет в реестре."""
+    names: list[str] = []
+    for match in _NAMED_ATTRIBUTION.finditer(text or ""):
+        name = match.group(1).strip(".-")
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
 @lru_cache(maxsize=4096)
 def _alias_pattern(alias: str) -> re.Pattern:
     # Короткие аббревиатуры (РГ, МК, Ъ) — с учётом регистра, иначе ловят куски слов.
@@ -207,6 +227,12 @@ def build_graph(
                 add(src, dst, DerivationKind.ATTRIBUTION)
             else:
                 name = next(s.name for s in others if s.id == sid)
+                external[dst.id].append(name)
+
+        # Источники вне реестра («сообщает Wyborcza») — в историю их не связать, но назвать надо.
+        known = {a.lower() for s in known_sources for a in (*s.aliases, s.name)}
+        for name in attributed_names(dst.text or ""):
+            if name.lower() not in known and name not in external[dst.id]:
                 external[dst.id].append(name)
 
         # Пересказ официального документа: источник — самая ранняя официальная публикация истории.
