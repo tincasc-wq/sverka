@@ -347,3 +347,36 @@ async def test_blocked_post_is_checked_by_forwarded_text(session: AsyncSession) 
     assert doc.url == "https://t.me/rt_russian/1"
     assert doc.text.startswith("Сотрудники ТЦК")
     assert doc.published_at == datetime(2026, 10, 12, 19, 5, tzinfo=UTC)
+
+
+def test_check_shows_confirmation_index_and_claims() -> None:
+    analysis = {
+        "index": 41.5,
+        "status": "not_confirmed",
+        "status_text": "не подтверждено",
+        "claims": [
+            {
+                "text": "Склад <площадью> 2000 кв. м",
+                "checkable": True,
+                "status": "not_confirmed",
+                "evidence": [
+                    {
+                        "source": "Интерфакс",
+                        "stance": "contradicts",
+                        "independent": True,
+                        "low_confidence": False,
+                        "discrepancy": "3000 вместо 2000",
+                    }
+                ],
+            },
+            {"text": "Это позор", "checkable": False, "status": "refuted", "evidence": []},
+        ],
+    }
+
+    text = texts.format_check({**REPORT, "analysis": analysis}, None, "http://x/r/1")
+    failed = texts.format_check({**REPORT, "analysis": {"error": "x"}}, None, "http://x/r/1")
+
+    assert "Индекс подтверждённости: 41.5 из 100" in text
+    assert "&lt;площадью&gt;" in text and "противоречит Интерфакс: 3000 вместо 2000" in text
+    assert "Это позор" not in text  # мнения в краткий ответ не попадают
+    assert "языковая модель недоступна" in failed

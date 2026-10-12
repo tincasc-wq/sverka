@@ -59,6 +59,7 @@ async def bot_check(
             use_cache=use_cache,
             fallback_text=fallback_text,
             fallback_date=fallback_date,
+            llm=ctx.get("llm"),
         )
     bot = ctx.get("bot")
     if bot is None:
@@ -80,6 +81,11 @@ async def startup(ctx: dict) -> None:
     sverka_log.addHandler(handler)
     sverka_log.setLevel(logging.INFO)
     ctx["embedder"] = SentenceTransformerEmbedder()
+    from app.llm import LlmClient
+
+    llm = LlmClient()
+    ctx["llm"] = llm if llm.available() else None
+    log.info("LLM: %s", "подключена" if ctx["llm"] else "нет ключей — проверки без LLM")
     if get_settings().telegram_bot_token:
         from app.bot.telegram import make_bot
 

@@ -50,10 +50,37 @@ class SourceRatingConfig(BaseModel):
     min_score_change: float = 0.5
 
 
+class IndexConfig(BaseModel):
+    """Индекс подтверждённости (6.5); значения — в секции confirmation_index scoring.yaml."""
+
+    type_weights: dict[str, float] = {
+        "official": 2.0,
+        "agency": 1.5,
+        "media": 1.0,
+        "tg": 0.5,
+        "vk": 0.5,
+    }
+    stance_sign: dict[str, float] = {
+        "supports": 1.0,
+        "contradicts": -1.0,
+        "refines": 0.5,
+        "unrelated": 0.0,
+    }
+    main_claim_weight: float = 2.0
+    too_early_hours: float = 6
+    statuses: dict[str, float] = {
+        "widely_confirmed": 75,
+        "partially_confirmed": 50,
+        "not_confirmed": 25,
+    }
+    max_verify_documents: int = 12  # со сколькими публикациями истории сверять утверждения
+
+
 class ScoringConfig(BaseModel):
     clustering: ClusteringConfig = ClusteringConfig()
     graph: GraphConfig = GraphConfig()
     source_rating: SourceRatingConfig = SourceRatingConfig()
+    confirmation_index: IndexConfig = IndexConfig()
 
 
 @lru_cache

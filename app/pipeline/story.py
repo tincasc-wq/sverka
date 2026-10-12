@@ -1,6 +1,7 @@
 """Сборка истории вокруг публикации: кандидаты → кластер → граф → запись в БД (6.2–6.3)."""
 
 import math
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
 
@@ -23,6 +24,7 @@ class Candidate:
     similarity: float | None  # косинусная близость к исходной публикации; None — нашли по заголовку
     # core — точно то же событие; probable — та же тема рядом по времени, решит LLM (6.2 п.3).
     membership: str = "core"
+    llm_reason: str | None = None  # объяснение LLM, если решение «то же событие?» принимала она
 
 
 @dataclass
@@ -121,6 +123,50 @@ def _tight_neighbours(
     return near if mutual >= c.strong_threshold else []
 
 
+# Решатель «то же событие?»: (seed, кандидаты) → {id документа: (да/нет, объяснение)}.
+EventJudge = Callable[[Document, list[Document]], Awaitable[dict[int, tuple[bool, str]]]]
+MAX_JUDGED = 24
+
+
+async def _apply_judge(
+    judge: EventJudge,
+    seed: Document,
+    members: list[Candidate],
+    borderline: list[Candidate],
+    cfg: ScoringConfig,
+) -> tuple[list[Candidate], list[Candidate]]:
+    """LLM решает пограничные случаи (6.2 п.3): «вероятно то же событие» и близкие кандидаты.
+
+    Эмбеддинги в полосе 0.80–0.88 не отличают то же событие от соседнего (проверено на
+    историях про хуситов и «Теорию победы»), поэтому здесь решает модель. При сбое LLM всё
+    остаётся как было — с пометкой «вероятно».
+    """
+    doubtful = [c for c in members if c.membership == "probable"] + borderline
+    doubtful.sort(key=lambda c: -(c.similarity or 0))
+    doubtful = doubtful[:MAX_JUDGED]
+    if not doubtful:
+        return members, borderline
+    try:
+        decisions = await judge(seed, [c.document for c in doubtful])
+    except Exception:  # noqa: BLE001 — без LLM остаётся детерминированный результат
+        return members, borderline
+    judged = {c.document.id: c for c in doubtful}
+    kept = [c for c in members if c.document.id not in judged]
+    rest = [c for c in borderline if c.document.id not in judged]
+    for doc_id, c in judged.items():
+        if doc_id not in decisions:
+            (kept if c in members else rest).append(c)
+            continue
+        same, reason = decisions[doc_id]
+        c.llm_reason = reason
+        if same:
+            c.membership = "core"
+            kept.append(c)
+        else:
+            rest.append(c)
+    return kept, rest
+
+
 def _unit(vector) -> list[float]:
     values = [float(x) for x in vector]
     norm = math.sqrt(sum(x * x for x in values)) or 1.0
@@ -190,6 +236,7 @@ async def build_story(
     cfg: ScoringConfig | None = None,
     *,
     persist: bool = True,
+    judge: "EventJudge | None" = None,
 ) -> StoryResult:
     """persist=False — только посчитать (проверка устойчивости), без записи в БД."""
     cfg = cfg or get_scoring()
@@ -209,6 +256,8 @@ async def build_story(
         and c.similarity is not None
         and c.similarity >= cfg.clustering.llm_review_from
     ]
+    if judge is not None:
+        members, borderline = await _apply_judge(judge, seed, members, borderline, cfg)
 
     docs = [seed, *(c.document for c in members)]
     nodes = [to_node(d, all_sources) for d in docs]

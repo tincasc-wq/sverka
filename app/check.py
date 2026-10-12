@@ -28,8 +28,10 @@ from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.scoring import get_scoring
 from app.embeddings import Embedder, document_text
+from app.llm import LlmClient, LlmUnavailable
 from app.models import Check, Document, Source
 from app.models.enums import CheckStatus, InputType
+from app.pipeline.analysis import analyze, make_judge
 from app.pipeline.report import build_report
 from app.pipeline.story import build_story
 
@@ -159,6 +161,7 @@ async def run_check(
     input_type: InputType = InputType.URL,
     cache_hours: float = 0,
     fallback: DocumentIn | None = None,
+    llm: LlmClient | None = None,
 ) -> Check:
     seed = await resolve_seed(session, arg, fallback)
     if cache_hours and (cached := await recent_check(session, seed.id, cache_hours)):
@@ -174,20 +177,35 @@ async def run_check(
         seed.embedding = vector
         await session.flush()
 
-    result = await build_story(session, seed)
-    report = build_report(result, get_scoring().graph)
+    # Проверка создаётся до LLM-вызовов: к ней привязывается учёт расходов (llm_calls).
     check = Check(
         user_id=user_id,
         input_type=input_type,
         input_raw=arg,
         document_id=seed.id,
-        story_id=result.story_id,
-        status=CheckStatus.DONE,
-        summary=json.dumps(report, ensure_ascii=False),
-        finished_at=datetime.now(UTC),
+        status=CheckStatus.RUNNING,
         public_token=secrets.token_urlsafe(12),
     )
     session.add(check)
+    await session.flush()
+
+    scoring = get_scoring()
+    use_llm = llm is not None and llm.available()
+    judge = make_judge(llm, session, check.id) if use_llm else None
+    result = await build_story(session, seed, judge=judge)
+    report = build_report(result, scoring.graph)
+    if use_llm:
+        try:
+            report["analysis"] = await analyze(session, llm, result, check.id, scoring)
+            report["note"] = None
+            check.confirmation_index = report["analysis"]["index"]
+        except LlmUnavailable as exc:
+            report["analysis"] = {"error": f"LLM недоступна: {exc}"[:300]}
+
+    check.story_id = result.story_id
+    check.status = CheckStatus.DONE
+    check.summary = json.dumps(report, ensure_ascii=False)
+    check.finished_at = datetime.now(UTC)
     await session.commit()
     return check
 
@@ -205,7 +223,7 @@ def _embedder() -> Embedder | None:
 
 async def _main(arg: str) -> None:
     async with SessionLocal() as session:
-        check = await run_check(session, arg, _embedder())
+        check = await run_check(session, arg, _embedder(), llm=LlmClient())
     print(json.dumps(json.loads(check.summary), ensure_ascii=False, indent=2))
 
 

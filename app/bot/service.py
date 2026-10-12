@@ -16,6 +16,7 @@ from app.collectors.http import UnsafeUrl
 from app.collectors.store import DocumentIn
 from app.core.config import get_settings
 from app.embeddings import Embedder
+from app.llm import LlmClient
 from app.models import Check, Document, Source, User
 from app.models.enums import InputType
 from app.registry.service import source_card
@@ -86,6 +87,7 @@ async def check_for_chat(
     use_cache: bool = True,
     fallback_text: str | None = None,
     fallback_date: str | None = None,
+    llm: LlmClient | None = None,
 ) -> ChatReply:
     settings = get_settings()
     user = await get_or_create_user(session, tg_id)
@@ -114,6 +116,7 @@ async def check_for_chat(
             user_id=user.id,
             input_type=input_type,
             cache_hours=settings.check_cache_hours if use_cache else 0,
+            llm=llm,
             fallback=DocumentIn(
                 url=value,
                 text=fallback_text,

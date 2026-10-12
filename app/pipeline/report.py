@@ -22,6 +22,7 @@ def build_report(result: StoryResult, cfg: GraphConfig) -> dict:
     order = sorted(result.nodes, key=lambda n: (n.effective_at(cfg), n.id))
     similarity = {c.document.id: c.similarity for c in result.members}
     membership = {c.document.id: c.membership for c in result.members}
+    llm_reason = {c.document.id: c.llm_reason for c in result.members if c.llm_reason}
     membership[result.seed.id] = "core"
     has_incoming = {e.to_id for e in graph.edges}
 
@@ -43,6 +44,7 @@ def build_report(result: StoryResult, cfg: GraphConfig) -> dict:
                 "is_seed": n.id == result.seed.id,
                 "similarity": None if n.id == result.seed.id else similarity.get(n.id),
                 "membership": membership[n.id],
+                "llm_reason": llm_reason.get(n.id),
                 "date_unreliable": n.date_unreliable(cfg),
                 "took_from": [
                     {
