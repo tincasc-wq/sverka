@@ -99,7 +99,7 @@ def format_check(
                 f"• {_time(t['time'])} {escape(t['source'])} — {ROLE.get(t['role'], t['role'])}"
             )
     if report.get("earlier_related"):
-        lines += ["", "Раньше по той же теме (возможно, другое событие):"]
+        lines += ["", "Раньше по той же теме — то же событие или другое, без LLM не различить:"]
         for t in report["earlier_related"]:
             lines.append(f"• {_time(t['time'])} {escape(t['source'])}: {escape(t['title'] or '')}")
 

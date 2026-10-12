@@ -217,3 +217,17 @@ def test_unknown_names_stop_at_line_break_and_skip_known_domains() -> None:
     graph = build_graph([post], [*SOURCES, SourceInfo(8, "КП", "kp.ru", "media")], CFG)
 
     assert graph.external_attributions == {}
+
+
+def test_four_word_names_and_unknown_channels_are_named() -> None:
+    post = Node(
+        id=1,
+        url="https://t.me/Warhronika/16555",
+        observed_at=T0,
+        text="План представлен генералом, сообщает The Wall Street Journal со ссылкой на штаб.",
+    )
+
+    graph = build_graph([post], SOURCES, CFG)
+
+    assert post.group == "@Warhronika"
+    assert graph.external_attributions == {1: ["The Wall Street Journal"]}

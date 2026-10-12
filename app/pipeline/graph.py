@@ -48,7 +48,13 @@ class Node:
 
     @property
     def group(self) -> str:
-        return self.source.group if self.source else domain_of(self.url)
+        if self.source:
+            return self.source.group
+        domain = domain_of(self.url)
+        if domain == "t.me":
+            # Канал вне реестра: «@Warhronika», а не просто «t.me» — каналы разные.
+            return "@" + self.url.split("/")[3]
+        return domain
 
     @property
     def word_count(self) -> int:
@@ -131,8 +137,9 @@ _NAMED_ATTRIBUTION = re.compile(
     r"(?i:сообща\w*|пиш\w+|по данным|по информации|со ссылкой на|ссылаясь на|"
     r"переда[её]т\w*|передал\w*)\s+"
     r"(?:(?i:газет|издани|агентств|телеграм-канал|канал|портал|сайт)\w*\s+)?[«\"]?"
-    # Имя — до трёх слов с заглавной через пробел; перевод строки имя обрывает.
-    r"([A-ZА-ЯЁ][\w.\-]*(?:[ \t]+[A-ZА-ЯЁ][\w.\-]*){0,2})"
+    # Имя — до четырёх слов с заглавной через пробел (The Wall Street Journal);
+    # перевод строки имя обрывает.
+    r"([A-ZА-ЯЁ][\w.\-]*(?:[ \t]+[A-ZА-ЯЁ][\w.\-]*){0,3})"
 )
 
 
