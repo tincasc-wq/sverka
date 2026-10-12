@@ -1,5 +1,6 @@
 """Сборка истории вокруг публикации: кандидаты → кластер → граф → запись в БД (6.2–6.3)."""
 
+import math
 from dataclasses import dataclass, field
 from datetime import timedelta
 
@@ -48,14 +49,32 @@ async def find_candidates(
     window = timedelta(hours=cfg.clustering.window_hours)
     in_window = _event_time(Document).between(center - window, center + window)
 
-    distance = Document.embedding.cosine_distance(seed.embedding)
-    rows = await session.execute(
-        select(Document, (1 - distance).label("sim"))
-        .where(Document.id != seed.id, Document.embedding.is_not(None), in_window)
-        .order_by(distance)
-        .limit(cfg.clustering.candidates_top_k)
-    )
-    candidates = {doc.id: Candidate(doc, float(sim)) for doc, sim in rows}
+    async def nearest(vector) -> dict[int, Document]:
+        distance = Document.embedding.cosine_distance(vector)
+        rows = await session.scalars(
+            select(Document)
+            .where(Document.id != seed.id, Document.embedding.is_not(None), in_window)
+            .order_by(distance)
+            .limit(cfg.clustering.candidates_top_k)
+        )
+        return {doc.id: doc for doc in rows}
+
+    seed_vec = _unit(seed.embedding)
+    found = await nearest(seed.embedding)
+    sims = {i: _dot(seed_vec, _unit(d.embedding)) for i, d in found.items()}
+
+    # Второй проход — от центра ядра. Иначе история зависит от формулировки присланного
+    # поста: у поста-мнения («скорее всего продлят…») близость к сухим новостям о том же
+    # событии ниже порога, и половина ядра уходит в «другие события» (проверено 12.10.2026).
+    core = [d for i, d in found.items() if sims[i] >= cfg.clustering.strong_threshold]
+    if core:
+        vectors = [seed_vec, *(_unit(d.embedding) for d in core)]
+        centroid = _unit([sum(xs) for xs in zip(*vectors, strict=True)])
+        found.update(await nearest(centroid))
+        for i, d in found.items():
+            vec = _unit(d.embedding)
+            sims[i] = max(_dot(seed_vec, vec), _dot(centroid, vec))
+    candidates = {i: Candidate(d, sims[i]) for i, d in found.items()}
 
     # Свежие публикации без эмбеддинга ещё не попали в векторный поиск — ловим по заголовку.
     if seed.title:
@@ -71,6 +90,16 @@ async def find_candidates(
         for doc in rows:
             candidates.setdefault(doc.id, Candidate(doc, None))
     return list(candidates.values())
+
+
+def _unit(vector) -> list[float]:
+    values = [float(x) for x in vector]
+    norm = math.sqrt(sum(x * x for x in values)) or 1.0
+    return [x / norm for x in values]
+
+
+def _dot(a: list[float], b: list[float]) -> float:
+    return sum(x * y for x, y in zip(a, b, strict=True))
 
 
 def _source_info(source: Source) -> SourceInfo:
@@ -99,7 +128,9 @@ def to_node(doc: Document, sources: dict[int, SourceInfo]) -> Node:
     )
 
 
-def is_same_event(seed: Document, candidate: Candidate, cfg: ScoringConfig) -> bool:
+def is_same_event(
+    seed: Document, candidate: Candidate, cfg: ScoringConfig, official: bool = False
+) -> bool:
     """Одно событие, а не просто одна тема (6.2).
 
     Перепечатки одного события у bge-m3 дают близость ~0.88+; «та же тема, другое событие»
@@ -115,9 +146,13 @@ def is_same_event(seed: Document, candidate: Candidate, cfg: ScoringConfig) -> b
     seed_time = seed.published_at or seed.first_seen_at
     doc = candidate.document
     gap = abs((doc.published_at or doc.first_seen_at) - seed_time)
-    # Средняя близость: эмбеддинги не отличают то же событие от соседнего, отметим для LLM.
-    candidate.membership = "probable"
-    return gap <= timedelta(hours=c.near_hours)
+    if gap > timedelta(hours=c.near_hours):
+        return False
+    # Официальный текст (указ, сообщение ведомства) короткий и сухой, его близость к
+    # пересказам систематически ниже: рядом по времени он — ядро события, а не «вероятно».
+    # Средняя близость остального: эмбеддинги не отличают то же событие от соседнего — для LLM.
+    candidate.membership = "core" if official else "probable"
+    return True
 
 
 async def build_story(
@@ -125,7 +160,13 @@ async def build_story(
 ) -> StoryResult:
     cfg = cfg or get_scoring()
     candidates = await find_candidates(session, seed, cfg)
-    members = [c for c in candidates if is_same_event(seed, c, cfg)]
+    all_sources = {s.id: _source_info(s) for s in await session.scalars(select(Source))}
+
+    def is_official(c: Candidate) -> bool:
+        source = all_sources.get(c.document.source_id)
+        return bool(source and source.type == "official")
+
+    members = [c for c in candidates if is_same_event(seed, c, cfg, is_official(c))]
     member_ids = {c.document.id for c in members}
     borderline = [
         c
@@ -135,7 +176,6 @@ async def build_story(
         and c.similarity >= cfg.clustering.llm_review_from
     ]
 
-    all_sources = {s.id: _source_info(s) for s in await session.scalars(select(Source))}
     docs = [seed, *(c.document for c in members)]
     nodes = [to_node(d, all_sources) for d in docs]
     graph = build_graph(nodes, list(all_sources.values()), cfg.graph)
@@ -163,7 +203,14 @@ async def build_story(
                 similarity=by_id[d.id].similarity if d.id in by_id else 1.0,
                 membership=by_id[d.id].membership if d.id in by_id else "core",
             )
-            .on_conflict_do_nothing(index_elements=["story_id", "document_id"])
+            # Повторная проверка уточняет близость и уровень; решение аналитика не трогаем.
+            .on_conflict_do_update(
+                index_elements=["story_id", "document_id"],
+                set_={
+                    "similarity": by_id[d.id].similarity if d.id in by_id else 1.0,
+                    "membership": by_id[d.id].membership if d.id in by_id else "core",
+                },
+            )
         )
     for edge in graph.edges:
         await session.execute(
