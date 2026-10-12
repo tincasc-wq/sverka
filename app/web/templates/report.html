@@ -36,6 +36,7 @@
   <b>{{ c.text }}</b>
   {% if c.attributed_to %}<span class="muted"> · по данным: {{ c.attributed_to }}</span>{% endif %}
   {% if not c.checkable %}<span class="tag">мнение — не проверяется</span>
+  {% elif c.independent_groups == 0 %}<span class="tag">нет независимых подтверждений</span>
   {% else %}<span class="tag {{ 'good' if c.status == 'widely_confirmed' else 'bad' if c.status == 'refuted' else 'probable' }}">{{ "%g"|format(c.index) }} · независимых групп: {{ c.independent_groups }}</span>{% endif %}
   {% if c.evidence %}
   <table style="margin-top:8px">

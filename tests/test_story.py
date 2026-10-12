@@ -280,3 +280,19 @@ async def test_loose_topic_neighbours_do_not_form_core(session: AsyncSession) ->
     result = await build_story(session, seed, persist=False)
 
     assert all(c.membership == "probable" for c in result.members)
+
+
+async def test_other_language_publication_gets_crosslingual_offset(session: AsyncSession) -> None:
+    ria = Source(type="agency", name="РИА", handle_or_domain="ria.ru")
+    bbc = Source(type="media", name="BBC", handle_or_domain="bbc.com", lang="en")
+    rbc = Source(type="media", name="РБК", handle_or_domain="rbc.ru")
+    session.add_all([ria, bbc, rbc])
+    await session.flush()
+    seed = await _doc(session, "https://ria.ru/1", 1.0, 0, ria)
+    english = await _doc(session, "https://bbc.com/1", 0.74, 30, bbc)  # 0.74 + 0.08 = 0.82
+    russian = await _doc(session, "https://rbc.ru/1", 0.74, 30, rbc)
+
+    result = await build_story(session, seed)
+
+    assert english.id in {c.document.id for c in result.members}
+    assert russian.id not in {c.document.id for c in result.members}

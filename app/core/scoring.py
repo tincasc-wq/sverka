@@ -17,6 +17,7 @@ class ClusteringConfig(BaseModel):
     llm_review_from: float = 0.75
     candidates_top_k: int = 50
     title_trgm_threshold: float = 0.5
+    crosslingual_offset: float = 0.08  # прибавка к близости пар на разных языках
 
 
 class GraphConfig(BaseModel):

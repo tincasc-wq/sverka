@@ -62,9 +62,20 @@ async def find_candidates(
         )
         return {doc.id: doc for doc in rows}
 
+    offset = cfg.clustering.crosslingual_offset
+    seed_lang = await _lang_of(session, seed.source_id)
+
+    async def shifted(docs: dict[int, Document], raw: dict[int, float]) -> dict[int, float]:
+        # Разные языки — близость ниже при том же событии; выравниваем по калибровке.
+        langs = await _langs(session, {d.source_id for d in docs.values()})
+        return {
+            i: min(1.0, s + offset) if langs.get(docs[i].source_id, "ru") != seed_lang else s
+            for i, s in raw.items()
+        }
+
     seed_vec = _unit(seed.embedding)
     found = await nearest(seed.embedding)
-    sims = {i: _dot(seed_vec, _unit(d.embedding)) for i, d in found.items()}
+    sims = await shifted(found, {i: _dot(seed_vec, _unit(d.embedding)) for i, d in found.items()})
 
     # Второй проход — от центра ядра. Иначе история зависит от формулировки присланного
     # поста: у поста-мнения («скорее всего продлят…») близость к сухим новостям о том же
@@ -76,9 +87,11 @@ async def find_candidates(
         vectors = [seed_vec, *(_unit(d.embedding) for d in core)]
         centroid = _unit([sum(xs) for xs in zip(*vectors, strict=True)])
         found.update(await nearest(centroid))
+        raw = {}
         for i, d in found.items():
             vec = _unit(d.embedding)
-            sims[i] = max(_dot(seed_vec, vec), _dot(centroid, vec))
+            raw[i] = max(_dot(seed_vec, vec), _dot(centroid, vec))
+        sims = await shifted(found, raw)
     candidates = {i: Candidate(d, sims[i]) for i, d in found.items()}
 
     # Свежие публикации без эмбеддинга ещё не попали в векторный поиск — ловим по заголовку.
@@ -95,6 +108,18 @@ async def find_candidates(
         for doc in rows:
             candidates.setdefault(doc.id, Candidate(doc, None))
     return list(candidates.values())
+
+
+async def _langs(session: AsyncSession, source_ids: set[int | None]) -> dict[int, str]:
+    ids = {i for i in source_ids if i is not None}
+    if not ids:
+        return {}
+    rows = await session.execute(select(Source.id, Source.lang).where(Source.id.in_(ids)))
+    return {source_id: lang for source_id, lang in rows}
+
+
+async def _lang_of(session: AsyncSession, source_id: int | None) -> str:
+    return (await _langs(session, {source_id})).get(source_id, "ru")
 
 
 def _tight_neighbours(
