@@ -209,3 +209,11 @@ def test_known_source_is_not_duplicated_as_unknown_name() -> None:
     graph = build_graph([post], SOURCES, CFG)
 
     assert graph.external_attributions == {1: ["ТАСС"]}
+
+
+def test_unknown_names_stop_at_line_break_and_skip_known_domains() -> None:
+    post = node(1, MASH, 0, "Об этом сообщает KP.RU.\nПо словам очевидцев, жильцов эвакуировали.")
+
+    graph = build_graph([post], [*SOURCES, SourceInfo(8, "КП", "kp.ru", "media")], CFG)
+
+    assert graph.external_attributions == {}

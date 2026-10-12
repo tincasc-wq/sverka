@@ -11,15 +11,18 @@ import json
 import secrets
 import sys
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import trafilatura
+from selectolax.lexbor import LexborHTMLParser as HTMLParser
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.collectors import rss, telegram
+from app.collectors.fingerprint import content_hash
 from app.collectors.http import fetch, make_client
-from app.collectors.store import DocumentIn, save_document
-from app.collectors.urls import domain_of, normalize_url
+from app.collectors.store import DocumentIn, SaveResult, save_document
+from app.collectors.urls import domain_of, normalize_url, without_query
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.scoring import get_scoring
@@ -28,6 +31,8 @@ from app.models import Check, Document, Source
 from app.models.enums import CheckStatus, InputType
 from app.pipeline.report import build_report
 from app.pipeline.story import build_story
+
+MSK = ZoneInfo("Europe/Moscow")  # российские сайты без часового пояса пишут московское время
 
 
 async def _source_for(session: AsyncSession, url: str) -> int | None:
@@ -53,17 +58,41 @@ async def _download(url: str, source_id: int | None) -> DocumentIn:
     async with make_client(public_only=True) as client:
         raw, _ = await fetch(client, url)
     meta = trafilatura.extract_metadata(raw)
-    published = None
-    if meta and meta.date:
-        published = datetime.fromisoformat(meta.date).replace(tzinfo=UTC)
     return DocumentIn(
         url=url,
         source_id=source_id,
         title=meta.title if meta else None,
         text=rss.extract_article_text(raw, url),
-        published_at=published,
+        published_at=published_time(raw),
         links=rss.extract_article_links(raw, url),
     )
+
+
+_TIME_META = (
+    'meta[property="article:published_time"]',
+    'meta[name="article:published_time"]',
+    'meta[itemprop="datePublished"]',
+    'meta[property="og:published_time"]',
+)
+
+
+def published_time(html: bytes | str) -> datetime | None:
+    """Заявленное время публикации — только если в разметке есть время, а не одна дата.
+
+    Дата без времени превратилась бы в полночь и сделала статью ложно «самой ранней».
+    """
+    tree = HTMLParser(html)
+    for selector in _TIME_META:
+        node = tree.css_first(selector)
+        value = (node.attributes.get("content") or "").strip() if node else ""
+        if "T" not in value:
+            continue
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=MSK)
+    return None
 
 
 async def resolve_seed(session: AsyncSession, arg: str) -> Document:
@@ -73,11 +102,24 @@ async def resolve_seed(session: AsyncSession, arg: str) -> Document:
             raise ValueError(f"no document {arg}")
         return doc
     url = normalize_url(arg)
-    doc = await session.scalar(select(Document).where(Document.url == url))
-    if doc is None:
-        await save_document(session, await _download(arg, await _source_for(session, url)))
-        doc = await session.scalar(select(Document).where(Document.url == url))
-    return doc
+    # Сначала точный адрес, потом тот же путь без параметров: в ссылках из соцсетей и
+    # рекомендательных виджетов бывают метки, которых нет в нашем списке.
+    for candidate in dict.fromkeys((url, without_query(url))):
+        doc = await session.scalar(select(Document).where(Document.url == candidate))
+        if doc is not None:
+            return doc
+    incoming = await _download(arg, await _source_for(session, url))
+    result = await save_document(session, incoming)
+    if result == SaveResult.DUPLICATE:
+        # Тот же текст у того же источника уже в архиве под другим адресом — берём его.
+        body = "\n".join(part for part in (incoming.title, incoming.text) if part)
+        return await session.scalar(
+            select(Document).where(
+                Document.source_id == incoming.source_id,
+                Document.content_hash == content_hash(body),
+            )
+        )
+    return await session.scalar(select(Document).where(Document.url == url))
 
 
 async def recent_check(session: AsyncSession, document_id: int, hours: float) -> Check | None:

@@ -61,8 +61,14 @@ def format_check(
     primary = report.get("primary")
     seed_entry = next((t for t in report["timeline"] if t.get("is_seed")), None)
 
-    if primary and primary.get("membership") != "probable":
+    seed_cites = (seed_entry or {}).get("attributes_outside_archive") or []
+    confirmed = primary and primary.get("membership") != "probable"
+    primary_is_seed = primary and primary["url"] == report["seed"]["url"]
+    if confirmed and not (primary_is_seed and seed_cites):
         lines.append(f"Первоисточник: {_link(primary)}, {_time(primary['time'])}")
+    elif confirmed:
+        # Самая ранняя в архиве — сама присланная, но она ссылается на кого-то ещё.
+        lines.append(f"Самая ранняя публикация в архиве — эта ({_time(primary['time'])}).")
     elif primary:
         # Ранние публикации из полосы «вероятно то же событие» первоисточником не называем.
         root = primary.get("earliest_core_root")
@@ -70,9 +76,12 @@ def format_check(
             lines.append("Более ранних публикаций именно об этом в архиве нет.")
         else:
             lines.append(f"Самая ранняя публикация именно об этом: {_link(root)}")
-    if seed_entry and seed_entry.get("attributes_outside_archive"):
-        names = escape(", ".join(seed_entry["attributes_outside_archive"]))
-        lines.append(f"Публикация ссылается на: {names} — в нашем архиве этого источника нет.")
+    if seed_cites:
+        names = escape(", ".join(seed_cites))
+        lines.append(
+            f"Она ссылается на: {names}. Исходной публикации в архиве нет — "
+            "первоисточник, вероятно, там."
+        )
 
     core = report.get("core_publications", report["publications"])
     related = report["publications"] - core

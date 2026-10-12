@@ -18,6 +18,16 @@ _TRACKING_PARAMS = {
     "utm_referrer",
     "rss",
     "partner",
+    "rcmclid",  # рекомендательный виджет (Lenta.ru и др.)
+    "erid",  # маркировка рекламы
+    "_ga",
+    "dclid",
+    "gclsrc",
+    "igshid",
+    "smid",
+    "ref_src",
+    "ref_url",
+    "share",
 }
 _AMP_PATH = re.compile(r"/amp/?$|^/amp(?=/)")
 
@@ -44,3 +54,9 @@ def normalize_url(url: str) -> str:
 
 def domain_of(url: str) -> str:
     return (urlsplit(url).hostname or "").lower().removeprefix("www.")
+
+
+def without_query(url: str) -> str:
+    """Адрес без параметров — запасной ключ поиска в архиве, когда в ссылке неизвестная метка."""
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))

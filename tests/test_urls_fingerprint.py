@@ -15,6 +15,7 @@ from app.collectors.urls import normalize_url
         ("https://example.ru/news/1#comments", "https://example.ru/news/1"),
         ("https://example.ru", "https://example.ru/"),
         ("https://example.ru:8443/a", "https://example.ru:8443/a"),
+        ("https://lenta.ru/news/1/?rcmclid=49b06cb8", "https://lenta.ru/news/1"),
     ],
 )
 def test_normalize_url(raw: str, expected: str) -> None:

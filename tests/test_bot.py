@@ -244,7 +244,68 @@ def test_probable_primary_is_not_called_primary() -> None:
 
     assert "Первоисточник" not in text
     assert "Более ранних публикаций именно об этом в архиве нет" in text
-    assert "ссылается на: Wyborcza" in text
+    assert "ссылается на: Wyborcza. Исходной публикации в архиве нет" in text
     assert "и ещё 4 на ту же тему" in text
     assert "Раньше по той же теме" in text and "Коммерсантъ" in text
     assert "@vzglyad_ru нет в реестре" in text
+
+
+async def test_link_with_unknown_tracking_param_finds_archived_article(
+    session: AsyncSession,
+) -> None:
+    src = Source(type="media", name="Лента.ру", handle_or_domain="lenta.ru")
+    session.add(src)
+    await session.flush()
+    archived = Document(
+        url="https://lenta.ru/news/2026/10/12/teror",
+        title="Новость",
+        text="Текст",
+        source_id=src.id,
+        embedding=vec(1.0),
+    )
+    session.add(archived)
+    await session.flush()
+
+    reply = await check_for_chat(
+        session,
+        "https://lenta.ru/news/2026/10/12/teror/?somenewclid=abc",
+        InputType.URL,
+        555,
+        FakeEmbedder(),
+    )
+
+    check = await session.get(Check, reply.check_id)
+    assert check.document_id == archived.id  # не скачали заново как «другую» статью
+
+
+def test_seed_citing_registry_source_is_not_called_primary() -> None:
+    seed = {
+        "time": "2026-10-12T00:00:00+00:00",
+        "source": "Лента.ру",
+        "membership": "core",
+        "role": "primary",
+        "is_seed": True,
+        "url": "https://lenta.ru/1",
+        "attributes_outside_archive": ["Комсомольская правда"],
+    }
+    report = {
+        **REPORT,
+        "seed": {"url": "https://lenta.ru/1", "title": "Т"},
+        "core_publications": 1,
+        "publications": 1,
+        "independent_core": 1,
+        "timeline": [seed],
+        "primary": {
+            "url": "https://lenta.ru/1",
+            "source": "Лента.ру",
+            "membership": "core",
+            "time": "2026-10-12T00:00:00+00:00",
+            "notes": [],
+        },
+    }
+
+    text = texts.format_check(report, None, "http://x/r/1")
+
+    assert "Первоисточник:" not in text
+    assert "Самая ранняя публикация в архиве — эта" in text
+    assert "Она ссылается на: Комсомольская правда" in text

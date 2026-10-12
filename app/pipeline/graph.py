@@ -131,7 +131,8 @@ _NAMED_ATTRIBUTION = re.compile(
     r"(?i:сообща\w*|пиш\w+|по данным|по информации|со ссылкой на|ссылаясь на|"
     r"переда[её]т\w*|передал\w*)\s+"
     r"(?:(?i:газет|издани|агентств|телеграм-канал|канал|портал|сайт)\w*\s+)?[«\"]?"
-    r"([A-ZА-ЯЁ][\w.\-]*(?:\s+[A-ZА-ЯЁ][\w.\-]*){0,2})"
+    # Имя — до трёх слов с заглавной через пробел; перевод строки имя обрывает.
+    r"([A-ZА-ЯЁ][\w.\-]*(?:[ \t]+[A-ZА-ЯЁ][\w.\-]*){0,2})"
 )
 
 
@@ -139,7 +140,7 @@ def attributed_names(text: str) -> list[str]:
     """Имена источников после формулы атрибуции — в том числе тех, кого нет в реестре."""
     names: list[str] = []
     for match in _NAMED_ATTRIBUTION.finditer(text or ""):
-        name = match.group(1).strip(".-")
+        name = match.group(1).rstrip(".-,")
         if name and name not in names:
             names.append(name)
     return names
@@ -230,7 +231,8 @@ def build_graph(
                 external[dst.id].append(name)
 
         # Источники вне реестра («сообщает Wyborcza») — в историю их не связать, но назвать надо.
-        known = {a.lower() for s in known_sources for a in (*s.aliases, s.name)}
+        # Известные источники уже разобраны по алиасам; «KP.RU» — тоже известный (по домену).
+        known = {a.lower() for s in known_sources for a in (*s.aliases, s.name, s.handle_or_domain)}
         for name in attributed_names(dst.text or ""):
             if name.lower() not in known and name not in external[dst.id]:
                 external[dst.id].append(name)

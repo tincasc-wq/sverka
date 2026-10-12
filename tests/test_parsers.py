@@ -35,3 +35,16 @@ def test_parse_telegram_page_skips_media_only_posts() -> None:
 def test_preview_url_accepts_any_handle_form() -> None:
     for handle in ("@rian_ru", "rian_ru", "https://t.me/rian_ru"):
         assert telegram.preview_url(handle) == "https://t.me/s/rian_ru"
+
+
+def test_published_time_requires_time_not_just_date() -> None:
+    from app.check import published_time
+
+    full = '<meta property="article:published_time" content="2026-10-12T15:20:00+03:00">'
+    naive = '<meta itemprop="datePublished" content="2026-10-12T15:20">'
+    date_only = '<meta property="article:published_time" content="2026-10-12">'
+
+    assert published_time(full) == datetime(2026, 10, 12, 12, 20, tzinfo=UTC)
+    assert published_time(naive) == datetime(2026, 10, 12, 12, 20, tzinfo=UTC)
+    assert published_time(date_only) is None
+    assert published_time("<html></html>") is None
