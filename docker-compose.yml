@@ -26,6 +26,9 @@ services:
   app:
     build: .
     env_file: .env
+    environment:
+      # Прокси до t.me: адрес Windows в сети WSL подставляет .\dev.ps1 up
+      TELEGRAM_PROXY: ${TELEGRAM_PROXY:-}
     command: sh -c "alembic upgrade head && uvicorn app.web.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "8000:8000"
@@ -44,6 +47,9 @@ services:
         EXTRAS: dev,ml
     image: sverka-worker
     env_file: .env
+    environment:
+      # Прокси до t.me: адрес Windows в сети WSL подставляет .\dev.ps1 up
+      TELEGRAM_PROXY: ${TELEGRAM_PROXY:-}
     command: arq app.workers.main.WorkerSettings
     volumes:
       - .:/app

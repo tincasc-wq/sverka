@@ -149,13 +149,26 @@ async def test_poll_rss_saves_full_text_and_isolates_broken_feed(committed) -> N
 async def test_poll_telegram_reads_channel_preview(committed) -> None:
     async with committed() as s:
         s.add(Source(type="tg", name="Тест", handle_or_domain="@testchan"))
+        s.add(Source(type="tg", name="Закрытое превью", handle_or_domain="@nopreview"))
         await s.commit()
 
-    routes = {"https://t.me/s/testchan": TELEGRAM_PAGE}
-    async with httpx.AsyncClient(transport=_transport(routes)) as client:
+    def handler(request: httpx.Request) -> httpx.Response:
+        match str(request.url):
+            case "https://t.me/s/testchan":
+                return httpx.Response(200, content=TELEGRAM_PAGE)
+            case "https://t.me/s/nopreview":
+                return httpx.Response(302, headers={"Location": "https://t.me/nopreview"})
+            case _:
+                return httpx.Response(200, content=b"<html>channel card</html>")
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport, follow_redirects=True) as client:
         stats = await poll_telegram(committed, client=client)
 
     assert stats["inserted"] == 1
+    assert stats["failed_sources"] == 1
     async with committed() as s:
         post = await s.scalar(select(Document))
         assert post.url == "https://t.me/testchan/101"
+        closed = await s.scalar(select(Source).where(Source.handle_or_domain == "@nopreview"))
+        assert "web preview disabled" in closed.last_error

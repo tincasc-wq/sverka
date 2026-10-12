@@ -19,6 +19,8 @@ param(
 $ErrorActionPreference = "Stop"
 $Distro = "Ubuntu"
 $ProjectPath = "/mnt/c/Project/sverka"
+# Порт локального прокси Hiddify («Поделиться VPN в локальной сети»); 0 — без прокси.
+$TelegramProxyPort = 12334
 
 function Invoke-Compose([string]$ComposeArgs) {
     wsl -d $Distro -u root -- bash -c "cd $ProjectPath && docker compose $ComposeArgs"
@@ -37,7 +39,14 @@ function Start-WslKeepAlive {
 switch ($Command) {
     "up" {
         Start-WslKeepAlive
-        Invoke-Compose "up -d --build"
+        if ($TelegramProxyPort -gt 0) {
+            # Адрес Windows в сети WSL меняется после перезагрузки — определяем при каждом запуске.
+            $proxy = "TELEGRAM_PROXY=http://`$(ip route show default | awk '{print `$3}'):$TelegramProxyPort"
+            wsl -d $Distro -u root -- bash -c "cd $ProjectPath && $proxy docker compose up -d --build"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        } else {
+            Invoke-Compose "up -d --build"
+        }
         Write-Host "Готово: http://localhost:8000/health"
     }
     "down" { Invoke-Compose "down" }

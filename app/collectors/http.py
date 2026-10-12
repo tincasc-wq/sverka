@@ -15,8 +15,8 @@ def make_client(proxy: str | None = None) -> httpx.AsyncClient:
     )
 
 
-async def fetch_bytes(client: httpx.AsyncClient, url: str) -> bytes:
-    """GET с ограничением размера ответа (раздел 9: лимит скачивания)."""
+async def fetch(client: httpx.AsyncClient, url: str) -> tuple[bytes, httpx.URL]:
+    """GET с лимитом размера ответа (раздел 9). Возвращает тело и итоговый URL после редиректов."""
     async with client.stream("GET", url) as response:
         response.raise_for_status()
         chunks, size = [], 0
@@ -25,4 +25,9 @@ async def fetch_bytes(client: httpx.AsyncClient, url: str) -> bytes:
             if size > MAX_BODY_BYTES:
                 raise ValueError(f"response larger than {MAX_BODY_BYTES} bytes: {url}")
             chunks.append(chunk)
-        return b"".join(chunks)
+        return b"".join(chunks), response.url
+
+
+async def fetch_bytes(client: httpx.AsyncClient, url: str) -> bytes:
+    body, _ = await fetch(client, url)
+    return body

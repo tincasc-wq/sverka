@@ -11,6 +11,10 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 from app.collectors.store import DocumentIn
 
 
+class PreviewDisabled(Exception):
+    """У канала выключено веб-превью — нужен сборщик через Telethon."""
+
+
 def channel_name(handle: str) -> str:
     return handle.strip().removeprefix("https://t.me/").removeprefix("@").strip("/")
 

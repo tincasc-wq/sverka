@@ -11,7 +11,7 @@ from sqlalchemy import ColumnElement, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.collectors import rss, telegram
-from app.collectors.http import fetch_bytes, make_client
+from app.collectors.http import fetch, fetch_bytes, make_client
 from app.collectors.store import DocumentIn, SaveResult, known_urls, save_document
 from app.collectors.urls import normalize_url
 from app.core.config import get_settings
@@ -28,7 +28,10 @@ async def fetch_rss_source(client: httpx.AsyncClient, source: Source) -> list[Do
 
 
 async def fetch_telegram_source(client: httpx.AsyncClient, source: Source) -> list[DocumentIn]:
-    raw = await fetch_bytes(client, telegram.preview_url(source.handle_or_domain))
+    raw, final_url = await fetch(client, telegram.preview_url(source.handle_or_domain))
+    if not final_url.path.startswith("/s/"):
+        # Канал отключил веб-превью: t.me уводит на страницу без постов.
+        raise telegram.PreviewDisabled(f"web preview disabled, redirected to {final_url}")
     return telegram.parse_channel_page(raw, source.id)
 
 
