@@ -14,14 +14,22 @@ dependencies = [
     "pgvector>=0.3.6",
     "redis>=5.2",
     "arq>=0.26",
+    "httpx>=0.28",
+    "feedparser>=6.0",
+    "trafilatura>=2.0",
+    "selectolax>=0.3",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
-    "httpx>=0.28",
     "ruff>=0.8",
+]
+# Эмбеддинги: тяжёлые зависимости, ставятся только в образ воркера.
+ml = [
+    "sentence-transformers>=3.3",
 ]
 
 [build-system]

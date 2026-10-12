@@ -38,11 +38,16 @@ services:
         condition: service_healthy
 
   worker:
-    build: .
+    build:
+      context: .
+      args:
+        EXTRAS: dev,ml
+    image: sverka-worker
     env_file: .env
     command: arq app.workers.main.WorkerSettings
     volumes:
       - .:/app
+      - hf_cache:/root/.cache/huggingface
     depends_on:
       db:
         condition: service_healthy
@@ -51,3 +56,4 @@ services:
 
 volumes:
   pgdata:
+  hf_cache:

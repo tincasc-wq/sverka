@@ -24,6 +24,12 @@ class Source(CreatedAtMixin, Base):
     legal_flags: Mapped[dict] = mapped_column(JSONB, server_default="{}", default=dict)
     is_tracked: Mapped[bool] = mapped_column(Boolean, server_default="true", default=True)
 
+    # Состояние сборщика: RSS-лента (для tg/vk адрес берётся из handle_or_domain).
+    feed_url: Mapped[str | None] = mapped_column(Text)
+    last_polled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    consecutive_errors: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
+
 
 class SourceScore(Base):
     """История рейтинга источника. Только дополняется (триггер в миграции)."""

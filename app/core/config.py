@@ -11,6 +11,19 @@ class Settings(BaseSettings):
     # В тестах пул соединений отключается: каждый тест живёт в своём event loop.
     testing: bool = False
 
+    # Сборщики
+    collector_concurrency: int = 10
+    http_timeout_s: float = 20.0
+    user_agent: str = "Mozilla/5.0 (compatible; SverkaBot/0.1)"
+    fetch_full_text: bool = True
+    # Прокси для t.me, если Telegram недоступен напрямую (например, http://host:port).
+    telegram_proxy: str = ""
+
+    # Эмбеддинги
+    embedding_model: str = "BAAI/bge-m3"
+    embedding_batch_size: int = 32
+    embedding_max_chars: int = 2000
+
     anthropic_api_key: str = ""
     deepseek_api_key: str = ""
     yandex_ai_studio_api_key: str = ""
