@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Сверка — отчёт{% endblock %}
+{% block content %}
+{% set r = report %}
+<h1>{{ r.seed.title or "Публикация" }}</h1>
+<p class="muted">Проверка от {{ check.finished_at.isoformat() | msk }} · <a href="{{ r.seed.url }}" target="_blank" rel="noopener">исходная публикация</a></p>
+
+{% if r.primary %}
+<div class="card row">
+  <div><div class="muted">Первоисточник</div>
+    <a href="{{ r.primary.url }}" target="_blank" rel="noopener">{{ r.primary.source }}</a>, {{ r.primary.time | msk }}
+    {% if r.primary.membership == "probable" %}<br><span class="tag probable">принадлежность к событию не подтверждена</span>{% endif %}
+    {% for note in r.primary.notes or [] %}<br><span class="tag bad">{{ note }}</span>{% endfor %}
+  </div>
+  <div><div class="muted">Публикаций о событии</div><span class="big">{{ r.publications }}</span></div>
+  <div><div class="muted">Независимых групп источников</div><span class="big">{{ r.independent_reports }}</span></div>
+</div>
+{% endif %}
+
+<h2>Хронология</h2>
+<table>
+  <tr><th>Время</th><th>Источник</th><th>Публикация</th><th>Роль</th><th>Откуда взято</th></tr>
+  {% for t in r.timeline %}
+  <tr>
+    <td class="muted">{{ t.time | msk }}{% if t.date_unreliable %}<br><span class="tag bad">дата ненадёжна</span>{% endif %}</td>
+    <td>{{ t.source }}{% if t.membership == "probable" %}<br><span class="tag probable">вероятно то же событие</span>{% endif %}</td>
+    <td><a href="{{ t.url }}" target="_blank" rel="noopener">{{ t.title or t.url }}</a></td>
+    <td>{{ {"primary": "первоисточник", "derived": "перепечатка", "independent": "независимо"}[t.role] }}</td>
+    <td class="muted">
+      {% for f in t.took_from %}{{ f.source }} ({{ {"explicit_link": "ссылка", "attribution": "атрибуция", "near_copy": "почти копия"}[f.kind] }}){{ ", " if not loop.last }}{% endfor %}
+      {% if t.attributes_outside_archive %}ссылается на: {{ t.attributes_outside_archive | join(", ") }}{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% if r.borderline %}
+<h2>Похожие, но, вероятно, другие события</h2>
+<table>
+  {% for b in r.borderline %}<tr><td class="muted">{{ "%.2f"|format(b.similarity) }}</td><td><a href="{{ b.url }}" target="_blank" rel="noopener">{{ b.title }}</a></td></tr>{% endfor %}
+</table>
+{% endif %}
+
+<p class="muted" style="margin-top:20px">{{ r.note }}<br>
+Автоматический анализ открытых источников, не является утверждением об истинности или ложности.</p>
+{% endblock %}

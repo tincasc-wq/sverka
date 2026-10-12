@@ -178,3 +178,14 @@ async def source_card(session: AsyncSession, source: Source) -> dict:
             {"at": s.computed_at.isoformat(), "score": s.score, "reason": s.reason} for s in history
         ],
     }
+
+
+async def find_source(session: AsyncSession, handle: str) -> Source | None:
+    """Источник по домену (tass.ru, https://www.tass.ru/) или каналу (@rbc_news, t.me/rbc_news)."""
+    handle = handle.strip().lower().removeprefix("https://").removeprefix("http://")
+    handle = handle.removeprefix("www.").rstrip("/")
+    if handle.startswith("t.me/"):
+        handle = "@" + handle.removeprefix("t.me/").split("/")[0]
+    elif not handle.startswith("@"):
+        handle = handle.split("/")[0]
+    return await session.scalar(select(Source).where(Source.handle_or_domain == handle))

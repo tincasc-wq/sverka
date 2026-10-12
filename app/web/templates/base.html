@@ -39,9 +39,11 @@
 <body>
 <header>
   <b>Сверка</b>
+  {% if nav is defined %}{# меню только в админке; публичный отчёт его не показывает #}
   <a href="/admin/stories" class="{{ 'on' if nav == 'stories' }}">Истории</a>
   <a href="/admin/sources" class="{{ 'on' if nav == 'sources' }}">Источники</a>
   <a href="/admin/feedback" class="{{ 'on' if nav == 'feedback' }}">Жалобы</a>
+  {% endif %}
 </header>
 <main>{% block content %}{% endblock %}</main>
 </body>

@@ -40,6 +40,21 @@ services:
       redis:
         condition: service_healthy
 
+  bot:
+    build: .
+    env_file: .env
+    environment:
+      TELEGRAM_PROXY: ${TELEGRAM_PROXY:-}
+    command: python -m app.bot.main
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   worker:
     build:
       context: .

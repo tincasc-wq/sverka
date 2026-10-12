@@ -88,13 +88,25 @@ async def test_seed_without_embedding_is_rejected(session: AsyncSession) -> None
 async def test_run_check_embeds_seed_and_records_check(session: AsyncSession) -> None:
     seed = await _doc(session, "https://a.ru/1", None, text="Горит склад")
 
-    report = await run_check(session, f"doc:{seed.id}", FakeEmbedder())
+    check = await run_check(session, f"doc:{seed.id}", FakeEmbedder())
+    report = json.loads(check.summary)
 
     assert report["publications"] == 1
     assert report["primary"]["url"] == "https://a.ru/1"
-    check = await session.scalar(select(Check))
     assert check.status == "done"
-    assert json.loads(check.summary)["story_id"] == report["story_id"]
+    assert len(check.public_token) >= 16
+    assert await session.scalar(select(Check)) is check
+
+
+async def test_recent_check_is_reused_from_cache(session: AsyncSession) -> None:
+    seed = await _doc(session, "https://a.ru/1", 1.0)
+
+    first = await run_check(session, f"doc:{seed.id}", None, cache_hours=6)
+    again = await run_check(session, f"doc:{seed.id}", None, cache_hours=6)
+    fresh = await run_check(session, f"doc:{seed.id}", None, cache_hours=0)
+
+    assert again.id == first.id
+    assert fresh.id != first.id
 
 
 @pytest.mark.parametrize(

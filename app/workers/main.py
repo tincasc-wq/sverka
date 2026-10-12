@@ -12,6 +12,7 @@ from app.collectors.runner import poll_rss, poll_telegram, summarize
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.embeddings import SentenceTransformerEmbedder, embed_pending
+from app.models.enums import InputType
 from app.registry.service import recompute_ratings
 
 log = logging.getLogger("sverka.worker")
@@ -31,6 +32,38 @@ def single_flight(func: Callable[[dict], Awaitable]) -> Callable[[dict], Awaitab
     return wrapper
 
 
+async def bot_check(
+    ctx: dict,
+    chat_id: int,
+    reply_to: int,
+    value: str,
+    input_type: str,
+    tg_id: int,
+    use_cache: bool = True,
+) -> str:
+    """Проверка по запросу из бота; ответ уходит прямо в чат (ФТ-7.1, кнопки — ФТ-7.4)."""
+    from aiogram.types import ReplyParameters
+
+    from app.bot.service import check_for_chat
+    from app.bot.telegram import check_keyboard
+
+    async with SessionLocal() as session:
+        reply = await check_for_chat(
+            session, value, InputType(input_type), tg_id, ctx["embedder"], use_cache=use_cache
+        )
+    bot = ctx.get("bot")
+    if bot is None:
+        log.warning("bot token is not set, reply for chat %s dropped", chat_id)
+        return "no bot"
+    await bot.send_message(
+        chat_id,
+        reply.text,
+        reply_parameters=ReplyParameters(message_id=reply_to, allow_sending_without_reply=True),
+        reply_markup=check_keyboard(reply.check_id) if reply.check_id else None,
+    )
+    return f"check={reply.check_id}"
+
+
 async def startup(ctx: dict) -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(asctime)s %(name)s: %(message)s", "%H:%M:%S"))
@@ -38,6 +71,15 @@ async def startup(ctx: dict) -> None:
     sverka_log.addHandler(handler)
     sverka_log.setLevel(logging.INFO)
     ctx["embedder"] = SentenceTransformerEmbedder()
+    if get_settings().telegram_bot_token:
+        from app.bot.telegram import make_bot
+
+        ctx["bot"] = make_bot()
+
+
+async def shutdown(ctx: dict) -> None:
+    if bot := ctx.get("bot"):
+        await bot.session.close()
 
 
 async def ping(ctx: dict) -> str:
@@ -78,7 +120,14 @@ async def recompute_source_ratings(ctx: dict) -> str:
 
 
 class WorkerSettings:
-    functions = [ping, collect_rss, collect_telegram, embed_documents, recompute_source_ratings]
+    functions = [
+        ping,
+        collect_rss,
+        collect_telegram,
+        embed_documents,
+        recompute_source_ratings,
+        bot_check,
+    ]
     cron_jobs = [
         cron(collect_rss, minute=set(range(0, 60, 5)), unique=True, timeout=600),
         cron(collect_telegram, minute=set(range(2, 60, 10)), unique=True, timeout=600),
@@ -87,5 +136,6 @@ class WorkerSettings:
         cron(recompute_source_ratings, hour=0, minute=0, unique=True, timeout=1800),
     ]
     on_startup = startup
+    on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = 8

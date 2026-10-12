@@ -8,8 +8,9 @@
 
 import asyncio
 import json
+import secrets
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import trafilatura
 from sqlalchemy import select
@@ -79,8 +80,34 @@ async def resolve_seed(session: AsyncSession, arg: str) -> Document:
     return doc
 
 
-async def run_check(session: AsyncSession, arg: str, embedder: Embedder | None) -> dict:
+async def recent_check(session: AsyncSession, document_id: int, hours: float) -> Check | None:
+    """Готовый отчёт по той же публикации моложе hours часов (ФТ-1.3)."""
+    since = datetime.now(UTC) - timedelta(hours=hours)
+    return await session.scalar(
+        select(Check)
+        .where(
+            Check.document_id == document_id,
+            Check.status == CheckStatus.DONE,
+            Check.finished_at >= since,
+        )
+        .order_by(Check.finished_at.desc())
+        .limit(1)
+    )
+
+
+async def run_check(
+    session: AsyncSession,
+    arg: str,
+    embedder: Embedder | None,
+    *,
+    user_id: int | None = None,
+    input_type: InputType = InputType.URL,
+    cache_hours: float = 0,
+) -> Check:
     seed = await resolve_seed(session, arg)
+    if cache_hours and (cached := await recent_check(session, seed.id, cache_hours)):
+        await session.commit()  # сохранить скачанную публикацию, если её не было
+        return cached
     if seed.embedding is None:
         if embedder is None:
             raise RuntimeError("seed has no embedding: run in the worker container")
@@ -93,19 +120,20 @@ async def run_check(session: AsyncSession, arg: str, embedder: Embedder | None) 
 
     result = await build_story(session, seed)
     report = build_report(result, get_scoring().graph)
-    session.add(
-        Check(
-            input_type=InputType.URL,
-            input_raw=arg,
-            document_id=seed.id,
-            story_id=result.story_id,
-            status=CheckStatus.DONE,
-            summary=json.dumps(report, ensure_ascii=False),
-            finished_at=datetime.now(UTC),
-        )
+    check = Check(
+        user_id=user_id,
+        input_type=input_type,
+        input_raw=arg,
+        document_id=seed.id,
+        story_id=result.story_id,
+        status=CheckStatus.DONE,
+        summary=json.dumps(report, ensure_ascii=False),
+        finished_at=datetime.now(UTC),
+        public_token=secrets.token_urlsafe(12),
     )
+    session.add(check)
     await session.commit()
-    return report
+    return check
 
 
 def _embedder() -> Embedder | None:
@@ -121,8 +149,8 @@ def _embedder() -> Embedder | None:
 
 async def _main(arg: str) -> None:
     async with SessionLocal() as session:
-        report = await run_check(session, arg, _embedder())
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+        check = await run_check(session, arg, _embedder())
+    print(json.dumps(json.loads(check.summary), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

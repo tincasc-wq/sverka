@@ -5,10 +5,11 @@ from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.db import engine
-from app.web import admin, api
+from app.web import admin, api, report
 
 app = FastAPI(title="Сверка", version="0.1.0")
 app.include_router(api.router)
+app.include_router(report.router)
 app.include_router(admin.router)
 app.include_router(admin.protected)
 

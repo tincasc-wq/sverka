@@ -24,6 +24,8 @@ class Check(CreatedAtMixin, Base):
     confirmation_index: Mapped[float | None] = mapped_column(Float)
     summary: Mapped[str | None] = mapped_column(Text)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Неугадываемая часть ссылки на веб-отчёт /r/<token>: id подряд перебирались бы.
+    public_token: Mapped[str | None] = mapped_column(String(32), unique=True)
 
 
 class Claim(Base):

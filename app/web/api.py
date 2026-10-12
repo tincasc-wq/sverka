@@ -4,29 +4,21 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.models import Check, Feedback, Source
+from app.models import Check, Feedback
 from app.models.enums import FeedbackStatus
-from app.registry.service import source_card
+from app.registry.service import find_source, source_card
 
 router = APIRouter(prefix="/api")
 Session = Annotated[AsyncSession, Depends(get_session)]
 
 
-async def _find_source(session: AsyncSession, handle: str) -> Source | None:
-    handle = handle.strip().lower().removeprefix("https://").removeprefix("www.").rstrip("/")
-    if handle.startswith("t.me/"):
-        handle = "@" + handle.removeprefix("t.me/")
-    return await session.scalar(select(Source).where(Source.handle_or_domain == handle))
-
-
 @router.get("/sources/{handle}")
 async def get_source(handle: str, session: Session) -> dict:
     """Карточка по домену (tass.ru) или каналу (@rbc_news) — команда /source в боте."""
-    source = await _find_source(session, handle)
+    source = await find_source(session, handle)
     if source is None:
         raise HTTPException(404, "источника нет в реестре")
     return await source_card(session, source)
@@ -49,7 +41,7 @@ async def post_feedback(body: FeedbackIn, session: Session) -> dict:
     """«Сообщить об ошибке» в отчёте (ФТ-7.4) или апелляция источника (ФТ-6.4)."""
     source_id = None
     if body.source:
-        source = await _find_source(session, body.source)
+        source = await find_source(session, body.source)
         if source is None:
             raise HTTPException(404, "источника нет в реестре")
         source_id = source.id

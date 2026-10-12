@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     # Вход в админку (временная схема до Telegram Login). Пусто — вход закрыт.
     admin_token: str = ""
 
+    # Telegram-бот (этап 4). Сеть до api.telegram.org — через telegram_proxy, как и сбор каналов.
+    telegram_bot_token: str = ""
+    # Адрес, по которому пользователь открывает веб-отчёт /r/<token>.
+    public_base_url: str = "http://localhost:8000"
+    check_cache_hours: float = 6  # ФТ-1.3
+    recheck_hours: float = 6  # кнопка «Проверить снова позже» (ФТ-7.4)
+    text_search_days: int = 7  # окно поиска для произвольного текста (сценарий 3)
+
     anthropic_api_key: str = ""
     deepseek_api_key: str = ""
     yandex_ai_studio_api_key: str = ""
