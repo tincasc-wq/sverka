@@ -1,0 +1,15 @@
+# Стартовый реестр источников (ТЗ, раздел 7). Заполняет владелец проекта.
+# Нужен баланс позиций: государственные, независимые, региональные, зарубежные русскоязычные, крупные TG-каналы.
+#
+# type: media | tg | vk | official | agency
+# rss — для media/official/agency; handle — @канал для tg, адрес сообщества для vk.
+#
+# Пример записи:
+# - name: Пример СМИ
+#   type: media
+#   handle_or_domain: example.ru
+#   rss: https://example.ru/rss
+#   owner: ООО «Пример Медиа»
+#   affiliation: частное
+
+sources: []

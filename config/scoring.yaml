@@ -1,0 +1,46 @@
+# Веса и пороги индекса подтверждённости и рейтинга источников (ТЗ, разделы 6.5–6.6).
+# Стартовые значения; калибруются на эталонных историях.
+
+confirmation_index:
+  type_weights:
+    official: 2.0
+    agency: 1.5
+    media: 1.0
+    tg: 0.5
+    vk: 0.5
+  stance_sign:
+    supports: 1.0
+    contradicts: -1.0
+    refines: 0.5
+    unrelated: 0.0
+  main_claim_weight: 2.0
+  too_early_hours: 6
+  statuses:            # нижняя граница включительно
+    widely_confirmed: 75
+    partially_confirmed: 50
+    not_confirmed: 25  # ниже — «есть опровержения»
+
+clustering:
+  window_hours: 72
+  include_threshold: 0.82
+  llm_review_from: 0.72
+  candidates_top_k: 50
+
+graph:
+  near_copy_max_hamming: 3
+  confidence:
+    explicit_link: 0.95
+    attribution: 0.8
+    near_copy: 0.7
+  unreliable_date_hours: 2
+
+source_rating:
+  half_life_days: 180
+  silent_edit_penalty: 0.5
+  min_outcomes_to_show: 10
+  priors:              # alpha0 / beta0 по типу источника
+    agency: [6, 2]
+    official: [6, 2]
+    media: [3, 2]
+    tg: [2, 2]
+    vk: [2, 2]

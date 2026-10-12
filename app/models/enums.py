@@ -1,0 +1,70 @@
+from enum import StrEnum
+
+
+class SourceType(StrEnum):
+    MEDIA = "media"
+    TG = "tg"
+    VK = "vk"
+    OFFICIAL = "official"
+    AGENCY = "agency"
+
+
+class ChangeType(StrEnum):
+    EDIT = "edit"
+    DELETED = "deleted"
+
+
+class StoryStatus(StrEnum):
+    OPEN = "open"
+    CLOSED = "closed"
+
+
+class DerivationKind(StrEnum):
+    EXPLICIT_LINK = "explicit_link"
+    ATTRIBUTION = "attribution"
+    NEAR_COPY = "near_copy"
+
+
+class InputType(StrEnum):
+    URL = "url"
+    TG_FORWARD = "tg_forward"
+    TEXT = "text"
+
+
+class CheckStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+
+
+class Stance(StrEnum):
+    SUPPORTS = "supports"
+    CONTRADICTS = "contradicts"
+    REFINES = "refines"
+    UNRELATED = "unrelated"
+
+
+class Verdict(StrEnum):
+    CONFIRMED = "confirmed"
+    REFUTED = "refuted"
+    MIXED = "mixed"
+    UNKNOWN = "unknown"
+
+
+class DecidedBy(StrEnum):
+    ANALYST = "analyst"
+    OFFICIAL = "official"
+    AUTO = "auto"
+
+
+class UserRole(StrEnum):
+    USER = "user"
+    ANALYST = "analyst"
+    ADMIN = "admin"
+
+
+class FeedbackStatus(StrEnum):
+    OPEN = "open"
+    RESOLVED = "resolved"
+    REJECTED = "rejected"

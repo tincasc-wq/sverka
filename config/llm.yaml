@@ -1,0 +1,26 @@
+# Маршрутизация LLM по шагам конвейера (ТЗ, раздел 8.1). Используется с этапа 3.
+# Порядок в списке = порядок перехода на резерв.
+
+routes:
+  extract_claims:
+    - {provider: anthropic, model: claude-haiku-5-5}
+    - {provider: deepseek, model: deepseek-flash}
+    - {provider: yandex, model: alice-ai-llm-flash}
+  same_event:
+    - {provider: anthropic, model: claude-haiku-5-5}
+    - {provider: deepseek, model: deepseek-flash}
+    - {provider: yandex, model: alice-ai-llm-flash}
+  verify:
+    - {provider: anthropic, model: claude-haiku-5-5}
+    - {provider: deepseek, model: deepseek-flash}
+    - {provider: yandex, model: deepseek-v4-flash}
+  verify_disputed:
+    - {provider: anthropic, model: claude-sonnet-5-5}
+    - {provider: deepseek, model: deepseek-v4-pro}
+    - {provider: yandex, model: alice-ai-llm}
+
+# Дневной потолок расходов по провайдеру, USD. При превышении — оповещение и переход дальше по списку.
+daily_budget_usd:
+  anthropic: 5
+  deepseek: 5
+  yandex: 5
