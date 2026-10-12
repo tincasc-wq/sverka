@@ -309,3 +309,41 @@ def test_seed_citing_registry_source_is_not_called_primary() -> None:
     assert "Первоисточник:" not in text
     assert "Самая ранняя публикация в архиве — эта" in text
     assert "Она ссылается на: Комсомольская правда" in text
+
+
+def test_forward_carries_text_without_promo_footer() -> None:
+    caption = (
+        "Сотрудники ТЦК в Харькове затолкали мужчину в микроавтобус, пишут в местных каналах.\n\n"
+        "🟩 Подписаться на RT: ТГ | Зеркало | MAX"
+    )
+
+    result = extract_input(caption, "rt_russian", 295049, "2026-10-12T19:05:00+00:00")
+
+    assert result.value == "https://t.me/rt_russian/295049"
+    assert result.text.endswith("пишут в местных каналах.")
+    assert result.published_at == "2026-10-12T19:05:00+00:00"
+
+
+def test_invite_links_are_not_checked() -> None:
+    text = "Подписаться: https://t.me/+ELcA6UUZf0w3Y2Uy а новость тут https://ria.ru/2026/1.html"
+
+    assert extract_input(text).value == "https://ria.ru/2026/1.html"
+
+
+async def test_blocked_post_is_checked_by_forwarded_text(session: AsyncSession) -> None:
+    reply = await check_for_chat(
+        session,
+        "https://t.me/rt_russian/1",  # без прокси t.me не откроется, как скрытый канал
+        InputType.TG_FORWARD,
+        666,
+        FakeEmbedder(),
+        fallback_text="Сотрудники ТЦК в Харькове затолкали мужчину в микроавтобус.",
+        fallback_date="2026-10-12T19:05:00+00:00",
+    )
+
+    assert reply.check_id is not None
+    check = await session.get(Check, reply.check_id)
+    doc = await session.get(Document, check.document_id)
+    assert doc.url == "https://t.me/rt_russian/1"
+    assert doc.text.startswith("Сотрудники ТЦК")
+    assert doc.published_at == datetime(2026, 10, 12, 19, 5, tzinfo=UTC)

@@ -113,10 +113,11 @@ async def save_feedback(message: Message, state: FSMContext) -> None:
 @router.message(F.text | F.caption | F.forward_origin)
 async def check(message: Message, arq: ArqRedis) -> None:
     origin = message.forward_origin
-    channel = message_id = None
+    channel = message_id = forward_date = None
     if isinstance(origin, MessageOriginChannel) and origin.chat.username:
         channel, message_id = origin.chat.username, origin.message_id
-    user_input = extract_input(message.text or message.caption, channel, message_id)
+        forward_date = origin.date.isoformat()
+    user_input = extract_input(message.text or message.caption, channel, message_id, forward_date)
     if user_input is None:
         await message.answer(texts.NOT_UNDERSTOOD)
         return
@@ -137,6 +138,8 @@ async def check(message: Message, arq: ArqRedis) -> None:
         user_input.type.value,
         message.from_user.id,
         True,
+        user_input.text,
+        user_input.published_at,
     )
 
 

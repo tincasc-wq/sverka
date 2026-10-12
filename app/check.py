@@ -13,6 +13,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import httpx
 import trafilatura
 from selectolax.lexbor import LexborHTMLParser as HTMLParser
 from sqlalchemy import select
@@ -95,7 +96,9 @@ def published_time(html: bytes | str) -> datetime | None:
     return None
 
 
-async def resolve_seed(session: AsyncSession, arg: str) -> Document:
+async def resolve_seed(
+    session: AsyncSession, arg: str, fallback: DocumentIn | None = None
+) -> Document:
     if arg.startswith("doc:"):
         doc = await session.get(Document, int(arg.removeprefix("doc:")))
         if doc is None:
@@ -108,7 +111,17 @@ async def resolve_seed(session: AsyncSession, arg: str) -> Document:
         doc = await session.scalar(select(Document).where(Document.url == candidate))
         if doc is not None:
             return doc
-    incoming = await _download(arg, await _source_for(session, url))
+    source_id = await _source_for(session, url)
+    try:
+        incoming = await _download(arg, source_id)
+    except (httpx.HTTPError, ValueError):
+        if fallback is None or not fallback.text:
+            raise
+        # Пост не открылся (например, канал скрыт в стране прокси), но его текст и время
+        # пришли вместе с пересылкой — проверяем по ним.
+        incoming = fallback
+        incoming.url = url
+        incoming.source_id = source_id
     result = await save_document(session, incoming)
     if result == SaveResult.DUPLICATE:
         # Тот же текст у того же источника уже в архиве под другим адресом — берём его.
@@ -145,8 +158,9 @@ async def run_check(
     user_id: int | None = None,
     input_type: InputType = InputType.URL,
     cache_hours: float = 0,
+    fallback: DocumentIn | None = None,
 ) -> Check:
-    seed = await resolve_seed(session, arg)
+    seed = await resolve_seed(session, arg, fallback)
     if cache_hours and (cached := await recent_check(session, seed.id, cache_hours)):
         await session.commit()  # сохранить скачанную публикацию, если её не было
         return cached

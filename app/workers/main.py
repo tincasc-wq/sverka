@@ -40,6 +40,8 @@ async def bot_check(
     input_type: str,
     tg_id: int,
     use_cache: bool = True,
+    fallback_text: str | None = None,
+    fallback_date: str | None = None,
 ) -> str:
     """Проверка по запросу из бота; ответ уходит прямо в чат (ФТ-7.1, кнопки — ФТ-7.4)."""
     from aiogram.types import ReplyParameters
@@ -49,7 +51,14 @@ async def bot_check(
 
     async with SessionLocal() as session:
         reply = await check_for_chat(
-            session, value, InputType(input_type), tg_id, ctx["embedder"], use_cache=use_cache
+            session,
+            value,
+            InputType(input_type),
+            tg_id,
+            ctx["embedder"],
+            use_cache=use_cache,
+            fallback_text=fallback_text,
+            fallback_date=fallback_date,
         )
     bot = ctx.get("bot")
     if bot is None:
