@@ -71,24 +71,36 @@ async def latest_ratings(session: AsyncSession, source_ids: set[int]) -> dict[in
 async def archive_coverage(
     session: AsyncSession, moment: datetime, window_hours: float
 ) -> tuple[int, int]:
-    """Сколько источников писали около moment и сколько активно сейчас (за сутки).
+    """Сколько из активных сейчас источников (сбор за последние сутки) мы уже собирали к moment.
 
     Сбор по всем источникам идёт с какого-то дня; для более ранних новостей в архиве только
     те, что ещё оставались в лентах. «Нет подтверждений» тогда значит «нет данных».
+    Считаем по началу сбора (первое first_seen_at источника), а не по тому, писал ли
+    источник что-то рядом с moment: ночью и у редко пишущих лент публикаций мало и так
+    (прогон качества 13.10.2026 — 8 ложных «архив неполный» из 25).
     """
-    published = func.coalesce(Document.published_at, Document.first_seen_at)
-    window = timedelta(hours=window_hours)
-    around = await session.scalar(
-        select(func.count(func.distinct(Document.source_id))).where(
-            published.between(moment - window, moment + window)
+    per_source = (
+        select(
+            Document.source_id,
+            func.min(Document.first_seen_at).label("started"),
+            func.max(Document.first_seen_at).label("last"),
         )
+        .where(Document.source_id.is_not(None))
+        .group_by(Document.source_id)
+        .subquery()
     )
-    active = await session.scalar(
-        select(func.count(func.distinct(Document.source_id))).where(
-            Document.first_seen_at >= datetime.now(UTC) - timedelta(days=1)
+    active = per_source.c.last >= datetime.now(UTC) - timedelta(days=1)
+    # Ленты отдают записи за последние часы: начатый чуть позже новости сбор её ещё застал.
+    started_in_time = per_source.c.started <= moment + timedelta(hours=window_hours)
+    total, covered = (
+        await session.execute(
+            select(
+                func.count(),
+                func.count().filter(started_in_time),
+            ).where(active)
         )
-    )
-    return int(around or 0), int(active or 0)
+    ).one()
+    return int(covered or 0), int(total or 0)
 
 
 async def analyze(

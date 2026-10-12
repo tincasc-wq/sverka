@@ -159,7 +159,8 @@ async def verify_document(
     check_id: int | None = None,
 ) -> tuple[list[VerifyResult], int]:
     """Сверка всех утверждений с одной публикацией. Возвращает результаты и число отброшенных."""
-    prompt = load_prompt("verify")
+    # Второй контур проверяет только «могут ли оба быть верны одновременно» — свой промпт.
+    prompt = load_prompt("dispute" if step == "verify_disputed" else "verify")
     numbered = "\n".join(f"{i}. {c}" for i, c in enumerate(claims, 1))
     body = snippet(doc, VERIFY_DOC_CHARS)
     user = f"<claims>\n{numbered}\n</claims>\n\nПубликация:\n<document>{body}</document>"

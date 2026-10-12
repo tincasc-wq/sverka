@@ -317,4 +317,4 @@ async def test_old_news_before_full_collection_is_archive_gap(session: AsyncSess
     analysis = json.loads(check.summary)["analysis"]
 
     assert analysis["status"] == "archive_gap" and analysis["index"] is None
-    assert "1 из 4 источников" in analysis["status_text"]
+    assert "0 из 4 источников" in analysis["status_text"]  # сбор начат после новости
