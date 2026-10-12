@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     embedding_batch_size: int = 32
     embedding_max_chars: int = 2000
+    embedding_threads: int = 4
 
     anthropic_api_key: str = ""
     deepseek_api_key: str = ""

@@ -1,6 +1,9 @@
 """Фоновый воркер arq: сборщики по расписанию и расчёт эмбеддингов (этап 2)."""
 
+import asyncio
+import functools
 import logging
+from collections.abc import Awaitable, Callable
 
 from arq import cron
 from arq.connections import RedisSettings
@@ -13,7 +16,26 @@ from app.embeddings import SentenceTransformerEmbedder, embed_pending
 log = logging.getLogger("sverka.worker")
 
 
+def single_flight(func: Callable[[dict], Awaitable]) -> Callable[[dict], Awaitable]:
+    """Пропускает запуск, если предыдущий ещё идёт: крон не должен копить параллельные копии."""
+    lock = asyncio.Lock()
+
+    @functools.wraps(func)
+    async def wrapper(ctx: dict):
+        if lock.locked():
+            return "skipped: previous run in progress"
+        async with lock:
+            return await func(ctx)
+
+    return wrapper
+
+
 async def startup(ctx: dict) -> None:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(name)s: %(message)s", "%H:%M:%S"))
+    sverka_log = logging.getLogger("sverka")
+    sverka_log.addHandler(handler)
+    sverka_log.setLevel(logging.INFO)
     ctx["embedder"] = SentenceTransformerEmbedder()
 
 
@@ -21,18 +43,21 @@ async def ping(ctx: dict) -> str:
     return "pong"
 
 
+@single_flight
 async def collect_rss(ctx: dict) -> str:
     result = summarize(await poll_rss(SessionLocal))
     log.info("rss: %s", result)
     return result
 
 
+@single_flight
 async def collect_telegram(ctx: dict) -> str:
     result = summarize(await poll_telegram(SessionLocal))
     log.info("telegram: %s", result)
     return result
 
 
+@single_flight
 async def embed_documents(ctx: dict) -> int:
     async with SessionLocal() as session:
         count = await embed_pending(session, ctx["embedder"])
@@ -50,4 +75,4 @@ class WorkerSettings:
     ]
     on_startup = startup
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
-    max_jobs = 4
+    max_jobs = 8

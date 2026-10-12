@@ -23,9 +23,13 @@ class SentenceTransformerEmbedder:
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if self._model is None:
+            import torch
             from sentence_transformers import SentenceTransformer
 
+            # Оставляем ядра сборщикам и БД; длиннее 512 токенов для поиска похожих не нужно.
+            torch.set_num_threads(get_settings().embedding_threads)
             self._model = SentenceTransformer(self.model_name, device="cpu")
+            self._model.max_seq_length = 512
         vectors = self._model.encode(texts, normalize_embeddings=True, batch_size=len(texts))
         return [v.tolist() for v in vectors]
 
