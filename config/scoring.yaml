@@ -47,6 +47,7 @@ source_rating:
   half_life_days: 180
   silent_edit_penalty: 0.5
   min_outcomes_to_show: 10
+  min_score_change: 0.5      # меньше — новую запись в историю рейтинга не пишем
   priors:              # alpha0 / beta0 по типу источника
     agency: [6, 2]
     official: [6, 2]

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% set nav = "feedback" %}
+{% block content %}
+<h1>Жалобы и апелляции</h1>
+<p class="muted">
+  {% for s, label in [("open", "открытые"), ("resolved", "решённые"), ("rejected", "отклонённые")] %}
+  {% if s == status %}<b>{{ label }}</b>{% else %}<a href="?status={{ s }}">{{ label }}</a>{% endif %}{{ " · " if not loop.last }}
+  {% endfor %}
+</p>
+<table>
+  <tr><th>#</th><th>О чём</th><th>Текст</th><th>Решение</th></tr>
+  {% for f, source in rows %}
+  <tr>
+    <td>{{ f.id }}<br><span class="muted">{{ f.created_at.strftime("%d.%m %H:%M") }}</span></td>
+    <td>{% if source %}<a href="/admin/sources/{{ source.id }}">{{ source.name }}</a>{% endif %}
+        {% if f.check_id %}<span class="muted">проверка #{{ f.check_id }}</span>{% endif %}</td>
+    <td>{{ f.text }}</td>
+    <td>
+      {% if f.status == "open" %}
+      <form method="post" action="/admin/feedback/{{ f.id }}">
+        <textarea name="resolution" rows="2" placeholder="Что сделано"></textarea>
+        <button name="status" value="resolved">Решено</button>
+        <button name="status" value="rejected">Отклонить</button>
+      </form>
+      {% else %}{{ f.resolution or "—" }}{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4" class="muted">Нет.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

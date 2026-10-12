@@ -5,6 +5,7 @@ os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://sverka:sverka-dev@localhost:5432/sverka_test"
 )
 os.environ["TESTING"] = "true"
+os.environ["ADMIN_TOKEN"] = "test-admin-token"
 
 from collections.abc import AsyncIterator  # noqa: E402
 

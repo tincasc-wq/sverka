@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% set nav = "sources" %}
+{% block content %}
+<h1>{{ source.name }} <span class="muted">{{ source.handle_or_domain }}</span></h1>
+<div class="card row">
+  <div><div class="muted">Рейтинг</div>
+    {% if card.rating %}
+      <span class="big">{{ card.rating.score }}</span>
+      <span class="muted">[{{ card.rating.ci[0] }}–{{ card.rating.ci[1] }}], исходов: {{ card.rating.outcomes }}</span>
+      {% if not card.rating.shown %}<br><span class="tag probable">пользователям: «недостаточно истории»</span>{% endif %}
+    {% else %}<span class="muted">ещё не считался</span>{% endif %}
+  </div>
+  <div><div class="muted">Тип / владелец</div>{{ source.type }} · {{ source.owner or "не указан" }}</div>
+  <div><div class="muted">В архиве</div>{{ card.documents_in_archive }}</div>
+  <div><div class="muted">Сборщик</div>
+    {% if source.last_error %}<span class="tag bad">{{ source.last_error[:90] }}</span>{% else %}<span class="tag good">ок</span>{% endif %}
+    <form method="post" action="/admin/sources/{{ source.id }}/tracked" style="margin-top:6px">
+      <button type="submit">{{ "Выключить сбор" if source.is_tracked else "Включить сбор" }}</button>
+    </form>
+  </div>
+</div>
+{% if source.aliases %}<p class="muted">Алиасы: {{ source.aliases | join(", ") }}</p>{% endif %}
+
+<h2>История рейтинга</h2>
+<table>
+  <tr><th>Когда</th><th>Рейтинг</th><th>Причина</th></tr>
+  {% for h in card.history %}
+  <tr><td class="muted">{{ h.at[:16].replace("T", " ") }}</td><td>{{ h.score }}</td><td>{{ h.reason }}</td></tr>
+  {% else %}<tr><td colspan="3" class="muted">Пересчётов ещё не было.</td></tr>{% endfor %}
+</table>
+
+<h2>Жалобы и апелляции</h2>
+<table>
+  <tr><th>#</th><th>Текст</th><th>Статус</th></tr>
+  {% for f in feedback %}<tr><td>{{ f.id }}</td><td>{{ f.text }}</td><td>{{ f.status }}</td></tr>
+  {% else %}<tr><td colspan="3" class="muted">Нет.</td></tr>{% endfor %}
+</table>
+
+<h2>Последние публикации</h2>
+<table>
+  {% for d in recent %}
+  <tr><td class="muted">{{ d.first_seen_at.strftime("%d.%m %H:%M") }}</td><td><a href="{{ d.url }}" target="_blank" rel="noopener">{{ (d.title or d.text or d.url)[:120] }}</a></td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

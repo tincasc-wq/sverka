@@ -3,6 +3,7 @@ from datetime import datetime
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -87,10 +88,23 @@ class Story(Base):
 
 class StoryDocument(Base):
     __tablename__ = "story_documents"
+    __table_args__ = (
+        CheckConstraint("membership IN ('core', 'probable')", name="membership"),
+        CheckConstraint(
+            "analyst_stance IS NULL OR analyst_stance IN "
+            "('supports', 'contradicts', 'refines', 'unrelated')",
+            name="analyst_stance",
+        ),
+    )
 
     story_id: Mapped[int] = mapped_column(ForeignKey("stories.id"), primary_key=True)
     document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"), primary_key=True)
     similarity: Mapped[float | None] = mapped_column(Float)
+    # core — точно то же событие; probable — средняя близость, нужна проверка (6.2).
+    membership: Mapped[str] = mapped_column(String(16), server_default="core")
+    # Решение аналитика: публикация распространяла утверждение, опровергала его или не по теме.
+    # Пусто — «распространяла» (так рейтинг считает по умолчанию).
+    analyst_stance: Mapped[str | None] = mapped_column(String(16))
 
 
 class Derivation(Base):

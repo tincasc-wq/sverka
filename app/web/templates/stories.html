@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% set nav = "stories" %}
+{% block content %}
+<h1>Истории {{ "на разметку" if status == "open" else "размеченные" }}</h1>
+<p class="muted">
+  {% if status == "open" %}<a href="?status=closed">Показать размеченные</a>
+  {% else %}<a href="?status=open">Показать неразмеченные</a>{% endif %}
+</p>
+<table>
+  <tr><th>#</th><th>История</th><th>Публикаций</th><th>Появилась</th></tr>
+  {% for story, n in stories %}
+  <tr>
+    <td>{{ story.id }}</td>
+    <td><a href="/admin/stories/{{ story.id }}">{{ (story.title or "без заголовка")[:120] }}</a></td>
+    <td>{{ n }}</td>
+    <td class="muted">{{ story.first_seen_at.strftime("%d.%m %H:%M") }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4" class="muted">Пусто. Истории появляются после проверок (python -m app.check).</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

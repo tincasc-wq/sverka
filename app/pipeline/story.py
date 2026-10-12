@@ -140,14 +140,31 @@ async def build_story(
     nodes = [to_node(d, all_sources) for d in docs]
     graph = build_graph(nodes, list(all_sources.values()), cfg.graph)
 
-    story = Story(title=seed.title or (seed.text or "")[:200], centroid=seed.embedding)
-    session.add(story)
-    await session.flush()
-    similarity = {c.document.id: c.similarity for c in members}
-    session.add_all(
-        StoryDocument(story_id=story.id, document_id=d.id, similarity=similarity.get(d.id, 1.0))
-        for d in docs
+    # Повторная проверка той же публикации дополняет её историю, а не плодит новую:
+    # иначе одно событие висит в очереди аналитика несколько раз и разметка дробится.
+    story = await session.scalar(
+        select(Story)
+        .join(StoryDocument, StoryDocument.story_id == Story.id)
+        .where(StoryDocument.document_id == seed.id)
+        .order_by(Story.id.desc())
+        .limit(1)
     )
+    if story is None:
+        story = Story(title=seed.title or (seed.text or "")[:200], centroid=seed.embedding)
+        session.add(story)
+        await session.flush()
+    by_id = {c.document.id: c for c in members}
+    for d in docs:
+        await session.execute(
+            insert(StoryDocument)
+            .values(
+                story_id=story.id,
+                document_id=d.id,
+                similarity=by_id[d.id].similarity if d.id in by_id else 1.0,
+                membership=by_id[d.id].membership if d.id in by_id else "core",
+            )
+            .on_conflict_do_nothing(index_elements=["story_id", "document_id"])
+        )
     for edge in graph.edges:
         await session.execute(
             insert(Derivation)

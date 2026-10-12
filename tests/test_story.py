@@ -121,3 +121,20 @@ async def test_medium_similarity_counts_only_close_in_time(session: AsyncSession
         strong_far.id: "core",
     }
     assert [c.document.id for c in result.borderline] == [far.id]
+
+
+async def test_recheck_of_same_publication_reuses_story(session: AsyncSession) -> None:
+    seed = await _doc(session, "https://a.ru/seed", 1.0)
+    await _doc(session, "https://b.ru/1", 0.95, minutes=10)
+    first = await build_story(session, seed)
+    late = await _doc(
+        session, "https://c.ru/late", 0.93, minutes=60
+    )  # пришла после первой проверки
+
+    second = await build_story(session, seed)
+
+    assert second.story_id == first.story_id
+    members = await session.scalars(
+        select(StoryDocument.document_id).where(StoryDocument.story_id == first.story_id)
+    )
+    assert late.id in set(members)

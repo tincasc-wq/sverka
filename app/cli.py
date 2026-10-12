@@ -5,11 +5,14 @@ python -m app.cli collect rss      # один проход сборщика RSS
 python -m app.cli collect telegram # один проход по Telegram-каналам
 python -m app.cli embed            # посчитать эмбеддинги (нужен образ воркера)
 python -m app.cli stats            # метрики приёмки этапа 2
+python -m app.cli ratings          # пересчитать рейтинг источников сейчас (обычно — ночью)
+python -m app.cli stats --since 2026-10-12T15:00:00+03:00  # поток с начала замера
 """
 
 import asyncio
 import logging
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import text
@@ -35,10 +38,27 @@ STATS_SQL = {
 }
 
 
-async def _stats() -> None:
+async def _stats(since: str | None = None) -> None:
     async with SessionLocal() as session:
         for label, sql in STATS_SQL.items():
             print(f"{label}: {await session.scalar(text(sql))}")
+        if since:
+            start = datetime.fromisoformat(since)
+            hours = (datetime.now(start.tzinfo or UTC) - start).total_seconds() / 3600
+            rows = await session.execute(
+                text(
+                    "SELECT coalesce(s.handle_or_domain, '?'), count(*) FROM documents d "
+                    "LEFT JOIN sources s ON s.id = d.source_id WHERE d.first_seen_at >= :t "
+                    "GROUP BY 1 ORDER BY 2 DESC"
+                ),
+                {"t": start},
+            )
+            per_source = list(rows)
+            total = sum(n for _, n in per_source)
+            per_day = total / hours * 24 if hours > 0 else 0
+            print(f"с {since}: {total} документов за {hours:.1f} ч ≈ {per_day:.0f} в сутки")
+            for handle, n in per_source:
+                print(f"    {handle}: {n}")
         rows = await session.execute(
             text(
                 "SELECT handle_or_domain, consecutive_errors, last_error FROM sources "
@@ -64,8 +84,17 @@ async def _main(args: list[str]) -> None:
 
             async with SessionLocal() as session:
                 print(f"обработано: {await embed_pending(session, SentenceTransformerEmbedder())}")
+        case ["ratings"]:
+            from app.registry.service import recompute_ratings
+
+            async with SessionLocal() as session:
+                stats = await recompute_ratings(session)
+                await session.commit()
+            print(f"источников {stats.sources}, изменилось {stats.changed}")
         case ["stats"]:
             await _stats()
+        case ["stats", "--since", since]:
+            await _stats(since)
         case _:
             print(__doc__)
 

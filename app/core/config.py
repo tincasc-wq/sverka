@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     embedding_max_chars: int = 2000
     embedding_threads: int = 4
 
+    # Вход в админку (временная схема до Telegram Login). Пусто — вход закрыт.
+    admin_token: str = ""
+
     anthropic_api_key: str = ""
     deepseek_api_key: str = ""
     yandex_ai_studio_api_key: str = ""
