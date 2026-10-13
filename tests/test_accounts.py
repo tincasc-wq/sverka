@@ -59,7 +59,10 @@ async def test_linking_email_to_telegram_account(db, outbox) -> None:  # noqa: F
 
     async with db() as s:
         user = await s.get(User, tg_user.id)
-    assert "Отправили письмо" in sent.text and outbox[0]["subject"] == "Привязка почты к «Сверке»"
+    assert (
+        "Отправили письмо" in sent.text
+        and outbox[0]["subject"] == "Подтверждение адреса в «Сверке»"
+    )
     assert "Привязать <b>tg@example.ru</b>" in confirm.text
     assert done.headers["location"] == "/account?linked=email"
     assert user.email == "tg@example.ru" and user.tg_id == 555
