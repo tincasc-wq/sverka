@@ -1,6 +1,6 @@
 """Все модели импортируются здесь, чтобы Alembic видел полную схему."""
 
-from app.models.accounts import Feedback, LoginToken, User
+from app.models.accounts import Feedback, LoginToken, PlanRequest, User
 from app.models.archive import Derivation, Document, DocumentVersion, Story, StoryDocument
 from app.models.base import Base
 from app.models.checks import Check, Claim, ClaimEvidence
@@ -22,6 +22,7 @@ __all__ = [
     "OrgInvite",
     "OrgMember",
     "Organization",
+    "PlanRequest",
     "Outcome",
     "Source",
     "SourceScore",

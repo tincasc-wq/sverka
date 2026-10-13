@@ -264,6 +264,8 @@ async def pricing(request: Request, session: Session):
         session,
         "pricing.html",
         user=user,
+        requested=request.query_params.get("requested"),
+        error=request.query_params.get("error"),
         plans=[p for p in get_plans().values() if p.public],
         usage=await usage_of(session, user),
         contact=contact,
@@ -276,6 +278,85 @@ async def pricing(request: Request, session: Session):
             else ""
         ),
     )
+
+
+@router.post("/pricing/request", response_class=HTMLResponse)
+async def pricing_request(
+    request: Request,
+    session: Session,
+    plan: Annotated[str, Form()],
+    contact: Annotated[str, Form()] = "",
+    org_name: Annotated[str, Form()] = "",
+    comment: Annotated[str, Form()] = "",
+):
+    """Кнопка «Подключить»: заявка в базу и сообщение владельцу в Telegram."""
+    from html import escape
+
+    from app.models import PlanRequest
+    from app.plans import get_plans, usage_of
+    from app.web.notify import notify_admin
+
+    plans = get_plans()
+    chosen = plans.get(plan)
+    if chosen is None or not (chosen.paid or chosen.org):
+        raise HTTPException(404)
+    user = await current_user(request, session)
+    ip = request.client.host if request.client else None
+    contact = contact.strip()[:255] or (user.email if user and user.email else "")
+    if not contact and user and user.tg_id:
+        contact = f"Telegram ID {user.tg_id}"
+    since = datetime.now(UTC) - timedelta(hours=1)
+    recent = await session.scalar(
+        select(func.count())
+        .select_from(PlanRequest)
+        .where(PlanRequest.ip == ip, PlanRequest.created_at >= since)
+    )
+    if not contact or recent >= 3:
+        reason = "contact" if not contact else "limit"
+        return RedirectResponse(f"/pricing?error={reason}#request", 303)
+
+    item = PlanRequest(
+        user_id=user.id if user else None,
+        plan=plan,
+        contact=contact,
+        org_name=org_name.strip()[:255] or None,
+        comment=comment.strip()[:2000] or None,
+        ip=ip,
+    )
+    session.add(item)
+    await session.flush()
+    usage = await usage_of(session, user)
+    total = (
+        await session.scalar(
+            select(func.count()).select_from(Check).where(Check.user_id == user.id)
+        )
+        if user
+        else 0
+    )
+    who = []
+    if user and user.email:
+        who.append(user.email)
+    if user and user.tg_id:
+        who.append(f"Telegram ID {user.tg_id}")
+    lines = [
+        f"🦊 <b>Заявка на тариф «{escape(chosen.name)}»</b> ({escape(chosen.price)})",
+        f"Контакт: {escape(contact)}",
+    ]
+    if item.org_name:
+        lines.append(f"Организация: {escape(item.org_name)}")
+    lines.append(
+        f"Пользователь: {escape(', '.join(who)) if who else 'без входа'}"
+        f" · сейчас «{escape(usage.plan.name)}» · проверок всего: {total}"
+    )
+    if item.comment:
+        lines.append(f"Комментарий: {escape(item.comment)}")
+    if user:
+        lines.append(
+            f"Назначить тариф: {get_settings().public_base_url.rstrip('/')}/admin/users?q={user.id}"
+        )
+    item.notified = await notify_admin("\n".join(lines))
+    await session.commit()
+    return RedirectResponse(f"/pricing?requested={plan}#request", 303)
 
 
 @router.get("/methodology", response_class=HTMLResponse)

@@ -6,6 +6,25 @@
 бессрочно); по окончании пользователь вернётся на «Стандарт». Личный лимит — поправка к лимиту тарифа (пусто — по тарифу).
 Лимит общий для бота и сайта. Без поиска показаны пользователи со входом (почта или Telegram).</p>
 
+<h2 id="requests">Заявки на тарифы</h2>
+{% if requests %}
+<div class="table-wrap"><table>
+  <tr><th>Когда</th><th>Тариф</th><th>Контакт</th><th>Комментарий</th><th></th></tr>
+  {% for r in requests %}
+  <tr>
+    <td class="muted" style="white-space:nowrap">{{ r.created_at | msk }}</td>
+    <td><b>{{ all_plans[r.plan].name if r.plan in all_plans else r.plan }}</b>{% if r.org_name %}<br><span class="muted">{{ r.org_name }}</span>{% endif %}</td>
+    <td>{{ r.contact }}{% if r.user_id %}<br><a href="/admin/users?q={{ r.user_id }}">пользователь №{{ r.user_id }}</a>{% endif %}
+        {% if not r.notified %}<br><span class="tag bad">в Telegram не ушло</span>{% endif %}</td>
+    <td class="muted">{{ r.comment or '' }}</td>
+    <td>{% if r.status == 'new' %}<form method="post" action="/admin/requests/{{ r.id }}/done"><button>Обработано</button></form>
+        {% else %}<span class="tag good">обработано</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% else %}<p class="muted">Заявок пока нет.</p>{% endif %}
+
+<h2>Пользователи</h2>
 <form method="get" action="/admin/users" class="row" style="gap:8px;margin-bottom:12px">
   <input type="text" name="q" value="{{ q }}" placeholder="почта, Telegram ID или № пользователя" style="flex:1;min-width:240px">
   <button>Найти</button>

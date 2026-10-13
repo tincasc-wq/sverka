@@ -367,6 +367,13 @@ async def users(request: Request, session: Session, q: str = ""):
             }
         )
     plans = [p for p in get_plans().values() if p.paid or p.code == "standard"]
+    from app.models import PlanRequest
+
+    requests = list(
+        await session.scalars(
+            select(PlanRequest).order_by(PlanRequest.status, PlanRequest.id.desc()).limit(30)
+        )
+    )
     return templates.TemplateResponse(
         request,
         "admin_users.html",
@@ -375,6 +382,8 @@ async def users(request: Request, session: Session, q: str = ""):
             "rows": rows,
             "q": q,
             "plans": plans,
+            "all_plans": get_plans(),
+            "requests": requests,
             "saved": request.query_params.get("saved"),
         },
     )
@@ -408,3 +417,15 @@ async def set_user_plan(
     user.daily_quota = int(daily_quota) if daily_quota.strip().isdigit() else None
     await session.commit()
     return RedirectResponse(f"/admin/users?q={user_id}&saved=1", status_code=303)
+
+
+@protected.post("/requests/{request_id}/done")
+async def plan_request_done(request_id: int, session: Session):
+    from app.models import PlanRequest
+
+    item = await session.get(PlanRequest, request_id)
+    if item is None:
+        raise HTTPException(404)
+    item.status = "done"
+    await session.commit()
+    return RedirectResponse("/admin/users#requests", status_code=303)

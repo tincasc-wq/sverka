@@ -1,6 +1,15 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, CreatedAtMixin, enum_check
@@ -56,3 +65,19 @@ class Feedback(CreatedAtMixin, Base):
     text: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), server_default=FeedbackStatus.OPEN.value)
     resolution: Mapped[str | None] = mapped_column(Text)
+
+
+class PlanRequest(CreatedAtMixin, Base):
+    """Заявка на платный тариф с кнопки «Подключить» (оплата пока вручную, ФТ-9.5)."""
+
+    __tablename__ = "plan_requests"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    plan: Mapped[str] = mapped_column(String(32))
+    contact: Mapped[str] = mapped_column(String(255))
+    org_name: Mapped[str | None] = mapped_column(String(255))
+    comment: Mapped[str | None] = mapped_column(Text)
+    ip: Mapped[str | None] = mapped_column(String(64), index=True)
+    status: Mapped[str] = mapped_column(String(16), server_default="new", default="new")
+    notified: Mapped[bool] = mapped_column(Boolean, server_default="false", default=False)

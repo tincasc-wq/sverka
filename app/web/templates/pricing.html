@@ -11,8 +11,18 @@
   .plan ul { margin:0; padding-left:18px; flex:1; }
   .plan li { margin-bottom:4px; }
   .plan .soon { color:var(--muted); }
+  .plan details { margin-top:12px; }
+  .plan summary { list-style:none; cursor:pointer; text-align:center; background:#C96A33; color:#fff;
+                  border-radius:6px; padding:8px; font-weight:600; }
+  .plan summary::-webkit-details-marker { display:none; }
+  .plan details form { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .plan details input, .plan details textarea { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; }
 </style>
 <h1>Тарифы</h1>
+<div id="request"></div>
+{% if requested %}<div class="note">Заявка отправлена — мы свяжемся с вами по указанному контакту.</div>{% endif %}
+{% if error == 'contact' %}<div class="error">Укажите почту или Telegram, чтобы мы могли связаться.</div>{% endif %}
+{% if error == 'limit' %}<div class="error">Заявок с этого адреса слишком много. Попробуйте через час или напишите нам.</div>{% endif %}
 {% if usage.org_name %}
   <p>Вы работаете в кабинете организации «{{ usage.org_name }}»: в этом месяце {{ usage.org_used }} из {{ usage.org_limit }} проверок.</p>
 {% else %}
@@ -30,6 +40,19 @@
       {% for f in p.features %}<li>{{ f }}</li>{% endfor %}
       {% for f in p.soon %}<li class="soon">{{ f }} — скоро</li>{% endfor %}
     </ul>
+    {% if (p.paid or p.org) and p.code != usage.plan.code %}
+    <details>
+      <summary>Подключить</summary>
+      <form method="post" action="/pricing/request">
+        <input type="hidden" name="plan" value="{{ p.code }}">
+        <input type="text" name="contact" maxlength="255" placeholder="почта или @telegram для связи"
+               value="{{ user.email if user and user.email else '' }}" {{ '' if user and (user.email or user.tg_id) else 'required' }}>
+        {% if p.org %}<input type="text" name="org_name" maxlength="255" placeholder="название организации">{% endif %}
+        <textarea name="comment" rows="2" maxlength="2000" placeholder="комментарий: сколько человек, для чего"></textarea>
+        <button style="background:#12203A;color:#fff;border-color:#12203A">Отправить заявку</button>
+      </form>
+    </details>
+    {% endif %}
   </div>
   {% endfor %}
 </div>

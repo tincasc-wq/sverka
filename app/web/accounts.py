@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Check, Feedback, LoginToken, OrgInvite, OrgMember, User
+from app.models import Check, Feedback, LoginToken, OrgInvite, OrgMember, PlanRequest, User
 
 
 class AccountError(Exception):
@@ -39,6 +39,7 @@ async def merge_accounts(session: AsyncSession, survivor: User, other: User) -> 
         (Feedback, Feedback.user_id),
         (OrgInvite, OrgInvite.used_by),
         (LoginToken, LoginToken.user_id),
+        (PlanRequest, PlanRequest.user_id),
     ):
         await session.execute(update(model).where(column == other.id).values({column: survivor.id}))
 
