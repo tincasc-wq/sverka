@@ -31,21 +31,28 @@ if (-not $Server -and $Command -ne "help") { throw "Укажите адрес: -
 
 $SshOpts = @("-i", $Key, "-o", "StrictHostKeyChecking=accept-new", "-o", "LogLevel=ERROR")
 
+# PowerShell 5.1 превращает любой вывод внешней программы в stderr (а docker и apt пишут туда
+# прогресс) в ошибку и при Stop обрывает команду. Поэтому на время вызова — Continue,
+# а об успехе судим только по коду возврата.
+function Native([scriptblock]$Call, [string]$What) {
+    $saved = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try { & $Call } finally { $ErrorActionPreference = $saved }
+    if ($LASTEXITCODE -ne 0) { throw "$What ($LASTEXITCODE)" }
+}
+
 function Remote([string]$User, [string]$Cmd) {
-    ssh @SshOpts "$User@$Server" $Cmd
-    if ($LASTEXITCODE -ne 0) { throw "Команда на сервере завершилась с ошибкой ($LASTEXITCODE)" }
+    Native { ssh @SshOpts "$User@$Server" $Cmd } "Команда на сервере завершилась с ошибкой"
 }
 
 function Upload([string]$User, [string]$Local, [string]$RemotePath) {
-    scp @SshOpts $Local "${User}@${Server}:$RemotePath"
-    if ($LASTEXITCODE -ne 0) { throw "Не удалось загрузить $Local" }
+    Native { scp @SshOpts $Local "${User}@${Server}:$RemotePath" } "Не удалось загрузить $Local"
 }
 
 function App([string]$Cmd) { Remote "sverka" "cd ~/sverka && $Cmd" }
 
 function Wsl([string]$Cmd) {
-    wsl -d $Distro -u root -- bash -c "cd $WslRoot && $Cmd"
-    if ($LASTEXITCODE -ne 0) { throw "Локальная команда завершилась с ошибкой ($LASTEXITCODE)" }
+    Native { wsl -d $Distro -u root -- bash -c "cd $WslRoot && $Cmd" } "Локальная команда завершилась с ошибкой"
 }
 
 switch ($Command) {
