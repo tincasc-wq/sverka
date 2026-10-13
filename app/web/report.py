@@ -7,20 +7,24 @@ from typing import Annotated
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_session
 from app.models import Check, Feedback
 from app.models.enums import CheckStatus, FeedbackStatus
 from app.orgs.service import can_view_check, membership_of
+from app.plans import can_export_pdf
 from app.web.session import current_user
 
 router = APIRouter()
 Session = Annotated[AsyncSession, Depends(get_session)]
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+STATIC = Path(__file__).parent / "static"
 MSK = ZoneInfo("Europe/Moscow")
 
 
@@ -51,15 +55,52 @@ async def report_page(request: Request, token: str, session: Session):
         # Ещё идёт или не удалась — страница ожидания знает, что показать.
         return RedirectResponse(f"/c/{token}", status_code=303)
     report = json.loads(check.summary)
+    membership = await membership_of(session, user)
     context = {
         "check": check,
         "report": report,
         "user": user,
-        "membership": await membership_of(session, user),
+        "membership": membership,
+        "pdf": can_export_pdf(user, membership),
         "thanks": request.query_params.get("thanks") == "1",
     }
     template = "text_report.html" if "matches" in report else "report.html"
     return templates.TemplateResponse(request, template, context)
+
+
+def render_pdf(html: str) -> bytes:
+    from weasyprint import HTML  # тяжёлый импорт — только когда PDF действительно нужен
+
+    return HTML(string=html, base_url=str(STATIC)).write_pdf()
+
+
+@router.get("/r/{token}/pdf")
+async def report_pdf(request: Request, token: str, session: Session):
+    """PDF-версия отчёта — для платных тарифов и организаций (раздел 12.2)."""
+    check = await check_by_token(session, token)
+    user = await current_user(request, session)
+    if not await can_view_check(session, check, user):
+        raise HTTPException(404, "Отчёт не найден")
+    if check.status != CheckStatus.DONE or not check.summary:
+        return RedirectResponse(f"/c/{token}", status_code=303)
+    membership = await membership_of(session, user)
+    if not can_export_pdf(user, membership):
+        return RedirectResponse("/pricing?need=pdf", status_code=303)
+    base = get_settings().public_base_url.rstrip("/")
+    html = templates.get_template("report_pdf.html").render(
+        check=check,
+        report=json.loads(check.summary),
+        site=base.removeprefix("https://").removeprefix("http://"),
+        report_url=f"{base}/r/{token}",
+        now=msk(datetime.now(MSK)),
+        org_name=membership.org.name if membership else None,
+    )
+    pdf = await run_in_threadpool(render_pdf, html)
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="sverka-{token[:8]}.pdf"'},
+    )
 
 
 @router.post("/r/{token}/feedback")

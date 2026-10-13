@@ -28,6 +28,7 @@
 {% if requested %}<div class="note">Заявка отправлена — мы свяжемся с вами по указанному контакту.</div>{% endif %}
 {% if error == 'contact' %}<div class="error">Укажите почту или Telegram, чтобы мы могли связаться.</div>{% endif %}
 {% if error == 'consent' %}<div class="error">Чтобы отправить заявку, отметьте согласие на обработку персональных данных.</div>{% endif %}
+{% if need == 'pdf' %}<div class="note">Выгрузка отчёта в PDF доступна в тарифах Pro, «Команда» и «Редакция».</div>{% endif %}
 {% if error == 'limit' %}<div class="error">Заявок с этого адреса слишком много. Попробуйте через час или напишите нам.</div>{% endif %}
 {% if usage.org_name %}
   <p>Вы работаете в кабинете организации «{{ usage.org_name }}»: в этом месяце {{ usage.org_used }} из {{ usage.org_limit }} проверок.</p>

@@ -246,3 +246,59 @@ async def test_staff_user_enters_admin_without_token(db) -> None:  # noqa: F811
     assert promoted.status_code == 303 and analyst_stats.status_code == 200
     assert self_promote.status_code == 403
     assert refused.status_code == 303 and refused.headers["location"] == "/admin/login"
+
+
+async def test_pdf_report_for_paid_plans_only(db) -> None:  # noqa: F811
+    import json
+
+    report = {
+        "seed": {"url": "https://bbc.com/news/1", "title": "Пожар на складе в Подольске"},
+        "primary": {
+            "url": "https://bbc.com/news/1",
+            "source": "BBC News",
+            "time": "2026-10-14T09:00:00+00:00",
+        },
+        "publications": 1,
+        "independent_reports": 1,
+        "timeline": [
+            {
+                "time": "2026-10-14T09:00:00+00:00",
+                "source": "BBC News",
+                "url": "https://bbc.com/news/1",
+                "title": "Пожар на складе в Подольске",
+                "role": "primary",
+                "membership": "core",
+                "took_from": [],
+            }
+        ],
+    }
+    async with db() as s:
+        pro = User(email="pdf@example.ru", plan="pro")
+        free = User(email="free@example.ru")
+        s.add_all([pro, free])
+        s.add(
+            Check(
+                input_type="url",
+                input_raw="https://bbc.com/news/1",
+                status="done",
+                public_token="tok-pdf-1",
+                summary=json.dumps(report),
+                finished_at=datetime.now(UTC),
+            )
+        )
+        await s.commit()
+    async with client() as c:
+        c.cookies.set(COOKIE, sign(pro.id))
+        page = await c.get("/r/tok-pdf-1")
+        pdf = await c.get("/r/tok-pdf-1/pdf")
+    async with client() as c:
+        c.cookies.set(COOKIE, sign(free.id))
+        free_page = await c.get("/r/tok-pdf-1")
+        refused = await c.get("/r/tok-pdf-1/pdf")
+
+    assert "Скачать PDF" in page.text
+    assert pdf.status_code == 200 and pdf.headers["content-type"] == "application/pdf"
+    assert pdf.content.startswith(b"%PDF") and len(pdf.content) > 5000
+    assert "sverka-tok-pdf-" in pdf.headers["content-disposition"]
+    assert "PDF-отчёт — в тарифе Pro" in free_page.text
+    assert refused.status_code == 303 and refused.headers["location"] == "/pricing?need=pdf"

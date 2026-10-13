@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Сверка — {{ (report.seed.title if report.seed else None) or "отчёт о проверке" }}</title>
+<style>
+  @page {
+    size: A4; margin: 18mm 16mm 20mm;
+    @bottom-left { content: "Сверка · {{ site }} · отчёт {{ check.public_token[:8] }}"; font-family: "DejaVu Sans", sans-serif; font-size: 7.5pt; color: #6b7280; }
+    @bottom-right { content: "стр. " counter(page) " из " counter(pages); font-family: "DejaVu Sans", sans-serif; font-size: 7.5pt; color: #6b7280; }
+  }
+  body { font-family: "DejaVu Sans", sans-serif; font-size: 9.5pt; line-height: 1.4; color: #12203A; }
+  a { color: #12203A; }
+  .head { display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #C96A33; padding-bottom: 8px; margin-bottom: 12px; }
+  .head img { width: 36px; height: 36px; }
+  .head .brand { font-size: 15pt; font-weight: bold; }
+  .head .meta { margin-left: auto; text-align: right; font-family: "DejaVu Sans", sans-serif; font-size: 7.5pt; color: #6b7280; }
+  h1 { font-size: 14pt; margin: 0 0 4px; }
+  h2 { font-size: 11pt; margin: 16px 0 6px; color: #C96A33; page-break-after: avoid; }
+  .muted { color: #6b7280; }
+  .small { font-size: 8pt; }
+  .facts { display: flex; gap: 8px; margin: 10px 0; }
+  .fact { flex: 1; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; }
+  .fact .label { font-size: 7.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: .3px; }
+  .fact .value { font-size: 13pt; font-weight: bold; }
+  .box { border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 10px; margin: 8px 0; page-break-inside: avoid; }
+  .warn { border-color: #C96A33; background: #fdf3ec; }
+  .tag { display: inline-block; font-size: 7.5pt; padding: 1px 5px; border-radius: 4px; background: #eef0f3; }
+  .good { background: #e3f4e8; color: #17603a; }
+  .bad { background: #fde8e8; color: #9b1c1c; }
+  .probable { background: #fff4d6; color: #7a5b00; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  th { text-align: left; font-weight: bold; color: #6b7280; font-size: 7.5pt; border-bottom: 1px solid #d1d5db; padding: 3px 4px; }
+  td { border-bottom: 1px solid #eef0f3; padding: 3px 4px; vertical-align: top; }
+  tr { page-break-inside: avoid; }
+  .url { font-size: 7pt; color: #6b7280; word-break: break-all; }
+  .disclaimer { margin-top: 18px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-family: "DejaVu Sans", sans-serif; font-size: 7.5pt; color: #6b7280; }
+</style>
+</head>
+<body>
+{% set r = report %}
+{% set roles = {"primary": "первоисточник", "derived": "перепечатка", "independent": "независимо"} %}
+{% set stances = {"supports": "подтверждает", "contradicts": "противоречит", "refines": "уточняет"} %}
+<div class="head">
+  <img src="fox-256.png" alt="">
+  <div><div class="brand">Сверка</div><div class="small muted">проверка происхождения новостей</div></div>
+  <div class="meta">Проверка от {{ check.finished_at | msk }}<br>Выгружено {{ now }}{% if org_name %}<br>{{ org_name }}{% endif %}</div>
+</div>
+
+{% if "matches" in r %}
+<h1>Где и когда появлялся этот текст</h1>
+<div class="box"><div class="muted small">Текст</div>{{ check.input_raw[:1500] }}{% if check.input_raw|length > 1500 %}…{% endif %}</div>
+{% if r.matches %}
+<h2>Похожие публикации — самые ранние сверху</h2>
+<table>
+  <tr><th style="width:16%">Время (МСК)</th><th style="width:22%">Источник</th><th>Публикация</th></tr>
+  {% for m in r.matches %}
+  <tr><td>{{ m.time | msk }}</td><td>{{ m.source }}</td><td>{{ m.title }}<div class="url">{{ m.url }}</div></td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p>Похожих публикаций в архиве за {{ r.days or 7 }} дней не нашлось.</p>
+{% endif %}
+
+{% else %}
+<h1>{{ r.seed.title or "Публикация" }}</h1>
+<div class="url">{% if r.seed.url.startswith('user-text://') %}Проверялся присланный текст{% else %}{{ r.seed.url }}{% endif %}</div>
+
+{% if r.satire %}
+<div class="box warn"><b>{% if r.satire.origin %}Похоже на шутку{% else %}Это сатирическое издание{% endif %}.</b>
+  {% if r.satire.origin %}Первоисточник истории — {{ r.satire.source }}: такие издания публикуют вымышленные «новости» намеренно.
+  {% else %}Материал опубликован в сатирическом издании ({{ r.satire.source }}): это вымысел по замыслу.{% endif %}</div>
+{% endif %}
+
+{% set a = r.analysis %}
+<div class="facts">
+  {% if a and not a.error %}
+  <div class="fact"><div class="label">Индекс подтверждённости</div>
+    <div class="value">{{ "%g"|format(a.index) if a.index is not none else "—" }}<span class="small muted"> из 100</span></div>
+    <span class="tag {{ 'good' if a.status == 'widely_confirmed' else 'bad' if a.status == 'refuted' else 'probable' }}">{{ a.status_text }}</span></div>
+  {% endif %}
+  <div class="fact"><div class="label">Публикаций о событии</div><div class="value">{{ r.publications }}</div></div>
+  <div class="fact"><div class="label">Независимых групп</div><div class="value">{{ r.independent_reports }}</div></div>
+</div>
+
+{% if r.primary %}
+<div class="box"><div class="muted small">Первоисточник</div>
+  <b>{{ r.primary.source }}</b>, {{ r.primary.time | msk }}
+  {% if r.primary.membership == "probable" %}<span class="tag probable">принадлежность к событию не подтверждена</span>{% endif %}
+  {% for note in r.primary.notes or [] %}<span class="tag bad">{{ note }}</span>{% endfor %}
+  <div class="url">{{ r.primary.url }}</div></div>
+{% endif %}
+
+{% if a and a.error %}
+<p class="tag bad">Сверка утверждений не выполнена: языковая модель недоступна.</p>
+{% elif a and a.claims %}
+<h2>Утверждения</h2>
+{% for c in a.claims %}
+<div class="box">
+  <b>{{ c.text }}</b>{% if c.attributed_to %}<span class="muted"> · по данным: {{ c.attributed_to }}</span>{% endif %}
+  {% if not c.checkable %}<span class="tag">мнение — не проверяется</span>
+  {% elif c.independent_groups == 0 %}<span class="tag">нет независимых подтверждений</span>
+  {% else %}<span class="tag {{ 'good' if c.status == 'widely_confirmed' else 'bad' if c.status == 'refuted' else 'probable' }}">{{ "%g"|format(c.index) }} · независимых групп: {{ c.independent_groups }}</span>{% endif %}
+  {% if c.evidence %}
+  <table style="margin-top:4px">
+    {% for e in c.evidence %}
+    <tr><td style="width:22%">{{ e.source }}{% if not e.independent %}<br><span class="muted">перепечатка</span>{% endif %}</td>
+      <td style="width:15%">{{ stances.get(e.stance, e.stance) }}{% if e.low_confidence %}<br><span class="tag probable">низкая уверенность</span>{% endif %}</td>
+      <td class="muted">«{{ e.quote }}»{% if e.discrepancy %}<br><b>Расхождение:</b> {{ e.discrepancy }}{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+<h2>Хронология</h2>
+<table>
+  <tr><th style="width:14%">Время (МСК)</th><th style="width:18%">Источник</th><th>Публикация</th><th style="width:13%">Роль</th><th style="width:17%">Откуда взято</th></tr>
+  {% for t in r.timeline %}
+  <tr>
+    <td>{{ t.time | msk }}{% if t.date_unreliable %}<br><span class="tag bad">дата ненадёжна</span>{% endif %}</td>
+    <td>{{ t.source }}{% if t.membership == "probable" %}<br><span class="tag probable">вероятно то же событие</span>{% endif %}</td>
+    <td>{{ t.title or "" }}<div class="url">{{ t.url }}</div></td>
+    <td>{{ roles.get(t.role, t.role) }}</td>
+    <td class="muted">{% for f in t.took_from %}{{ f.source }} ({{ {"explicit_link": "ссылка", "attribution": "атрибуция", "near_copy": "почти копия"}.get(f.kind, f.kind) }}){{ ", " if not loop.last }}{% endfor %}
+      {% if t.attributes_outside_archive %}ссылается на: {{ t.attributes_outside_archive | join(", ") }}{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% if r.note %}<p class="muted small">{{ r.note }}</p>{% endif %}
+{% endif %}
+
+<div class="disclaimer">
+  Автоматический анализ открытых источников, не является утверждением об истинности или ложности.
+  Методика: {{ site }}/methodology. Онлайн-версия отчёта: {{ report_url }}
+</div>
+</body>
+</html>

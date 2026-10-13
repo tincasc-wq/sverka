@@ -267,6 +267,7 @@ async def pricing(request: Request, session: Session):
         user=user,
         requested=request.query_params.get("requested"),
         error=request.query_params.get("error"),
+        need=request.query_params.get("need"),
         plans=[p for p in get_plans().values() if p.public],
         usage=await usage_of(session, user),
         contact=contact,

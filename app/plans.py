@@ -1,4 +1,4 @@
-"""Тарифы пользователей (ФТ-9.1): какой действует и сколько проверок осталось в периоде тарифа (сутки или месяц).
+"""Тарифы пользователей (ФТ-9.1): какой действует и сколько проверок осталось в его периоде.
 
 Описание тарифов — config/plans.yaml. У пользователя хранится назначенный платный тариф
 (users.plan, users.plan_until — ставит админ) и необязательная личная поправка лимита
@@ -55,6 +55,7 @@ class Plan(BaseModel):
     public: bool = True
     features: list[str] = []
     soon: list[str] = []
+    pdf: bool = False  # выгрузка отчёта в PDF
     constructor: Constructor | None = None
 
     @property
@@ -132,6 +133,18 @@ def quote(plan: Plan, seats: int, checks: int, options: set[str]) -> tuple[int, 
     price = c.base_price + (seats - c.base_seats) * c.seat_price + steps * c.checks_step_price
     price += sum(round(o.per_check * checks) for o in c.options if o.code in options)
     return price, seats, checks
+
+
+def can_export_pdf(user: User | None, membership=None) -> bool:
+    """PDF-отчёт: сотрудники сервиса, тарифы с pdf: true, участники организаций с таким тарифом."""
+    from app.web.auth import is_staff
+
+    if is_staff(user):
+        return True
+    if membership is not None:
+        org_plan = get_plans().get(membership.org.plan)
+        return bool(org_plan and org_plan.pdf)
+    return plan_for(user).pdf
 
 
 @dataclass

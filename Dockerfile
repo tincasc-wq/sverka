@@ -9,6 +9,11 @@ ARG EXTRAS=dev
 
 WORKDIR /app
 
+# PDF-отчёты (WeasyPrint): Pango для вёрстки и шрифты с кириллицей.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 # CPU-сборка torch: без CUDA образ меньше на несколько гигабайт.
 RUN if echo "$EXTRAS" | grep -q ml; then \
       pip install torch --index-url https://download.pytorch.org/whl/cpu; \
