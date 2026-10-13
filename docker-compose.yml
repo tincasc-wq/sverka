@@ -42,6 +42,10 @@ services:
 
   bot:
     build: .
+    # Бот работает на сервере (ang-rist.ru). Локально — только явно:
+    #   docker compose --profile bot up -d bot
+    # и только если серверный остановлен: два процесса с одним токеном мешают друг другу.
+    profiles: ["bot"]
     env_file: .env
     environment:
       TELEGRAM_PROXY: ${TELEGRAM_PROXY:-}
