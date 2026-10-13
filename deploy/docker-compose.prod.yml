@@ -1,0 +1,104 @@
+# Сервер (тестовый период): ядро на VPS в РФ, 4 vCPU / 8 ГБ.
+#   cd ~/sverka && docker compose -f deploy/docker-compose.prod.yml up -d --build
+# Секреты — в ~/sverka/.env (загружает .\deploy\deploy.ps1 env), в git не хранятся.
+# Отличия от локального docker-compose.yml: код внутри образа, а не с диска; порты наружу
+# только у Caddy (80/443); перезапуск после сбоя и перезагрузки; лимиты памяти; ротация логов.
+
+name: sverka
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-app: &app
+  build:
+    context: ..
+  env_file: ../.env
+  restart: unless-stopped
+  logging: *logging
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    env_file: ../.env
+    restart: unless-stopped
+    logging: *logging
+    command: >
+      postgres -c shared_buffers=512MB -c effective_cache_size=2GB
+      -c work_mem=16MB -c maintenance_work_mem=256MB
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../docker/initdb:/docker-entrypoint-initdb.d:ro
+    mem_limit: 1536m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  app:
+    <<: *app
+    command: >
+      sh -c "alembic upgrade head &&
+      uvicorn app.web.main:app --host 0.0.0.0 --port 8000 --workers 2
+      --proxy-headers --forwarded-allow-ips='*'"
+    mem_limit: 768m
+
+  bot:
+    <<: *app
+    command: python -m app.bot.main
+    mem_limit: 384m
+
+  worker:
+    <<: *app
+    build:
+      context: ..
+      args:
+        EXTRAS: dev,ml
+    image: sverka-worker
+    command: arq app.workers.main.WorkerSettings
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    mem_limit: 5g
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      DOMAIN: ${DOMAIN:-ang-rist.ru}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 128m
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  hf_cache:
+  caddy_data:
+  caddy_config:

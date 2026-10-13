@@ -1,0 +1,12 @@
+# Секреты и локальные данные не должны попадать в образ.
+.env
+.env.*
+!.env.example
+*.session
+*.session-journal
+*.dump
+.git
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
