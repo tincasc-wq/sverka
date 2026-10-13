@@ -62,10 +62,13 @@ daily_budget_usd:
 
 # Названия моделей уточнить по документации провайдеров при подключении (этап 3, LLM).
 
-# Цены, USD за 1 млн токенов (пиковый тариф — оценка сверху). Для учёта расходов в llm_calls.
-# Источник: api-docs.deepseek.com/quick_start/pricing (12.10.2026); остальные — уточнить.
+# Цены, USD за 1 млн токенов (пиковый тариф). Для учёта расходов в llm_calls.
+# Источник: api-docs.deepseek.com/quick_start/pricing (14.10.2026); остальные — уточнить.
+# DeepSeek: вход из кэша почти бесплатен, вне пиковых часов всё вдвое дешевле. Праздники Китая
+# (тоже «вне пика») не учитываем — в эти дни расход чуть завышен, то есть оценка сверху.
+peak_hours_utc: [[1, 4], [6, 10]]
 prices:
-  deepseek-flash: {input: 0.30, output: 1.20}
-  deepseek-v4-pro: {input: 1.32, output: 3.96}
+  deepseek-flash: {input: 0.30, output: 1.20, cached_input: 0.006, offpeak_factor: 0.5}
+  deepseek-v4-pro: {input: 1.32, output: 3.96, cached_input: 0.044, offpeak_factor: 0.5}
   qwen-flash: {input: 0.10, output: 0.40}
   qwen-max: {input: 1.60, output: 6.40}

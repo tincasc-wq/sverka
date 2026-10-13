@@ -1,5 +1,6 @@
 """Провайдеры, маршруты и цены LLM из config/llm.yaml (ТЗ, раздел 8.1)."""
 
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,8 +24,10 @@ class Route(BaseModel):
 
 
 class Price(BaseModel):
-    input: float
+    input: float  # USD за 1 млн входных токенов без кэша (пиковый тариф)
     output: float
+    cached_input: float | None = None  # вход, совпавший с кэшем провайдера
+    offpeak_factor: float = 1.0  # множитель вне пиковых часов (DeepSeek — 0.5)
 
 
 class LlmConfig(BaseModel):
@@ -33,12 +36,34 @@ class LlmConfig(BaseModel):
     ru_only_routes: dict[str, list[Route]] = {}
     daily_budget_usd: dict[str, float] = {}
     prices: dict[str, Price] = {}
+    # Пиковые часы DeepSeek по UTC, только будни: [[начало, конец), ...]
+    peak_hours_utc: list[tuple[int, int]] = []
 
-    def cost_usd(self, model: str, tokens_in: int, tokens_out: int) -> float:
+    def is_peak(self, at: datetime) -> bool:
+        at = at.astimezone(UTC)
+        return at.weekday() < 5 and any(a <= at.hour < b for a, b in self.peak_hours_utc)
+
+    def cost_usd(
+        self,
+        model: str,
+        tokens_in: int,
+        tokens_out: int,
+        cached_in: int = 0,
+        at: datetime | None = None,
+    ) -> float:
+        """Стоимость вызова так, как её считает провайдер: кэш входа и скидка вне пика."""
         price = self.prices.get(model)
         if price is None:
             return 0.0
-        return (tokens_in * price.input + tokens_out * price.output) / 1_000_000
+        cached = min(cached_in, tokens_in) if price.cached_input is not None else 0
+        usd = (
+            (tokens_in - cached) * price.input
+            + cached * (price.cached_input or 0)
+            + tokens_out * price.output
+        ) / 1_000_000
+        if not self.is_peak(at or datetime.now(UTC)):
+            usd *= price.offpeak_factor
+        return usd
 
 
 @lru_cache

@@ -360,3 +360,21 @@ async def test_second_contour_compatible_verdict_replaces_contradiction(
     assert evidence["stance"] == "refines" and not evidence["low_confidence"]
     assert analysis["low_confidence"] == 0
     assert analysis["claims"][0]["independent_groups"] == 1
+
+
+def test_deepseek_cost_counts_cache_and_offpeak() -> None:
+    from datetime import UTC, datetime
+
+    from app.llm.config import get_llm_config
+
+    config = get_llm_config()
+    peak = datetime(2026, 10, 14, 7, tzinfo=UTC)  # среда, 07:00 UTC — пик
+    night = datetime(2026, 10, 14, 20, tzinfo=UTC)
+    weekend = datetime(2026, 10, 17, 7, tzinfo=UTC)  # суббота — весь день вне пика
+    full = config.cost_usd("deepseek-flash", 1_000_000, 0, at=peak)
+    assert full == 0.30
+    assert config.cost_usd("deepseek-flash", 1_000_000, 0, at=night) == 0.15
+    assert config.cost_usd("deepseek-flash", 1_000_000, 0, at=weekend) == 0.15
+    # 900 тыс. из миллиона — из кэша: платим за 100 тыс. полных и 900 тыс. кэшированных
+    cached = config.cost_usd("deepseek-flash", 1_000_000, 0, cached_in=900_000, at=peak)
+    assert abs(cached - (0.03 + 0.9 * 0.006)) < 1e-9

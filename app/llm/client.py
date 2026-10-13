@@ -182,6 +182,8 @@ class LlmClient:
         """Пишет вызов в сессию вызывающего кода: учёт сохранится вместе с самой проверкой."""
         tokens_in = int(usage.get("prompt_tokens") or 0)
         tokens_out = int(usage.get("completion_tokens") or 0)
+        cached_in = int(usage.get("prompt_cache_hit_tokens") or 0)  # поле DeepSeek
+        cost = self.config.cost_usd(route.model, tokens_in, tokens_out, cached_in)
         async with self._db_lock:
             session.add(
                 LlmCall(
@@ -192,9 +194,7 @@ class LlmClient:
                     prompt_version=prompt_version,
                     tokens_in=tokens_in,
                     tokens_out=tokens_out,
-                    cost_usd=Decimal(
-                        str(round(self.config.cost_usd(route.model, tokens_in, tokens_out), 6))
-                    ),
+                    cost_usd=Decimal(str(round(cost, 6))),
                     latency_ms=int((time.monotonic() - started) * 1000),
                     fallback_reason=reason,
                 )
