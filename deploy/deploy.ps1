@@ -80,7 +80,7 @@ switch ($Command) {
         Remote "sverka" "mkdir -p ~/sverka"
         Upload "sverka" $tar "/tmp/sverka.tar"
         Remove-Item $tar
-        App ("tar -xf /tmp/sverka.tar && rm /tmp/sverka.tar && sed -i 's/\r$//' deploy/*.sh " +
+        App ("tar -xf /tmp/sverka.tar && rm /tmp/sverka.tar && sed -i 's/\r$//' deploy/*.sh deploy/gateway/*.sh " +
              "&& chmod +x deploy/*.sh && $Compose up -d --build --remove-orphans && $Compose ps")
         Write-Host "Готово. Не забудьте остановить локального бота: wsl ... docker compose stop bot"
     }
