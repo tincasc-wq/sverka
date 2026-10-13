@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from redis.asyncio import Redis
 from sqlalchemy import text
 
@@ -8,6 +11,8 @@ from app.core.db import engine
 from app.web import admin, api, org, report, site
 
 app = FastAPI(title="Сверка", version="0.1.0")
+# Логотип и иконки (знак компании «Ангрист»).
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 app.include_router(api.router)
 app.include_router(report.router)
 app.include_router(site.router)

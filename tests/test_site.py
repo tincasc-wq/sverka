@@ -245,3 +245,14 @@ async def test_telegram_login_links_browser_history(db, queued, monkeypatch) -> 
     assert owners == {tg_user.id}  # анонимная проверка перешла к пользователю Telegram
     assert "bbc.com/news/1" in history.text and "Выйти" in history.text
     assert forged.headers["location"] == "/login?error=1"
+
+
+async def test_branding_static_and_login_page(db) -> None:
+    async with client() as c:
+        logo = await c.get("/static/fox-256.png")
+        icon = await c.get("/static/favicon-32.png")
+        login = await c.get("/login")
+    assert logo.status_code == 200 and logo.headers["content-type"] == "image/png"
+    assert icon.status_code == 200
+    assert "/static/fox-256.png" in login.text and "«Ангрист»" in login.text
+    assert 'rel="icon"' in login.text

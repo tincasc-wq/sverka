@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Сверка{% endblock %}</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<meta name="theme-color" content="#12203A">
 <style>
   :root { --ink:#1d2433; --muted:#6b7385; --line:#dde2ea; --bg:#f6f7f9; --accent:#2f6fde;
           --good:#2e8b57; --bad:#c0392b; --warn:#b7791f; }
@@ -14,6 +17,8 @@
   header form { margin:0; }
   header .link { border:0; background:none; padding:0; color:var(--muted); cursor:pointer; font:inherit; }
   header b { font-size:17px; }
+  header .brand { display:flex; align-items:center; gap:8px; color:var(--ink); font-weight:700; font-size:17px; text-decoration:none; }
+  .brand-fox { --brand:#C96A33; --navy:#12203A; }
   header a { color:var(--muted); text-decoration:none; }
   header a.on { color:var(--ink); font-weight:600; }
   main { max-width:1180px; margin:20px auto; padding:0 16px; }
@@ -50,7 +55,7 @@
 </head>
 <body>
 <header>
-  <b><a href="/" style="color:inherit">Сверка</a></b>
+  <a href="/" class="brand"><img src="/static/fox-64.png" alt="" width="28" height="28">Сверка</a>
   {% if nav is defined %}{# админка #}
   <a href="/admin/stories" class="{{ 'on' if nav == 'stories' }}">Истории</a>
   <a href="/admin/sources" class="{{ 'on' if nav == 'sources' }}">Источники</a>

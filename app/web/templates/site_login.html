@@ -2,21 +2,46 @@
 {% set page = 'login' %}
 {% block title %}Сверка — вход{% endblock %}
 {% block content %}
-<div class="narrow">
-<h1>Вход</h1>
-{% if user and user.tg_id %}
-  <p>Вы уже вошли через Telegram. <a href="/history">Мои проверки →</a></p>
-{% else %}
-  <p>Вход через Telegram объединяет историю проверок на сайте и в боте и увеличивает дневной лимит проверок.
-  Сервис получает только ваш Telegram ID — ни телефона, ни переписки.</p>
-  {% if error %}<div class="error">Не удалось подтвердить вход. Попробуйте ещё раз.</div>{% endif %}
-  {% if widget %}
-    <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bot }}"
-            data-size="large" data-auth-url="{{ auth_url }}" data-request-access="false"></script>
+<style>
+  .login { max-width:440px; margin:28px auto 10px; background:#fff; border:1px solid var(--line);
+           border-radius:14px; overflow:hidden; box-shadow:0 6px 24px rgba(18,32,58,.08); }
+  .login-top { background:#12203A; padding:26px 24px 20px; text-align:center; color:#fff; }
+  .login-top img { width:128px; height:128px; display:block; margin:0 auto 10px;
+                   filter:drop-shadow(0 6px 14px rgba(0,0,0,.35)); }
+  .login-top h1 { color:#fff; font-size:24px; margin:0; letter-spacing:.2px; }
+  .login-top .by { color:#c8d1e0; font-size:13px; margin-top:4px; }
+  .login-top .by b { color:#E9A36F; font-weight:600; }
+  .login-body { padding:20px 24px 24px; }
+  .login-body p { margin:0 0 12px; }
+  .login-widget { display:flex; justify-content:center; margin:16px 0 6px; min-height:44px; }
+  .login-foot { text-align:center; color:var(--muted); font-size:12px; margin-top:12px; }
+  .login-body .accent { color:#C96A33; }
+</style>
+<div class="login">
+  <div class="login-top">
+    <img src="/static/fox-256.png" alt="Лис — знак компании «Ангрист»" width="128" height="128">
+    <h1>Сверка</h1>
+    <div class="by">проверка новостей · проект компании <b>«Ангрист»</b></div>
+  </div>
+  <div class="login-body">
+  {% if user and user.tg_id %}
+    <p>Вы уже вошли через Telegram.</p>
+    <p><a href="/history">Мои проверки →</a></p>
   {% else %}
-    <p class="note">Вход через Telegram заработает, когда сайт будет на сервере со своим доменом: Telegram
-    разрешает его только для домена, указанного у @BotFather. До этого история хранится в этом браузере.</p>
+    <p>Вход через Telegram объединяет историю проверок на сайте и в боте и увеличивает дневной лимит.</p>
+    <p class="muted">Сервис получает только ваш Telegram ID — ни телефона, ни переписки.</p>
+    {% if error %}<div class="error">Не удалось подтвердить вход. Попробуйте ещё раз.</div>{% endif %}
+    {% if widget %}
+      <div class="login-widget">
+        <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bot }}"
+                data-size="large" data-radius="8" data-auth-url="{{ auth_url }}" data-request-access="false"></script>
+      </div>
+    {% else %}
+      <p class="note">Вход через Telegram заработает, когда сайт будет на сервере со своим доменом: Telegram
+      разрешает его только для домена, указанного у @BotFather. До этого история хранится в этом браузере.</p>
+    {% endif %}
+    <div class="login-foot">Можно и без входа — <a href="/">проверить новость</a> прямо сейчас.</div>
   {% endif %}
-{% endif %}
+  </div>
 </div>
 {% endblock %}
