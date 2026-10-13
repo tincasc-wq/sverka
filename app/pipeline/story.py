@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.scoring import ScoringConfig, get_scoring
 from app.models import Derivation, Document, Source, Story, StoryDocument
-from app.pipeline.graph import GraphResult, Node, SourceInfo, build_graph
+from app.pipeline.graph import USER_TEXT_PREFIX, GraphResult, Node, SourceInfo, build_graph
 from app.registry.legal import source_note
 
 
@@ -56,7 +56,12 @@ async def find_candidates(
         distance = Document.embedding.cosine_distance(vector)
         rows = await session.scalars(
             select(Document)
-            .where(Document.id != seed.id, Document.embedding.is_not(None), in_window)
+            .where(
+                Document.id != seed.id,
+                Document.embedding.is_not(None),
+                in_window,
+                ~Document.url.startswith(USER_TEXT_PREFIX),
+            )
             .order_by(distance)
             .limit(cfg.clustering.candidates_top_k)
         )
@@ -101,6 +106,7 @@ async def find_candidates(
             select(Document).where(
                 Document.id != seed.id,
                 Document.embedding.is_(None),
+                ~Document.url.startswith(USER_TEXT_PREFIX),
                 in_window,
                 title_sim >= cfg.clustering.title_trgm_threshold,
             )

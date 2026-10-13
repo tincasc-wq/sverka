@@ -162,8 +162,11 @@ async def test_text_search_lists_earliest_matches(session: AsyncSession) -> None
         FakeEmbedder(),
     )
 
-    assert "Школы закроют" in reply.text
-    assert reply.check_id is None
+    # Текст проверяется полностью, как ссылка: история события и первоисточник.
+    assert "Первоисточник" in reply.text and "https://a.ru/1" in reply.text
+    assert reply.check_id is not None
+    check = await session.get(Check, reply.check_id)
+    assert check.input_raw.startswith("Говорят, что школы") and check.channel == "bot"
 
 
 async def test_public_report_page() -> None:

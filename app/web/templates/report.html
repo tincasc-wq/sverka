@@ -3,7 +3,7 @@
 {% block content %}
 {% set r = report %}
 <h1>{{ r.seed.title or "Публикация" }}</h1>
-<p class="muted">Проверка от {{ check.finished_at.isoformat() | msk }} · <a href="{{ r.seed.url }}" target="_blank" rel="noopener">исходная публикация</a></p>
+<p class="muted">Проверка от {{ check.finished_at.isoformat() | msk }} · {% if r.seed.url.startswith('user-text://') %}проверяли текст{% else %}<a href="{{ r.seed.url }}" target="_blank" rel="noopener">исходная публикация</a>{% endif %}</p>
 
 {% if r.primary %}
 <div class="card row">

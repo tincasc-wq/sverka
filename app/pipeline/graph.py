@@ -39,6 +39,11 @@ class SourceInfo:
         return self.owner or self.handle_or_domain
 
 
+# Произвольный текст пользователя проверяется как временная «публикация» с таким адресом:
+# в архив, поиск, статистику и кандидаты чужих проверок она не попадает.
+USER_TEXT_PREFIX = "user-text://"
+
+
 @dataclass(frozen=True)
 class Node:
     id: int
@@ -55,6 +60,8 @@ class Node:
     def group(self) -> str:
         if self.source:
             return self.source.group
+        if self.url.startswith(USER_TEXT_PREFIX):
+            return "ваш текст"
         domain = domain_of(self.url)
         if domain == "t.me":
             # Канал вне реестра: «@Warhronika», а не просто «t.me» — каналы разные.

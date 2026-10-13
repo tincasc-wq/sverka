@@ -131,8 +131,11 @@ async def test_text_check_shows_earliest_matches(db, queued) -> None:
         report = await c.get(f"/r/{token}")
 
     assert report.status_code == 200
-    assert "Где и когда появлялся этот текст" in report.text
-    assert "https://bbc.com/news/1" in report.text
+    assert "проверяли текст" in report.text and "Хронология" in report.text
+    assert "https://bbc.com/news/1" in report.text  # первоисточник найден по смыслу текста
+    async with client() as c:
+        found = await c.get("/search", params={"q": "очевидцы"})
+    assert "Ничего не нашлось" in found.text  # временная «публикация» из текста не в поиске
 
 
 async def test_unreachable_link_fails_with_reason(db, queued) -> None:

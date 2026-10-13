@@ -1,6 +1,5 @@
 """Проверки, запущенные с сайта: запись создаётся сразу (страница ожидания), работа — в воркере."""
 
-import asyncio
 import json
 import secrets
 from datetime import UTC, datetime
@@ -10,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
 from app.bot.inputs import extract_input
-from app.bot.service import check_refusal, similar_to_text
-from app.check import run_check
+from app.bot.service import check_refusal
+from app.check import run_check, text_seed
 from app.collectors.http import UnsafeUrl
 from app.core.config import get_settings
 from app.embeddings import Embedder
@@ -79,20 +78,15 @@ async def run_web_check(
     check.status = CheckStatus.RUNNING
     await session.commit()
     try:
+        arg = check.input_raw
         if check.input_type == InputType.TEXT:
-            text = check.input_raw[: settings.embedding_max_chars]
-            [vector] = await asyncio.to_thread(embedder.embed, [text])
-            matches = await similar_to_text(session, vector, settings.text_search_days)
-            check.summary = json.dumps(
-                {"matches": matches, "days": settings.text_search_days}, ensure_ascii=False
-            )
-            check.status = CheckStatus.DONE
-            check.finished_at = datetime.now(UTC)
-            await session.commit()
-            return check
+            # Текст проверяется полностью, как ссылка: история события на всех языках,
+            # сверка утверждений, индекс (раньше — только почти дословные совпадения).
+            seed = await text_seed(session, check.input_raw, embedder)
+            arg = f"doc:{seed.id}"
         return await run_check(
             session,
-            check.input_raw,
+            arg,
             embedder,
             user_id=check.user_id,
             input_type=InputType(check.input_type),

@@ -34,7 +34,8 @@ l as (
 ),
 d as (
   select (first_seen_at at time zone 'Europe/Moscow')::date as day, count(*) as n
-  from documents where first_seen_at >= now() - make_interval(days => :days + 1) group by 1
+  from documents where first_seen_at >= now() - make_interval(days => :days + 1)
+    and url not like 'user-text://%' group by 1
 )
 select days.day,
   count(distinct c.user_id) filter (where c.channel is distinct from 'service') as users,
@@ -68,7 +69,7 @@ select
   (select count(*) from users where tg_id is null and email is null) as anonymous,
   (select count(*) from organizations) as orgs,
   (select count(*) from checks where channel is distinct from 'service') as checks,
-  (select count(*) from documents) as documents,
+  (select count(*) from documents where url not like 'user-text://%') as documents,
   (select count(*) from sources where is_tracked) as sources
 """)
 

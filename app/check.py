@@ -7,6 +7,7 @@
 """
 
 import asyncio
+import hashlib
 import json
 import secrets
 import sys
@@ -16,7 +17,7 @@ from zoneinfo import ZoneInfo
 import httpx
 import trafilatura
 from selectolax.lexbor import LexborHTMLParser as HTMLParser
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.collectors import rss, telegram
@@ -32,6 +33,7 @@ from app.llm import LlmClient, LlmUnavailable
 from app.models import Check, Document, Source
 from app.models.enums import CheckStatus, InputType
 from app.pipeline.analysis import analyze, make_judge
+from app.pipeline.graph import USER_TEXT_PREFIX
 from app.pipeline.report import build_report
 from app.pipeline.story import build_story
 
@@ -142,6 +144,47 @@ async def resolve_seed(
     return await session.scalar(select(Document).where(Document.url == url))
 
 
+TEXT_ANCHOR_DAYS = 30
+TEXT_ANCHOR_MIN_SIM = 0.6
+
+
+async def text_seed(session: AsyncSession, text: str, embedder: Embedder) -> Document:
+    """Произвольный текст → временная «публикация» для полной проверки, как у ссылки.
+
+    Время ставится по самым близким по смыслу статьям за 30 дней — так окно поиска истории
+    (±72 ч) накрывает само событие, даже если текст прислали через несколько дней.
+    """
+    settings = get_settings()
+    body = " ".join(text.split())
+    url = USER_TEXT_PREFIX + hashlib.sha256(body.encode()).hexdigest()[:32]
+    [vector] = await asyncio.to_thread(embedder.embed, [body[: settings.embedding_max_chars]])
+    moment = func.coalesce(Document.published_at, Document.first_seen_at)
+    distance = Document.embedding.cosine_distance(vector)
+    nearest = list(
+        await session.scalars(
+            select(moment)
+            .where(
+                Document.embedding.is_not(None),
+                ~Document.url.startswith(USER_TEXT_PREFIX),
+                Document.first_seen_at >= datetime.now(UTC) - timedelta(days=TEXT_ANCHOR_DAYS),
+                distance <= 1 - TEXT_ANCHOR_MIN_SIM,
+            )
+            .order_by(distance)
+            .limit(5)
+        )
+    )
+    # Чуть позже самой поздней из близких статей: текст пересказывает уже вышедшее.
+    anchor = max(nearest) + timedelta(minutes=1) if nearest else datetime.now(UTC)
+    doc = await session.scalar(select(Document).where(Document.url == url))
+    if doc is None:
+        doc = Document(url=url, text=body, embedding=vector, published_at=anchor)
+        session.add(doc)
+    else:
+        doc.embedding, doc.published_at = vector, anchor
+    await session.flush()
+    return doc
+
+
 async def recent_check(
     session: AsyncSession, document_id: int, hours: float, org_id: int | None = None
 ) -> Check | None:
@@ -176,6 +219,7 @@ async def run_check(
     existing: Check | None = None,
     org_id: int | None = None,
     channel: str | None = None,
+    input_raw: str | None = None,
 ) -> Check:
     """existing — уже созданная запись проверки (сайт создаёт её сразу, чтобы показать ожидание)."""
     seed = await resolve_seed(session, arg, fallback)
@@ -211,7 +255,7 @@ async def run_check(
         check = Check(
             user_id=user_id,
             input_type=input_type,
-            input_raw=arg,
+            input_raw=input_raw or arg,
             document_id=seed.id,
             status=CheckStatus.RUNNING,
             public_token=secrets.token_urlsafe(12),

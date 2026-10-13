@@ -1,6 +1,5 @@
 """Пользователи бота, лимиты (ФТ-1.4) и сама проверка для чата — общий код бота и воркера."""
 
-import asyncio
 import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -11,7 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
-from app.check import run_check
+from app.check import run_check, text_seed
 from app.collectors.http import UnsafeUrl
 from app.collectors.store import DocumentIn
 from app.core.config import get_settings
@@ -19,6 +18,7 @@ from app.embeddings import Embedder
 from app.llm import LlmClient
 from app.models import Check, Document, Source, User
 from app.models.enums import InputType
+from app.pipeline.graph import USER_TEXT_PREFIX
 from app.registry.service import source_card
 
 
@@ -114,28 +114,16 @@ async def check_for_chat(
     if llm is not None and membership is not None:
         llm = llm.restricted(membership.org.ru_only)
 
+    arg = value
     if input_type == InputType.TEXT:
-        [vector] = await asyncio.to_thread(embedder.embed, [value[: settings.embedding_max_chars]])
-        matches = await similar_to_text(session, vector, settings.text_search_days)
-        session.add(
-            Check(
-                channel="bot",
-                user_id=user.id,
-                org_id=org_id,
-                input_type=InputType.TEXT,
-                input_raw=value,
-                status="done",
-                summary=json.dumps({"matches": matches}, ensure_ascii=False),
-                finished_at=datetime.now(texts.MSK),
-            )
-        )
-        await session.commit()
-        return ChatReply(texts.format_text_matches(matches, settings.text_search_days))
+        # Текст — полная проверка, как у ссылки (история, сверка, индекс).
+        seed = await text_seed(session, value, embedder)
+        arg = f"doc:{seed.id}"
 
     try:
         check = await run_check(
             session,
-            value,
+            arg,
             embedder,
             user_id=user.id,
             input_type=input_type,
@@ -143,6 +131,7 @@ async def check_for_chat(
             llm=llm,
             org_id=org_id,
             channel="bot",
+            input_raw=value,
             fallback=DocumentIn(
                 url=value,
                 text=fallback_text,
@@ -167,7 +156,7 @@ async def check_for_chat(
     if seed and seed.source_id:
         card = await source_card(session, await session.get(Source, seed.source_id))
     handle = None
-    if seed and not card:
+    if seed and not card and not seed.url.startswith(USER_TEXT_PREFIX):
         parts = seed.url.split("/")
         handle = "@" + parts[3] if parts[2] == "t.me" else parts[2]
     return ChatReply(texts.format_check(report, card, report_url(check), handle), check.id)

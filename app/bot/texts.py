@@ -77,7 +77,10 @@ def format_check(
     seed_cites = (seed_entry or {}).get("attributes_outside_archive") or []
     confirmed = primary and primary.get("membership") != "probable"
     primary_is_seed = primary and primary["url"] == report["seed"]["url"]
-    if confirmed and not (primary_is_seed and seed_cites):
+    if primary_is_seed and report["seed"]["url"].startswith("user-text://"):
+        # Проверяли произвольный текст, и раньше него в архиве ничего похожего нет.
+        lines.append("Похожих публикаций за последние 30 дней в архиве не нашлось.")
+    elif confirmed and not (primary_is_seed and seed_cites):
         lines.append(f"Первоисточник: {_link(primary)}, {_time(primary['time'])}")
     elif confirmed:
         # Самая ранняя в архиве — сама присланная, но она ссылается на кого-то ещё.

@@ -15,6 +15,7 @@ from app.core.scoring import get_scoring
 from app.models import Check, Document, Source, SourceScore
 from app.models.enums import CheckStatus
 from app.orgs.service import can_view_check, membership_of
+from app.pipeline.graph import USER_TEXT_PREFIX
 from app.registry.legal import display_name, source_note
 from app.registry.service import source_card
 from app.web.accounts import AccountError, link_telegram
@@ -150,6 +151,7 @@ async def search(request: Request, session: Session, q: str = ""):
             .outerjoin(Source, Source.id == Document.source_id)
             .where(
                 moment >= since,
+                ~Document.url.startswith(USER_TEXT_PREFIX),
                 or_(Document.title.ilike(pattern), Document.text.ilike(pattern)),
             )
             .order_by(moment.desc())
