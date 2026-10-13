@@ -131,7 +131,9 @@ async def analyze(
         d.id: d for d in [c.document for c in result.members] if d.id in {n.id for n, _ in targets}
     }
     verified = (
-        await verify_many(client, session, texts, list(docs.values()), check_id=check_id)
+        await verify_many(
+            client, session, texts, list(docs.values()), check_id=check_id, claims_from=seed
+        )
         if texts
         else {}
     )
@@ -144,7 +146,13 @@ async def analyze(
     ]
     second = (
         await verify_many(
-            client, session, texts, disputed_docs, step="verify_disputed", check_id=check_id
+            client,
+            session,
+            texts,
+            disputed_docs,
+            step="verify_disputed",
+            check_id=check_id,
+            claims_from=seed,
         )
         if disputed_docs
         else {}

@@ -159,13 +159,20 @@ async def verify_document(
     *,
     step: str = "verify",
     check_id: int | None = None,
+    claims_from: Document | None = None,
 ) -> tuple[list[VerifyResult], int]:
     """Сверка всех утверждений с одной публикацией. Возвращает результаты и число отброшенных."""
     # Второй контур проверяет только «могут ли оба быть верны одновременно» — свой промпт.
     prompt = load_prompt("dispute" if step == "verify_disputed" else "verify")
     numbered = "\n".join(f"{i}. {c}" for i, c in enumerate(claims, 1))
     body = snippet(doc, VERIFY_DOC_CHARS)
-    user = f"<claims>\n{numbered}\n</claims>\n\nПубликация:\n<document>{body}</document>"
+    # Время обеих публикаций: ситуация развивается (нарастающий счёт, этапы дела), и разные
+    # цифры в разное время — не противоречие (прогон качества 13.10.2026).
+    when = f" (опубликована {_published(claims_from)})" if claims_from is not None else ""
+    user = (
+        f"Утверждения из новости{when}:\n<claims>\n{numbered}\n</claims>\n\n"
+        f"Публикация (опубликована {_published(doc)}):\n<document>{body}</document>"
+    )
     answer = await client.complete_json(
         session,
         step,
@@ -199,6 +206,7 @@ async def verify_many(
     *,
     step: str = "verify",
     check_id: int | None = None,
+    claims_from: Document | None = None,
 ) -> dict[int, tuple[list[VerifyResult], int]]:
     """Сверка с несколькими публикациями параллельно; упавшая публикация просто пропускается."""
     semaphore = asyncio.Semaphore(VERIFY_CONCURRENCY)
@@ -207,7 +215,13 @@ async def verify_many(
         async with semaphore:
             try:
                 return doc.id, await verify_document(
-                    client, session, claims, doc, step=step, check_id=check_id
+                    client,
+                    session,
+                    claims,
+                    doc,
+                    step=step,
+                    check_id=check_id,
+                    claims_from=claims_from,
                 )
             except Exception:  # noqa: BLE001 — одна публикация не должна ронять проверку
                 return doc.id, None
