@@ -118,3 +118,31 @@ async def test_connect_button_sends_request_to_owner(db, monkeypatch) -> None:  
     assert limited.headers["location"] == "/pricing?error=limit#request"
     assert len(items) == 3 and items[1].org_name == "Аппарат" and items[0].notified
     assert "Заявки на тарифы" in listing.text and "buyer@example.ru" in listing.text
+
+
+async def test_staff_user_enters_admin_without_token(db) -> None:  # noqa: F811
+    async with db() as s:
+        admin, analyst, plain = (
+            User(email="boss@example.ru", role="admin"),
+            User(email="an@example.ru", role="analyst"),
+            User(email="plain@example.ru"),
+        )
+        s.add_all([admin, analyst, plain])
+        await s.commit()
+    async with client() as c:
+        c.cookies.set(COOKIE, sign(admin.id))
+        home = await c.get("/")
+        stats = await c.get("/admin/stats")
+        promoted = await c.post(f"/admin/users/{plain.id}/role", data={"role": "analyst"})
+    async with client() as c:
+        c.cookies.set(COOKIE, sign(analyst.id))
+        analyst_stats = await c.get("/admin/stats")
+        self_promote = await c.post(f"/admin/users/{analyst.id}/role", data={"role": "admin"})
+    async with client() as stranger:
+        refused = await stranger.get("/admin/stats")
+
+    assert 'href="/admin/stats">Админка' in home.text
+    assert stats.status_code == 200 and "По дням" in stats.text
+    assert promoted.status_code == 303 and analyst_stats.status_code == 200
+    assert self_promote.status_code == 403
+    assert refused.status_code == 303 and refused.headers["location"] == "/admin/login"

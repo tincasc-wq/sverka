@@ -73,6 +73,7 @@
   <a href="/pricing" class="{{ 'on' if page == 'pricing' }}">Тарифы</a>
   {% if membership is defined and membership %}<a href="/org" class="{{ 'on' if page == 'org' }}">{{ membership.org.name }}</a>{% endif %}
   <span class="right">
+    {% if user is defined and user and user.role in ('admin', 'analyst') %}<a href="/admin/stats">Админка</a>{% endif %}
     {% if user is defined and user and (user.tg_id or user.email) %}
     <a href="/account" class="{{ 'on' if page == 'account' }}">{{ user.email or 'Telegram' }}</a>
     <form method="post" action="/logout"><button class="link">Выйти</button></form>

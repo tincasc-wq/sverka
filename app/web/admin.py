@@ -429,3 +429,23 @@ async def plan_request_done(request_id: int, session: Session):
     item.status = "done"
     await session.commit()
     return RedirectResponse("/admin/users#requests", status_code=303)
+
+
+@protected.post("/users/{user_id}/role")
+async def set_user_role(
+    request: Request, user_id: int, session: Session, role: Annotated[str, Form()]
+):
+    """Роли меняет только администратор (или вход по токену): аналитик не повысит сам себя."""
+    from app.models import User
+    from app.models.enums import UserRole
+    from app.web.session import current_user
+
+    me = await current_user(request, session)
+    if not token_valid(request.cookies.get(COOKIE)) and (me is None or me.role != UserRole.ADMIN):
+        raise HTTPException(403, "Роли меняет администратор")
+    user = await session.get(User, user_id)
+    if user is None or role not in {r.value for r in UserRole}:
+        raise HTTPException(404)
+    user.role = role
+    await session.commit()
+    return RedirectResponse(f"/admin/users?q={user_id}&saved=1", status_code=303)

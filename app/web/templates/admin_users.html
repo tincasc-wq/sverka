@@ -38,7 +38,13 @@
     <td>{{ u.id }}</td>
     <td>{% if u.email %}{{ u.email }}<br>{% endif %}{% if u.tg_id %}<span class="muted">Telegram {{ u.tg_id }}</span>{% endif %}
         {% if not u.email and not u.tg_id %}<span class="muted">без входа</span>{% endif %}
-        {% if r.org %}<br><span class="tag">{{ r.org }}</span>{% endif %}</td>
+        {% if r.org %}<br><span class="tag">{{ r.org }}</span>{% endif %}
+        {% if u.role != 'user' %}<br><span class="tag good">{{ {'admin': 'администратор', 'analyst': 'аналитик'}.get(u.role, u.role) }}</span>{% endif %}
+        <form method="post" action="/admin/users/{{ u.id }}/role" class="row" style="gap:4px;margin-top:4px">
+          <select name="role">{% for code, label in [('user', 'пользователь'), ('analyst', 'аналитик'), ('admin', 'администратор')] %}
+            <option value="{{ code }}" {{ 'selected' if u.role == code }}>{{ label }}</option>{% endfor %}</select>
+          <button>Роль</button>
+        </form></td>
     <td><b>{{ r.plan.name }}</b> · {{ r.limit }}/сутки
         {% if u.plan_until %}<br><span class="muted">до {{ u.plan_until | msk }}</span>{% endif %}
         {% if u.daily_quota is not none %}<br><span class="tag probable">личный лимит</span>{% endif %}</td>
