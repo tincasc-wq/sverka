@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Сверка — статистика{% endblock %}
+{% block content %}
+<h1>Статистика</h1>
+<p class="muted">Дни — по Москве. Служебные прогоны (качество, калибровка) в пользователей и долю успешных не входят.
+Посетители сайта без входа считаются по браузеру: один человек с двух устройств — два пользователя.
+<a href="/admin/stats?days=7">7 дней</a> · <a href="/admin/stats?days=14">14</a> · <a href="/admin/stats?days=30">30</a></p>
+
+{% set t = totals %}
+<div class="card row">
+  <div><div class="muted">Пользователей всего</div><span class="big">{{ t.users }}</span>
+    <div class="muted">Telegram {{ t.tg }} · почта {{ t.email }} · оба {{ t.both_ }} · без входа {{ t.anonymous }}</div></div>
+  <div><div class="muted">Проверок всего</div><span class="big">{{ t.checks }}</span></div>
+  <div><div class="muted">Организаций</div><span class="big">{{ t.orgs }}</span></div>
+  <div><div class="muted">Архив</div><span class="big">{{ "{:,}".format(t.documents).replace(",", " ") }}</span>
+    <div class="muted">публикаций · источников {{ t.sources }}</div></div>
+</div>
+
+<h2>По дням</h2>
+<div class="table-wrap"><table>
+  <tr><th>День</th><th>Пользователи</th><th>Новые</th><th>Бот</th><th>Сайт</th><th>Успешно</th>
+      <th>Время, с (медиана / 90%)</th><th>LLM, ₽</th><th>Собрано публикаций</th><th>Служебные</th></tr>
+  {% for d in daily %}
+  <tr>
+    <td style="white-space:nowrap">{{ d.day.strftime("%d.%m") }}</td>
+    <td><b>{{ d.users }}</b></td>
+    <td>{{ d.new_users }}</td>
+    <td>{{ d.bot }}</td>
+    <td>{{ d.web }}</td>
+    <td>{% if d.success is not none %}{{ d.success }}%{% if d.failed %} <span class="tag bad">{{ d.failed }} ошиб.</span>{% endif %}{% else %}—{% endif %}</td>
+    <td>{% if d.p50 is not none %}{{ "%.0f"|format(d.p50) }} / {{ "%.0f"|format(d.p90) }}{% else %}—{% endif %}</td>
+    <td>{{ d.llm_rub }}</td>
+    <td>{{ d.documents }}</td>
+    <td class="muted">{{ d.service or '' }}</td>
+  </tr>
+  {% endfor %}
+</table></div>
+
+<h2>Последние неудачные проверки</h2>
+{% if failed %}
+<div class="table-wrap"><table>
+  <tr><th>Когда</th><th>Канал</th><th>Что проверяли</th><th>Причина</th></tr>
+  {% for f in failed %}
+  <tr><td class="muted" style="white-space:nowrap">{{ f.created_at | msk }}</td><td>{{ f.channel or '—' }}</td>
+      <td>{{ f.input_raw[:90] }}</td><td class="muted">{{ f.reason or '—' }}</td></tr>
+  {% endfor %}
+</table></div>
+{% else %}<p class="muted">Неудачных проверок нет.</p>{% endif %}
+
+<h2>Источники с ошибками сбора</h2>
+{% if broken %}
+<div class="table-wrap"><table>
+  <tr><th>Источник</th><th>Ошибок подряд</th><th>Последняя ошибка</th></tr>
+  {% for s in broken %}
+  <tr><td><a href="/admin/sources/{{ s.id }}">{{ s.name }}</a></td><td>{{ s.consecutive_errors }}</td>
+      <td class="muted">{{ (s.last_error or '')[:120] }}</td></tr>
+  {% endfor %}
+</table></div>
+{% else %}<p class="muted">Все источники собираются без ошибок.</p>{% endif %}
+{% endblock %}

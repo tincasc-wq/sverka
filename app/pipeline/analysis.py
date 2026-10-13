@@ -27,6 +27,7 @@ STATUS_RU = {
     "no_checkable_claims": "нет проверяемых утверждений",
     "no_independent": "не подтверждено: независимых сообщений в архиве нет",
     "archive_gap": "мало данных: архив за это время неполный",
+    "satire_origin": "похоже на шутку: первоисточник — сатирическое издание",
 }
 
 
@@ -36,6 +37,10 @@ def make_judge(client: LlmClient, session: AsyncSession, check_id: int) -> Event
         return {doc_id: (d.same_event, d.reason) for doc_id, d in decisions.items()}
 
     return judge
+
+
+def _satire(node: Node) -> bool:
+    return bool(node.source and node.source.type == "satire")
 
 
 def documents_to_verify(result: StoryResult, limit: int) -> list[tuple[Node, bool]]:
@@ -49,7 +54,7 @@ def documents_to_verify(result: StoryResult, limit: int) -> list[tuple[Node, boo
     seed_node = next(n for n in result.nodes if n.id == result.seed.id)
     first_by_group: dict[str, Node] = {}
     for n in sorted(result.nodes, key=lambda n: n.observed_at):
-        if n.id in core and n.group != seed_node.group:
+        if n.id in core and n.group != seed_node.group and not _satire(n):
             first_by_group.setdefault(n.group, n)
     picked = [(n, n.id not in has_incoming) for n in first_by_group.values()]
     picked.sort(key=lambda p: (not p[1], p[0].observed_at))

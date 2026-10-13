@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.scoring import SourceRatingConfig, get_scoring
 from app.models import Document, Outcome, Source, SourceScore, Story, StoryDocument
 from app.models.enums import DecidedBy, Stance, StoryStatus, Verdict
-from app.registry.legal import display_name, legal_note
+from app.registry.legal import display_name, source_note
 from app.registry.rating import Observation, Rating, change_reason, compute_rating
 
 
@@ -159,7 +159,8 @@ async def source_card(session: AsyncSession, source: Source) -> dict:
         select(func.count()).select_from(Document).where(Document.source_id == source.id)
     )
     return {
-        "name": display_name(source.name, legal_note(source.legal_flags)),
+        "name": display_name(source.name, source_note(source.type, source.legal_flags)),
+        "satire": source.type == "satire",
         "handle_or_domain": source.handle_or_domain,
         "type": source.type,
         "owner": source.owner,

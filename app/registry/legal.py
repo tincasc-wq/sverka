@@ -18,5 +18,15 @@ def legal_note(flags: dict | None) -> str | None:
     return None
 
 
+SATIRE_NOTE = "сатирическое издание"
+
+
+def source_note(source_type: str | None, flags: dict | None) -> str | None:
+    """Пометка у имени источника: сатира важнее правового статуса — она меняет смысл вывода."""
+    if source_type == "satire":
+        return SATIRE_NOTE
+    return legal_note(flags)
+
+
 def display_name(name: str, note: str | None) -> str:
     return f"{name} ({note})" if note else name

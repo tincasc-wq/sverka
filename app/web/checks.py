@@ -40,6 +40,7 @@ async def create_web_check(session: AsyncSession, user: User, value: str) -> Che
         raise CheckRefused(refusal)
     membership = await membership_of(session, user)
     check = Check(
+        channel="web",
         user_id=user.id,
         org_id=membership.org.id if membership else None,
         input_type=user_input.type,

@@ -7,6 +7,9 @@ class SourceType(StrEnum):
     VK = "vk"
     OFFICIAL = "official"
     AGENCY = "agency"
+    # Сатира и пародия (сами так себя называют): их «новости» — вымысел по замыслу.
+    # Не подтверждение; если сатира — первоисточник, новость помечается как вероятная шутка.
+    SATIRE = "satire"
 
 
 class ChangeType(StrEnum):

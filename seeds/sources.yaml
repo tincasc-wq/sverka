@@ -313,3 +313,18 @@ sources:
      rss: "https://www.bangkokpost.com/rss/data/world.xml", aliases: [Bangkok Post]}
   - {name: ABC Australia, type: media, handle_or_domain: abc.net.au, owner: ABC Australia, lang: en,
      rss: "https://www.abc.net.au/news/feed/51120/rss.xml", aliases: [ABC Australia]}
+
+  # ---------------------------------------------------------------------------------------
+  # Сатира и пародия (14.10.2026, по решению владельца). Сами называют себя сатирой; их
+  # «новости» — вымысел по замыслу. Не подтверждение; если сатира — первоисточник истории,
+  # проверка помечает новость как вероятную шутку и индекс не считает. В выдаче — пометка
+  # «сатирическое издание» (не «фейковое СМИ»: ТЗ, раздел 9, ст. 152 ГК).
+  - {name: ИА «Панорама», type: satire, handle_or_domain: panorama.pub, owner: ИА «Панорама»,
+     aliases: [ИА «Панорама», ИА Панорама, «Панорама», panorama.pub]}
+  - {name: ИА «Панорама» (TG), type: satire, handle_or_domain: "@ia_panorama", owner: ИА «Панорама»}
+  - {name: А вот мой Яндекс-кошелёк, type: satire, handle_or_domain: "@my_yandex_wallet",
+     owner: А вот мой Яндекс-кошелёк, aliases: [А вот мой Яндекс-кошелёк, А вот мой яндекс кошелек]}
+  # Сам себя сатирой не называет (описание: «За здравый смысл. Не чокаясь»); стиль — иронические
+  # комментарии. Отнесён к сатире решением владельца — основание записано в legal_flags.
+  - {name: Империя очень зла, type: satire, handle_or_domain: "@verysexydasha", owner: Империя очень зла,
+     legal_flags: {satire_basis: "решение владельца 14.10.2026; канал сам не называет себя сатирой"}}

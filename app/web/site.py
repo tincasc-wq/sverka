@@ -15,7 +15,7 @@ from app.core.scoring import get_scoring
 from app.models import Check, Document, Source, SourceScore
 from app.models.enums import CheckStatus
 from app.orgs.service import can_view_check, membership_of
-from app.registry.legal import display_name, legal_note
+from app.registry.legal import display_name, source_note
 from app.registry.service import source_card
 from app.web.accounts import AccountError, link_telegram
 from app.web.checks import CheckRefused, create_web_check, failure_text
@@ -46,6 +46,7 @@ SOURCE_TYPES = {
     "media": "СМИ",
     "tg": "Telegram",
     "vk": "VK",
+    "satire": "сатира",
 }
 
 
@@ -161,7 +162,9 @@ async def search(request: Request, session: Session, q: str = ""):
             results.append(
                 {
                     "time": doc.published_at or doc.first_seen_at,
-                    "source": display_name(source.name, legal_note(source.legal_flags))
+                    "source": display_name(
+                        source.name, source_note(source.type, source.legal_flags)
+                    )
                     if source
                     else doc.url.split("/")[2],
                     "source_id": source.id if source else None,
@@ -205,7 +208,7 @@ async def sources(request: Request, session: Session, lang: str = ""):
     rows = [
         {
             "source": source,
-            "name": display_name(source.name, legal_note(source.legal_flags)),
+            "name": display_name(source.name, source_note(source.type, source.legal_flags)),
             "type": SOURCE_TYPES.get(source.type, source.type),
             "documents": n or 0,
             "rating": score if score and score.n_observations >= min_outcomes else None,

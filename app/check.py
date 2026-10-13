@@ -35,7 +35,11 @@ from app.pipeline.analysis import analyze, make_judge
 from app.pipeline.report import build_report
 from app.pipeline.story import build_story
 
-MSK = ZoneInfo("Europe/Moscow")  # российские сайты без часового пояса пишут московское время
+MSK = ZoneInfo("Europe/Moscow")
+SATIRE_STATUS = {
+    "satire_origin": "похоже на шутку: первоисточник — {source}",
+    "satire_seed": "это материал сатирического издания ({source}): вымысел по замыслу",
+}  # российские сайты без часового пояса пишут московское время
 
 
 async def _source_for(session: AsyncSession, url: str) -> int | None:
@@ -171,6 +175,7 @@ async def run_check(
     llm: LlmClient | None = None,
     existing: Check | None = None,
     org_id: int | None = None,
+    channel: str | None = None,
 ) -> Check:
     """existing — уже созданная запись проверки (сайт создаёт её сразу, чтобы показать ожидание)."""
     seed = await resolve_seed(session, arg, fallback)
@@ -211,6 +216,7 @@ async def run_check(
             status=CheckStatus.RUNNING,
             public_token=secrets.token_urlsafe(12),
             org_id=org_id,
+            channel=channel or ("service" if user_id is None else None),
         )
         session.add(check)
     await session.flush()
@@ -220,7 +226,22 @@ async def run_check(
     judge = make_judge(llm, session, check.id) if use_llm else None
     result = await build_story(session, seed, judge=judge)
     report = build_report(result, scoring.graph)
-    if use_llm:
+    satire = report.get("satire")
+    if satire:
+        # Первоисточник или сама публикация — сатира: сверять вымысел незачем, индекс не считаем.
+        status = "satire_origin" if satire["origin"] else "satire_seed"
+        report["analysis"] = {
+            "index": None,
+            "status": status,
+            "status_text": SATIRE_STATUS[status].format(source=satire["source"]),
+            "claims": [],
+            "verified_documents": 0,
+            "rejected_quotes": 0,
+            "low_confidence": 0,
+            "cost_rub": 0.0,
+        }
+        report["note"] = None
+    elif use_llm:
         try:
             report["analysis"] = await analyze(session, llm, result, check.id, scoring)
             report["note"] = None

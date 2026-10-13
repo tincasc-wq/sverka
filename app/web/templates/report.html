@@ -17,6 +17,14 @@
 </div>
 {% endif %}
 
+{% if r.satire %}
+<div class="card" style="border-color:#C96A33;background:#fdf3ec">
+  <b style="color:#C96A33">🃏 {% if r.satire.origin %}Похоже на шутку{% else %}Это сатирическое издание{% endif %}</b><br>
+  {% if r.satire.origin %}Первоисточник этой истории — <a href="{{ r.satire.url }}" target="_blank" rel="noopener">{{ r.satire.source }}</a>.
+  Такие издания публикуют вымышленные «новости» намеренно. Если другие СМИ пересказали это, они, скорее всего, приняли шутку за правду.
+  {% else %}Материал опубликован в сатирическом издании ({{ r.satire.source }}): это вымысел по замыслу, а не сообщение о реальном событии.{% endif %}
+</div>
+{% endif %}
 {% set a = r.analysis %}
 {% if a and a.error %}
 <p class="tag bad">Сверка утверждений не выполнена: языковая модель недоступна.</p>

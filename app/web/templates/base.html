@@ -57,6 +57,7 @@
 <header>
   <a href="/" class="brand"><img src="/static/fox-64.png" alt="" width="28" height="28">Сверка</a>
   {% if nav is defined %}{# админка #}
+  <a href="/admin/stats" class="{{ 'on' if nav == 'stats' }}">Статистика</a>
   <a href="/admin/stories" class="{{ 'on' if nav == 'stories' }}">Истории</a>
   <a href="/admin/sources" class="{{ 'on' if nav == 'sources' }}">Источники</a>
   <a href="/admin/feedback" class="{{ 'on' if nav == 'feedback' }}">Жалобы</a>

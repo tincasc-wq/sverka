@@ -71,8 +71,25 @@ def build_report(result: StoryResult, cfg: GraphConfig) -> dict:
             (n for n in order if membership[n.id] == "core" and n.id not in has_incoming), None
         )
 
+    def is_satire(node: Node | None) -> bool:
+        return bool(node and node.source and node.source.type == "satire")
+
+    satire_groups = {n.group for n in result.nodes if is_satire(n)}
+    origin = core_primary or primary
+    seed_node = nodes[result.seed.id]
+    satire = None
+    if is_satire(origin) or is_satire(seed_node):
+        about = origin if is_satire(origin) else seed_node
+        satire = {
+            "source": _source_name(about),
+            "url": about.url,
+            "origin": is_satire(origin),  # сатира — первоисточник истории
+            "seed": is_satire(seed_node),  # проверяют саму сатирическую публикацию
+        }
+
     return {
         "story_id": result.story_id,
+        "satire": satire,
         "seed": {"url": result.seed.url, "title": _short(result.seed.title or result.seed.text)},
         "publications": len(result.nodes),
         "primary": {
@@ -95,13 +112,14 @@ def build_report(result: StoryResult, cfg: GraphConfig) -> dict:
             if e["membership"] == "probable"
             and e["time"] < next(x["time"] for x in timeline if x["membership"] == "core")
         ][:3],
-        "independent_reports": len(graph.independent_groups),
+        # Сатира не подтверждает: её «сообщения» — вымысел по замыслу.
+        "independent_reports": len([g for g in graph.independent_groups if g not in satire_groups]),
         # То же, но только по ядру события — «вероятные» публикации могут быть о другом.
         "independent_core": len(
             {
                 n.group
                 for n in result.nodes
-                if membership[n.id] == "core" and n.id not in has_incoming
+                if membership[n.id] == "core" and n.id not in has_incoming and not is_satire(n)
             }
         ),
         "independent_groups": graph.independent_groups,

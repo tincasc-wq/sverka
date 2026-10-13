@@ -58,7 +58,19 @@ def format_check(
 ) -> str:
     """Краткий итог для бота (ФТ-7.1): первоисточник, охват, ранние публикации, источник."""
     lines = [f"<b>{escape(report['seed']['title'] or 'Публикация')}</b>", ""]
-    lines += _analysis_lines(report.get("analysis"))
+    satire = report.get("satire")
+    if satire:
+        # Шутка важнее всего остального в ответе — первой строкой и без индекса.
+        if satire["origin"]:
+            lines += [f"🃏 <b>Похоже на шутку:</b> первоисточник — {escape(satire['source'])}.", ""]
+        else:
+            lines += [
+                f"🃏 <b>Это сатирическое издание</b> ({escape(satire['source'])}): "
+                "его материалы — вымысел по замыслу.",
+                "",
+            ]
+    else:
+        lines += _analysis_lines(report.get("analysis"))
     primary = report.get("primary")
     seed_entry = next((t for t in report["timeline"] if t.get("is_seed")), None)
 

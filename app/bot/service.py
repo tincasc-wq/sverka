@@ -119,6 +119,7 @@ async def check_for_chat(
         matches = await similar_to_text(session, vector, settings.text_search_days)
         session.add(
             Check(
+                channel="bot",
                 user_id=user.id,
                 org_id=org_id,
                 input_type=InputType.TEXT,
@@ -141,6 +142,7 @@ async def check_for_chat(
             cache_hours=settings.check_cache_hours if use_cache else 0,
             llm=llm,
             org_id=org_id,
+            channel="bot",
             fallback=DocumentIn(
                 url=value,
                 text=fallback_text,

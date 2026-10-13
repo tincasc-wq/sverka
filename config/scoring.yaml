@@ -8,6 +8,7 @@ confirmation_index:
     media: 1.0
     tg: 0.5
     vk: 0.5
+    satire: 0.0       # сатира не подтверждает и не опровергает
   stance_sign:
     supports: 1.0
     contradicts: -1.0
@@ -60,3 +61,4 @@ source_rating:
     media: [3, 2]
     tg: [2, 2]
     vk: [2, 2]
+    satire: [1, 9]     # вымысел по замыслу — рейтинг не показывается в выдаче

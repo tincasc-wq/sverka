@@ -19,6 +19,8 @@ class Check(CreatedAtMixin, Base):
     # Проверка сотрудника организации: идёт в её квоту, отчёт виден только её сотрудникам.
     org_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), index=True)
     input_type: Mapped[str] = mapped_column(String(16))
+    # Откуда пришла проверка: bot | web | service (служебные прогоны) — для статистики.
+    channel: Mapped[str | None] = mapped_column(String(16))
     input_raw: Mapped[str] = mapped_column(Text)
     document_id: Mapped[int | None] = mapped_column(ForeignKey("documents.id"))
     story_id: Mapped[int | None] = mapped_column(ForeignKey("stories.id"))

@@ -25,8 +25,10 @@ from app.models import (
 from app.models.enums import DecidedBy, FeedbackStatus, OrgRole, Stance, StoryStatus, Verdict
 from app.registry.service import last_scores, set_outcome, source_card
 from app.web.auth import COOKIE, require_admin, token_valid
+from app.web.report import msk
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+templates.env.filters["msk"] = msk
 router = APIRouter(prefix="/admin")
 protected = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
 Session = Annotated[AsyncSession, Depends(get_session)]
@@ -318,3 +320,11 @@ async def owner_invite(org_id: int, session: Session):
         raise HTTPException(404)
     invite = await create_invite(session, org, OrgRole.OWNER)
     return RedirectResponse(f"/admin/orgs?invite={invite.token}", status_code=303)
+
+
+@protected.get("/stats", response_class=HTMLResponse)
+async def stats(request: Request, session: Session, days: int = 14):
+    from app.web.stats import collect
+
+    data = await collect(session, max(1, min(days, 90)))
+    return templates.TemplateResponse(request, "admin_stats.html", {"nav": "stats", **data})
