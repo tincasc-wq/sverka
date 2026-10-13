@@ -15,8 +15,8 @@ START = (
     "Я проверяю, откуда взялась новость.\n\n"
     "Пришлите ссылку на статью или пост, перешлите сообщение из канала "
     "или вставьте текст — найду первоисточник, кто перепечатал и кто сообщил независимо.\n\n"
-    "/source <code>tass.ru</code> или /source <code>@rbc_news</code> — карточка источника.\n\n"
-    + DISCLAIMER
+    "/source <code>tass.ru</code> или /source <code>@rbc_news</code> — карточка источника.\n"
+    "/tariff — ваш тариф и сколько проверок осталось на сегодня.\n\n" + DISCLAIMER
 )
 
 NOT_UNDERSTOOD = (
@@ -24,7 +24,10 @@ NOT_UNDERSTOOD = (
     "или вставьте текст новости (от 40 символов)."
 )
 CHECKING = "🔎 Проверяю… Обычно это занимает до пары минут."
-QUOTA = "Лимит бесплатных проверок на сегодня исчерпан ({limit} в сутки). Возвращайтесь завтра."
+QUOTA = (
+    "Лимит проверок на сегодня исчерпан: тариф «{plan}», {limit} в сутки. Возвращайтесь завтра "
+    "или подключите тариф с бо́льшим лимитом — /tariff."
+)
 FAILED = "Не получилось проверить: {reason}"
 FEEDBACK_ASK = "Опишите одним сообщением, что в отчёте не так — передам аналитику."
 FEEDBACK_THANKS = "Спасибо, передал аналитику."
@@ -207,4 +210,32 @@ def format_source_card(card: dict) -> str:
         lines.append("Отметки: " + escape(", ".join(f"{k}: {v}" for k, v in flags.items())))
     if card.get("history"):
         lines.append(f"Последнее изменение рейтинга: {escape(card['history'][0]['reason'])}")
+    return "\n".join(lines)
+
+
+def format_tariff(usage, plans: dict, base_url: str) -> str:
+    """Ответ на /tariff: тариф, остаток на сегодня, что можно подключить."""
+    base = base_url.rstrip("/")
+    if usage.org_name:
+        return "\n".join(
+            [
+                f"Тариф: <b>{escape(usage.plan.name)}</b> — "
+                f"организация «{escape(usage.org_name)}».",
+                f"В этом месяце организация использовала {usage.org_used} из "
+                f"{usage.org_limit} проверок.",
+                f"Кабинет: {base}/org",
+            ]
+        )
+    lines = [
+        f"Тариф: <b>{escape(usage.plan.name)}</b>.",
+        f"Сегодня: {usage.used} из {usage.limit} проверок, осталось {usage.left}. "
+        "Лимит общий для бота и сайта.",
+    ]
+    upgrades = [
+        p for p in plans.values() if p.public and (p.paid or p.org) and p.code != usage.plan.code
+    ]
+    if upgrades:
+        lines += ["", "Можно подключить:"]
+        lines += [f"• {escape(p.name)} — {escape(p.price)}" for p in upgrades]
+        lines += ["", f"Подробнее и как подключить: {base}/pricing"]
     return "\n".join(lines)

@@ -253,6 +253,31 @@ async def source_page(request: Request, source_id: int, session: Session):
     )
 
 
+@router.get("/pricing", response_class=HTMLResponse)
+async def pricing(request: Request, session: Session):
+    from app.plans import get_plans, usage_of
+
+    user = await current_user(request, session)
+    contact = get_settings().sales_contact.strip()
+    return await page(
+        request,
+        session,
+        "pricing.html",
+        user=user,
+        plans=[p for p in get_plans().values() if p.public],
+        usage=await usage_of(session, user),
+        contact=contact,
+        bot=get_settings().telegram_bot_username,
+        contact_url=(
+            f"https://t.me/{contact.lstrip('@')}"
+            if contact.startswith("@")
+            else f"mailto:{contact}"
+            if "@" in contact
+            else ""
+        ),
+    )
+
+
 @router.get("/methodology", response_class=HTMLResponse)
 async def methodology(request: Request, session: Session):
     return await page(
@@ -362,11 +387,14 @@ async def account(request: Request, session: Session):
     if user is None or (user.tg_id is None and user.email is None):
         return RedirectResponse("/login", status_code=303)
     settings = get_settings()
+    from app.plans import usage_of
+
     return await page(
         request,
         session,
         "account.html",
         user=user,
+        usage=await usage_of(session, user),
         widget=bool(settings.telegram_bot_username)
         and settings.public_base_url.startswith("https://"),
         bot=settings.telegram_bot_username,

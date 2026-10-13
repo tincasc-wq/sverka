@@ -14,8 +14,11 @@ class User(CreatedAtMixin, Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     tg_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     role: Mapped[str] = mapped_column(String(16), server_default=UserRole.USER.value)
-    plan: Mapped[str] = mapped_column(String(32), server_default="free")
-    daily_quota: Mapped[int] = mapped_column(Integer, server_default="20")
+    # Платный тариф, назначенный админом (config/plans.yaml), и срок; по истечении — «Стандарт».
+    plan: Mapped[str] = mapped_column(String(32), server_default="standard")
+    plan_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Личная поправка дневного лимита; пусто — лимит тарифа.
+    daily_quota: Mapped[int | None] = mapped_column(Integer)
     # Вход по почте (одноразовая ссылка): адрес в нижнем регистре, подтверждён ссылкой.
     email: Mapped[str | None] = mapped_column(String(255), unique=True)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.models import Check, LoginToken, Organization, OrgMember, User
 from app.models.enums import OrgRole
 from app.orgs.service import create_invite
+from app.plans import plan_for
 from app.web import email_auth
 from tests.test_site import client, db, queued  # noqa: F401 — фикстуры
 
@@ -50,7 +51,7 @@ async def test_email_login_creates_user_and_keeps_browser_history(db, queued, ou
         user = await s.scalar(select(User).where(User.email == "reader@example.ru"))
         owners = set(await s.scalars(select(Check.user_id)))
         stored = (await s.scalars(select(LoginToken.token_hash))).all()
-    assert user.email_verified_at is not None and user.daily_quota == 20
+    assert user.email_verified_at is not None and plan_for(user).code == "standard"
     assert owners == {user.id}  # проверка из браузера перешла к пользователю
     assert token not in stored  # в базе только хэш
 

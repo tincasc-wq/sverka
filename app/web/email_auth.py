@@ -138,7 +138,6 @@ async def login_by_token(session: AsyncSession, token: str, current: User | None
         session.add(owner)
         await session.flush()
     owner.email_verified_at = owner.email_verified_at or now
-    owner.daily_quota = max(owner.daily_quota or 0, get_settings().web_user_quota)
     if current is not None and current.id != owner.id and is_anonymous(current):
         await merge_anonymous(session, current, owner)
     await session.commit()

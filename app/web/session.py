@@ -65,7 +65,7 @@ async def ensure_user(request: Request, session: AsyncSession) -> tuple[User, bo
     user = await current_user(request, session)
     if user is not None:
         return user, False
-    user = User(daily_quota=get_settings().web_anonymous_quota)
+    user = User()
     session.add(user)
     await session.flush()
     return user, True
@@ -111,7 +111,6 @@ async def login_telegram(session: AsyncSession, anonymous: User | None, tg_id: i
     from app.bot.service import get_or_create_user
 
     user = await get_or_create_user(session, tg_id)
-    user.daily_quota = max(user.daily_quota or 0, get_settings().web_user_quota)
     if anonymous is not None and anonymous.id != user.id and is_anonymous(anonymous):
         await merge_anonymous(session, anonymous, user)
     await session.commit()

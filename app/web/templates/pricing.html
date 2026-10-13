@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set page = 'pricing' %}
+{% block title %}Сверка — тарифы{% endblock %}
+{% block content %}
+<style>
+  .plans { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:14px; margin:16px 0; }
+  .plan { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; }
+  .plan.current { border-color:#C96A33; box-shadow:0 0 0 2px rgba(201,106,51,.15); }
+  .plan h3 { margin:0; font-size:18px; }
+  .plan .price { font-size:20px; font-weight:700; margin:6px 0 10px; }
+  .plan ul { margin:0; padding-left:18px; flex:1; }
+  .plan li { margin-bottom:4px; }
+  .plan .soon { color:var(--muted); }
+</style>
+<h1>Тарифы</h1>
+{% if usage.org_name %}
+  <p>Вы работаете в кабинете организации «{{ usage.org_name }}»: в этом месяце {{ usage.org_used }} из {{ usage.org_limit }} проверок.</p>
+{% else %}
+  <p>Ваш тариф — <b>{{ usage.plan.name }}</b>: сегодня {{ usage.used }} из {{ usage.limit }} проверок.
+  Лимит общий для сайта и {% if bot %}бота @{{ bot }}{% else %}бота{% endif %}.
+  {% if usage.plan.code == 'guest' %}<a href="/login">Войдите</a> — бесплатный тариф «Стандарт» даёт больше проверок.{% endif %}</p>
+{% endif %}
+
+<div class="plans">
+  {% for p in plans %}
+  <div class="plan {{ 'current' if p.code == usage.plan.code }}">
+    <h3>{{ p.name }}{% if p.code == usage.plan.code %} <span class="tag good">ваш</span>{% endif %}</h3>
+    <div class="price">{{ p.price }}</div>
+    <ul>
+      {% for f in p.features %}<li>{{ f }}</li>{% endfor %}
+      {% for f in p.soon %}<li class="soon">{{ f }} — скоро</li>{% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <b>Как подключить платный тариф</b>
+  <p style="margin:6px 0 0">Пока подключаем вручную: оплата по счёту для организаций и переводом для частных лиц.
+  {% if contact %}Напишите <a href="{{ contact_url }}">{{ contact }}</a> — укажите, какой тариф нужен и почту или Telegram, с которыми вы входите.
+  {% else %}Напишите нам через бот{% if bot %} @{{ bot }}{% endif %}.{% endif %}</p>
+  <p class="muted" style="margin:6px 0 0">Каждая проверка — сотни публикаций и работа языковой модели, поэтому у бесплатных тарифов дневной лимит.</p>
+</div>
+{% endblock %}

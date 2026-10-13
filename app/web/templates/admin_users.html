@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Сверка — пользователи{% endblock %}
+{% block content %}
+<h1>Пользователи и тарифы</h1>
+<p class="muted">Тариф назначается вручную, пока не подключена оплата. Срок — до какого дня включительно (пусто —
+бессрочно); по окончании пользователь вернётся на «Стандарт». Личный лимит — поправка к лимиту тарифа (пусто — по тарифу).
+Лимит общий для бота и сайта. Без поиска показаны пользователи со входом (почта или Telegram).</p>
+
+<form method="get" action="/admin/users" class="row" style="gap:8px;margin-bottom:12px">
+  <input type="text" name="q" value="{{ q }}" placeholder="почта, Telegram ID или № пользователя" style="flex:1;min-width:240px">
+  <button>Найти</button>
+</form>
+{% if saved %}<div class="note">Сохранено.</div>{% endif %}
+
+<div class="table-wrap"><table>
+  <tr><th>№</th><th>Вход</th><th>Тариф сейчас</th><th>Проверок</th><th>Назначить</th></tr>
+  {% for r in rows %}{% set u = r.user %}
+  <tr>
+    <td>{{ u.id }}</td>
+    <td>{% if u.email %}{{ u.email }}<br>{% endif %}{% if u.tg_id %}<span class="muted">Telegram {{ u.tg_id }}</span>{% endif %}
+        {% if not u.email and not u.tg_id %}<span class="muted">без входа</span>{% endif %}
+        {% if r.org %}<br><span class="tag">{{ r.org }}</span>{% endif %}</td>
+    <td><b>{{ r.plan.name }}</b> · {{ r.limit }}/сутки
+        {% if u.plan_until %}<br><span class="muted">до {{ u.plan_until | msk }}</span>{% endif %}
+        {% if u.daily_quota is not none %}<br><span class="tag probable">личный лимит</span>{% endif %}</td>
+    <td>{{ r.total }}</td>
+    <td>
+      <form method="post" action="/admin/users/{{ u.id }}/plan" class="row" style="gap:6px;align-items:center">
+        <select name="plan">
+          {% for p in plans %}<option value="{{ p.code }}" {{ 'selected' if (u.plan or 'standard') == p.code }}>{{ p.name }}</option>{% endfor %}
+        </select>
+        <label class="muted">до <input type="date" name="until" value="{{ u.plan_until.strftime('%Y-%m-%d') if u.plan_until else '' }}"></label>
+        <label class="muted">лимит <input type="number" name="daily_quota" min="0" style="width:70px" value="{{ u.daily_quota if u.daily_quota is not none else '' }}"></label>
+        <button>Сохранить</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">Никого не нашлось.</td></tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

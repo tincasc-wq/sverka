@@ -62,6 +62,7 @@
   <a href="/admin/sources" class="{{ 'on' if nav == 'sources' }}">Источники</a>
   <a href="/admin/feedback" class="{{ 'on' if nav == 'feedback' }}">Жалобы</a>
   <a href="/admin/orgs" class="{{ 'on' if nav == 'orgs' }}">Организации</a>
+  <a href="/admin/users" class="{{ 'on' if nav == 'users' }}">Пользователи</a>
   {% else %}{# публичный сайт #}
   {% set page = page if page is defined else '' %}
   <a href="/" class="{{ 'on' if page == 'home' }}">Проверить</a>
@@ -69,6 +70,7 @@
   <a href="/search" class="{{ 'on' if page == 'search' }}">Поиск</a>
   <a href="/sources" class="{{ 'on' if page == 'sources' }}">Источники</a>
   <a href="/methodology" class="{{ 'on' if page == 'methodology' }}">Методика</a>
+  <a href="/pricing" class="{{ 'on' if page == 'pricing' }}">Тарифы</a>
   {% if membership is defined and membership %}<a href="/org" class="{{ 'on' if page == 'org' }}">{{ membership.org.name }}</a>{% endif %}
   <span class="right">
     {% if user is defined and user and (user.tg_id or user.email) %}

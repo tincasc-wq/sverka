@@ -328,3 +328,83 @@ async def stats(request: Request, session: Session, days: int = 14):
 
     data = await collect(session, max(1, min(days, 90)))
     return templates.TemplateResponse(request, "admin_stats.html", {"nav": "stats", **data})
+
+
+# ---- пользователи и тарифы (ФТ-9.1): назначение вручную до подключения оплаты ----
+
+
+@protected.get("/users", response_class=HTMLResponse)
+async def users(request: Request, session: Session, q: str = ""):
+    from app.models import OrgMember, User
+    from app.plans import daily_limit, get_plans, plan_for
+
+    query = select(User).order_by(User.id.desc()).limit(100)
+    q = q.strip()
+    if q:
+        if q.isdigit():
+            query = query.where((User.id == int(q)) | (User.tg_id == int(q)))
+        else:
+            query = query.where(User.email.ilike(f"%{q.lower()}%"))
+    else:
+        query = query.where((User.tg_id.is_not(None)) | (User.email.is_not(None)))
+    rows = []
+    for user in await session.scalars(query):
+        total = await session.scalar(
+            select(func.count()).select_from(Check).where(Check.user_id == user.id)
+        )
+        org = await session.scalar(
+            select(Organization.name)
+            .join(OrgMember, OrgMember.org_id == Organization.id)
+            .where(OrgMember.user_id == user.id)
+        )
+        rows.append(
+            {
+                "user": user,
+                "plan": plan_for(user),
+                "limit": daily_limit(user),
+                "total": total,
+                "org": org,
+            }
+        )
+    plans = [p for p in get_plans().values() if p.paid or p.code == "standard"]
+    return templates.TemplateResponse(
+        request,
+        "admin_users.html",
+        {
+            "nav": "users",
+            "rows": rows,
+            "q": q,
+            "plans": plans,
+            "saved": request.query_params.get("saved"),
+        },
+    )
+
+
+@protected.post("/users/{user_id}/plan")
+async def set_user_plan(
+    user_id: int,
+    session: Session,
+    plan: Annotated[str, Form()],
+    until: Annotated[str, Form()] = "",
+    daily_quota: Annotated[str, Form()] = "",
+):
+    from datetime import UTC, datetime
+    from zoneinfo import ZoneInfo
+
+    from app.models import User
+    from app.plans import get_plans
+
+    user = await session.get(User, user_id)
+    if user is None or plan not in get_plans():
+        raise HTTPException(404)
+    user.plan = plan
+    user.plan_until = (
+        datetime.strptime(until, "%Y-%m-%d")
+        .replace(hour=23, minute=59, tzinfo=ZoneInfo("Europe/Moscow"))
+        .astimezone(UTC)
+        if until.strip()
+        else None
+    )
+    user.daily_quota = int(daily_quota) if daily_quota.strip().isdigit() else None
+    await session.commit()
+    return RedirectResponse(f"/admin/users?q={user_id}&saved=1", status_code=303)

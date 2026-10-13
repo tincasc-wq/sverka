@@ -46,6 +46,18 @@ async def help_(message: Message) -> None:
     await message.answer(texts.START)
 
 
+@router.message(Command("tariff", "plan"))
+async def tariff(message: Message) -> None:
+    """Тариф и остаток проверок на сегодня — лимит общий для бота и сайта."""
+    from app.plans import get_plans, usage_of
+
+    async with SessionLocal() as session:
+        user = await get_or_create_user(session, message.from_user.id)
+        await session.commit()
+        usage = await usage_of(session, user)
+    await message.answer(texts.format_tariff(usage, get_plans(), get_settings().public_base_url))
+
+
 @router.message(Command("source"))
 async def source(message: Message, command: CommandObject) -> None:
     if not command.args:

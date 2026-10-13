@@ -11,7 +11,6 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
 from app.models import Check, Feedback, LoginToken, OrgInvite, OrgMember, User
 
 
@@ -45,17 +44,17 @@ async def merge_accounts(session: AsyncSession, survivor: User, other: User) -> 
 
     email, tg_id = other.email, other.tg_id
     verified = other.email_verified_at
-    survivor.daily_quota = max(survivor.daily_quota or 0, other.daily_quota or 0)
+    # Лучшее из двух: личная поправка и действующий платный тариф.
+    if other.daily_quota is not None:
+        survivor.daily_quota = max(survivor.daily_quota or 0, other.daily_quota)
+    if other.plan != "standard" and (survivor.plan == "standard" or not survivor.plan):
+        survivor.plan, survivor.plan_until = other.plan, other.plan_until
     await session.execute(delete(User).where(User.id == other.id))
     await session.flush()  # освободить уникальные email/tg_id до переноса
     if survivor.email is None and email:
         survivor.email, survivor.email_verified_at = email, verified
     if survivor.tg_id is None and tg_id:
         survivor.tg_id = tg_id
-
-
-def _raise_quota(user: User) -> None:
-    user.daily_quota = max(user.daily_quota or 0, get_settings().web_user_quota)
 
 
 async def link_email(session: AsyncSession, user: User, email: str) -> User:
@@ -69,7 +68,6 @@ async def link_email(session: AsyncSession, user: User, email: str) -> User:
     else:
         user.email = email
         user.email_verified_at = datetime.now(UTC)
-    _raise_quota(user)
     await session.commit()
     return user
 
@@ -84,6 +82,5 @@ async def link_telegram(session: AsyncSession, user: User, tg_id: int) -> User:
         await merge_accounts(session, user, owner)
     else:
         user.tg_id = tg_id
-    _raise_quota(user)
     await session.commit()
     return user

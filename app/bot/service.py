@@ -19,6 +19,7 @@ from app.llm import LlmClient
 from app.models import Check, Document, Source, User
 from app.models.enums import InputType
 from app.pipeline.graph import USER_TEXT_PREFIX
+from app.plans import daily_limit, plan_for
 from app.registry.service import source_card
 
 
@@ -39,7 +40,7 @@ async def checks_today(session: AsyncSession, user: User) -> int:
 
 
 async def quota_exceeded(session: AsyncSession, user: User) -> bool:
-    return await checks_today(session, user) >= user.daily_quota
+    return await checks_today(session, user) >= daily_limit(user)
 
 
 async def check_refusal(session: AsyncSession, user: User) -> str | None:
@@ -54,7 +55,7 @@ async def check_refusal(session: AsyncSession, user: User) -> str | None:
     if membership is not None:
         return await quota_refusal(session, membership)
     if await quota_exceeded(session, user):
-        return texts.QUOTA.format(limit=user.daily_quota)
+        return texts.QUOTA.format(limit=daily_limit(user), plan=plan_for(user).name)
     return None
 
 
