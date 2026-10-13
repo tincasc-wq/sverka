@@ -46,7 +46,9 @@ async def _recent(session: AsyncSession, column, value, window: timedelta) -> in
     )
 
 
-async def request_login(session: AsyncSession, raw_email: str, ip: str | None) -> bool:
+async def request_login(
+    session: AsyncSession, raw_email: str, ip: str | None, link_user: User | None = None
+) -> bool:
     """Отправить ссылку входа. False — почта не настроена (ссылка в логе приложения)."""
     email = normalize_email(raw_email)
     if email is None:
@@ -65,11 +67,30 @@ async def request_login(session: AsyncSession, raw_email: str, ip: str | None) -
             token_hash=_hash(token),
             ip=ip,
             expires_at=datetime.now(UTC) + timedelta(minutes=TOKEN_MINUTES),
+            purpose="link" if link_user else "login",
+            user_id=link_user.id if link_user else None,
         )
     )
     await session.commit()
 
     link = f"{get_settings().public_base_url.rstrip('/')}/auth/email/{token}"
+    if link_user is not None:
+        text = (
+            "Здравствуйте!\n\n"
+            "Чтобы привязать этот адрес к вашей учётной записи в «Сверке», откройте ссылку "
+            f"(действует {TOKEN_MINUTES} минут) в том же браузере:\n{link}\n\n"
+            "Если вы этого не запрашивали, просто удалите письмо — ничего не изменится.\n\n"
+            "— «Сверка», проект компании «Ангрист»"
+        )
+        html = (
+            "<p>Здравствуйте!</p>"
+            "<p>Чтобы привязать этот адрес к вашей учётной записи в «Сверке», нажмите: "
+            f'<a href="{escape(link)}"><b>Привязать</b></a><br>'
+            f"Ссылка действует {TOKEN_MINUTES} минут; откройте её в том же браузере.</p>"
+            "<p>Если вы этого не запрашивали, просто удалите письмо.</p>"
+            '<p style="color:#6b7385">— «Сверка», проект компании «Ангрист»</p>'
+        )
+        return await send_mail(email, "Привязка почты к «Сверке»", text, html)
     text = (
         "Здравствуйте!\n\n"
         f"Чтобы войти в «Сверку», откройте ссылку (действует {TOKEN_MINUTES} минут):\n{link}\n\n"
@@ -100,11 +121,14 @@ async def login_by_token(session: AsyncSession, token: str, current: User | None
     from app.web.session import is_anonymous, merge_anonymous
 
     item = await valid_token(session, token)
+    if item.purpose == "link":
+        raise LoginError("Это ссылка для привязки почты — откройте её из письма.")
     item.used_at = datetime.now(UTC)
     now = datetime.now(UTC)
     owner = await session.scalar(select(User).where(User.email == item.email))
-    if owner is None and current is not None and current.email is None:
-        # Привязываем почту к текущему пользователю (анонимному или вошедшему через Telegram).
+    if owner is None and current is not None and is_anonymous(current):
+        # Анонимному посетителю почта становится учётной записью (история браузера — с ней).
+        # Вошедшего через Telegram не трогаем: привязка — только явно, на странице учётной записи.
         owner = current
         owner.email = item.email
     elif owner is None:
@@ -117,3 +141,23 @@ async def login_by_token(session: AsyncSession, token: str, current: User | None
         await merge_anonymous(session, current, owner)
     await session.commit()
     return owner
+
+
+async def confirm_link(session: AsyncSession, token: str, current: User | None) -> User:
+    """Подтвердить привязку почты к учётной записи, которая её запросила (тот же браузер)."""
+    from app.web.accounts import AccountError, link_email
+
+    item = await valid_token(session, token)
+    if item.purpose != "link":
+        raise LoginError("Это ссылка для входа, а не для привязки.")
+    if current is None or current.id != item.user_id:
+        raise LoginError(
+            "Откройте ссылку в том же браузере, где запрашивали привязку, и войдите в ту же "
+            "учётную запись."
+        )
+    item.used_at = datetime.now(UTC)
+    try:
+        return await link_email(session, current, item.email)
+    except AccountError as exc:
+        await session.rollback()
+        raise LoginError(str(exc)) from exc

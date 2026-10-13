@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% set page = 'account' %}
+{% block title %}Сверка — учётная запись{% endblock %}
+{% block content %}
+<div class="narrow" style="max-width:600px">
+<h1>Учётная запись</h1>
+<p class="muted">Привяжите и почту, и Telegram — тогда проверки с сайта и из бота будут в одной истории,
+а войти можно любым способом.</p>
+
+{% if linked == 'email' %}<div class="note">Почта привязана.</div>{% endif %}
+{% if linked == 'telegram' %}<div class="note">Telegram привязан. Проверки из бота теперь в вашей истории на сайте.</div>{% endif %}
+{% if error == 'telegram' %}<div class="error">Не удалось подтвердить вход через Telegram. Попробуйте ещё раз.</div>{% endif %}
+{% if error == 'conflict' %}<div class="error">Этот Telegram уже связан с учётной записью, которая состоит в другой
+организации. Пользователь может быть только в одной — попросите владельца одного из кабинетов удалить вас.</div>{% endif %}
+
+<div class="card">
+  <b>Почта</b>
+  {% if user.email %}
+    <p style="margin:6px 0 0">{{ user.email }} <span class="tag good">подтверждена</span></p>
+  {% elif email_sent is defined %}
+    <p style="margin:6px 0 0">Отправили письмо на <b>{{ email_sent }}</b>. Откройте ссылку из него <b>в этом же браузере</b>
+    — ссылка действует 30 минут.</p>
+    {% if not mail_ready %}<p class="note">Почта на сервере не настроена: ссылка записана в журнал приложения.</p>{% endif %}
+  {% else %}
+    <p class="muted" style="margin:6px 0">Не привязана. Пришлём письмо со ссылкой для подтверждения.</p>
+    {% if email_error is defined %}<div class="error">{{ email_error }}</div>{% endif %}
+    <form method="post" action="/account/email" class="row" style="gap:8px">
+      <input type="email" name="email" required maxlength="254" autocomplete="email" placeholder="you@example.ru"
+             value="{{ email if email is defined else '' }}" style="flex:1;min-width:200px">
+      <button>Привязать почту</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="card">
+  <b>Telegram</b>
+  {% if user.tg_id %}
+    <p style="margin:6px 0 0">Привязан <span class="tag good">бот видит ту же историю</span></p>
+  {% else %}
+    <p class="muted" style="margin:6px 0">Не привязан. Нажмите кнопку и подтвердите в Telegram.</p>
+    {% if widget %}
+      <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bot }}"
+              data-size="medium" data-radius="8" data-auth-url="{{ link_auth_url }}" data-request-access="false"></script>
+    {% else %}
+      <p class="note">Привязка Telegram доступна на сайте с доменом, указанным у @BotFather.</p>
+    {% endif %}
+  {% endif %}
+</div>
+
+<p class="muted" style="font-size:13px">Если у привязываемой почты или Telegram уже была своя учётная запись, она объединится с этой:
+проверки, жалобы и членство в организации перейдут сюда.</p>
+<p><a href="/history">Мои проверки →</a></p>
+</div>
+{% endblock %}

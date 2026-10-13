@@ -32,6 +32,9 @@ class LoginToken(CreatedAtMixin, Base):
     ip: Mapped[str | None] = mapped_column(String(64), index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # login — войти; link — привязать адрес к учётной записи user_id (страница «Учётная запись»).
+    purpose: Mapped[str] = mapped_column(String(16), server_default="login", default="login")
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
 
 
 class Feedback(CreatedAtMixin, Base):

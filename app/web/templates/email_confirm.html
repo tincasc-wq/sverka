@@ -9,10 +9,15 @@
     <div class="error">{{ error }}</div>
     <p><a href="/login">← На страницу входа</a></p>
   {% else %}
+    {% if link %}
+    <h1>Привязка почты</h1>
+    <p>Привязать <b>{{ email }}</b> к вашей учётной записи?</p>
+    {% else %}
     <h1>Вход в «Сверку»</h1>
     <p>Войти как <b>{{ email }}</b>?</p>
+    {% endif %}
     <form method="post" action="/auth/email/{{ token }}">
-      <button style="background:#C96A33;border-color:#C96A33;color:#fff;font-weight:600;padding:9px 28px">Войти</button>
+      <button style="background:#C96A33;border-color:#C96A33;color:#fff;font-weight:600;padding:9px 28px">{{ 'Привязать' if link else 'Войти' }}</button>
     </form>
     <p class="muted" style="margin-top:14px">Если вы не запрашивали вход — просто закройте страницу.</p>
   {% endif %}

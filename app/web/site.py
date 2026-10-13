@@ -17,8 +17,15 @@ from app.models.enums import CheckStatus
 from app.orgs.service import can_view_check, membership_of
 from app.registry.legal import display_name, legal_note
 from app.registry.service import source_card
+from app.web.accounts import AccountError, link_telegram
 from app.web.checks import CheckRefused, create_web_check, failure_text
-from app.web.email_auth import LoginError, login_by_token, request_login, valid_token
+from app.web.email_auth import (
+    LoginError,
+    confirm_link,
+    login_by_token,
+    request_login,
+    valid_token,
+)
 from app.web.queue import enqueue
 from app.web.report import check_by_token, templates
 from app.web.session import (
@@ -306,14 +313,20 @@ async def email_confirm_page(request: Request, token: str, session: Session):
         "email_confirm.html",
         token=token,
         email=item.email if item else None,
+        link=item is not None and item.purpose == "link",
         error=error,
     )
 
 
 @router.post("/auth/email/{token}")
 async def email_confirm(request: Request, token: str, session: Session):
+    current = await current_user(request, session)
     try:
-        user = await login_by_token(session, token, await current_user(request, session))
+        item = await valid_token(session, token)
+        if item.purpose == "link":
+            await confirm_link(session, token, current)
+            return RedirectResponse("/account?linked=email", status_code=303)
+        user = await login_by_token(session, token, current)
     except LoginError as exc:
         await session.rollback()
         return await page(
@@ -336,6 +349,77 @@ async def auth_telegram(request: Request, session: Session):
     response = RedirectResponse("/history", status_code=303)
     set_user_cookie(response, user.id)
     return response
+
+
+@router.get("/account", response_class=HTMLResponse)
+async def account(request: Request, session: Session):
+    user = await current_user(request, session)
+    if user is None or (user.tg_id is None and user.email is None):
+        return RedirectResponse("/login", status_code=303)
+    settings = get_settings()
+    return await page(
+        request,
+        session,
+        "account.html",
+        user=user,
+        widget=bool(settings.telegram_bot_username)
+        and settings.public_base_url.startswith("https://"),
+        bot=settings.telegram_bot_username,
+        link_auth_url=settings.public_base_url.rstrip("/") + "/auth/telegram/link",
+        linked=request.query_params.get("linked"),
+        error=request.query_params.get("error"),
+    )
+
+
+@router.post("/account/email", response_class=HTMLResponse)
+async def account_link_email(request: Request, session: Session, email: Annotated[str, Form()]):
+    user = await current_user(request, session)
+    if user is None or (user.tg_id is None and user.email is None):
+        return RedirectResponse("/login", status_code=303)
+    ip = request.client.host if request.client else None
+    try:
+        sent = await request_login(session, email, ip, link_user=user)
+    except LoginError as exc:
+        response = await page(
+            request,
+            session,
+            "account.html",
+            user=user,
+            widget=False,
+            email_error=str(exc),
+            email=email,
+        )
+        response.status_code = 422
+        return response
+    return await page(
+        request,
+        session,
+        "account.html",
+        user=user,
+        widget=False,
+        email_sent=email.strip().lower(),
+        mail_ready=sent,
+    )
+
+
+@router.get("/auth/telegram/link")
+async def auth_telegram_link(request: Request, session: Session):
+    """Привязать Telegram к вошедшей учётной записи (виджет на странице «Учётная запись»)."""
+    user = await current_user(request, session)
+    data = dict(request.query_params)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    if (
+        not telegram_login_valid(data, get_settings().telegram_bot_token)
+        or not data.get("id", "").isdigit()
+    ):
+        return RedirectResponse("/account?error=telegram", status_code=303)
+    try:
+        await link_telegram(session, user, int(data["id"]))
+    except AccountError:
+        await session.rollback()
+        return RedirectResponse("/account?error=conflict", status_code=303)
+    return RedirectResponse("/account?linked=telegram", status_code=303)
 
 
 @router.post("/logout")
