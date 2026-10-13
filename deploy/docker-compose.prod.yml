@@ -81,6 +81,18 @@ services:
       - hf_cache:/root/.cache/huggingface
     mem_limit: 5g
 
+  # Шлюз за рубеж (Ирландия, VLESS-Reality): только для источников с via_gateway и зарубежных LLM.
+  # Telegram сюда не идёт — из РФ он доступен напрямую по IPv6, а в ЕС часть каналов скрыта.
+  gateway:
+    image: teddysun/xray:26.10.10
+    env_file: ../.env
+    restart: unless-stopped
+    logging: *logging
+    entrypoint: ["sh", "/start.sh"]
+    volumes:
+      - ./gateway/start.sh:/start.sh:ro
+    mem_limit: 128m
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
