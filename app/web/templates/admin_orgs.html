@@ -55,7 +55,7 @@
             data-quota="{{ p.monthly_checks or (c.base_checks if c else 3000) }}" {{ 'selected' if code == 'team' }}>{{ p.name }} — {{ p.price }}</option>
     {% endfor %}</select></label>
   <label>Мест<br><input type="number" name="seats" value="3" min="1" style="width:80px"></label>
-  <label>Проверок в месяц<br><input type="number" name="monthly_quota" value="2000" min="0" style="width:110px"></label>
+  <label>Проверок в месяц<br><input type="number" name="monthly_quota" value="3500" min="0" style="width:110px"></label>
   <label class="muted"><input type="checkbox" name="ru_only" value="true"> российский контур (только российские модели)</label>
   <button>Создать и получить ссылку владельцу</button>
 </form>
