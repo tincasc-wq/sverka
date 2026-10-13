@@ -57,6 +57,7 @@ class Plan(BaseModel):
     soon: list[str] = []
     pdf: bool = False  # выгрузка отчёта в PDF
     priority: bool = False  # проверки встают в начало очереди
+    schedule: bool = False  # повторная проверка по расписанию (app/watches.py)
     constructor: Constructor | None = None
 
     @property
@@ -150,6 +151,10 @@ def _entitled(user: User | None, membership, feature: str) -> bool:
 
 def can_export_pdf(user: User | None, membership=None) -> bool:
     return _entitled(user, membership, "pdf")
+
+
+def can_schedule(user: User | None, membership=None) -> bool:
+    return _entitled(user, membership, "schedule")
 
 
 def has_priority(user: User | None, membership=None) -> bool:

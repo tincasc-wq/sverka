@@ -61,14 +61,16 @@ async def bot_check(
             fallback_date=fallback_date,
             llm=ctx.get("llm"),
         )
-        pdf = False
+        pdf = watch = False
         if reply.check_id:
             from app.bot.service import get_or_create_user
             from app.orgs.service import membership_of
-            from app.plans import can_export_pdf
+            from app.plans import can_export_pdf, can_schedule
 
             user = await get_or_create_user(session, tg_id)
-            pdf = can_export_pdf(user, await membership_of(session, user))
+            membership = await membership_of(session, user)
+            pdf = can_export_pdf(user, membership)
+            watch = can_schedule(user, membership)
     bot = ctx.get("bot")
     if bot is None:
         log.warning("bot token is not set, reply for chat %s dropped", chat_id)
@@ -77,7 +79,7 @@ async def bot_check(
         chat_id,
         reply.text,
         reply_parameters=ReplyParameters(message_id=reply_to, allow_sending_without_reply=True),
-        reply_markup=check_keyboard(reply.check_id, pdf) if reply.check_id else None,
+        reply_markup=check_keyboard(reply.check_id, pdf, watch) if reply.check_id else None,
     )
     return f"check={reply.check_id}"
 
@@ -144,6 +146,17 @@ async def embed_documents(ctx: dict) -> int:
 
 
 @single_flight
+async def run_watches(ctx: dict) -> str:
+    """Повторные проверки по расписанию (app/watches.py)."""
+    from app.watches import run_due_watches
+
+    result = await run_due_watches(SessionLocal, ctx["embedder"], ctx.get("llm"), ctx.get("bot"))
+    if result:
+        log.info("watches: %s", result)
+    return str(result)
+
+
+@single_flight
 async def purge_personal_data(ctx: dict) -> str:
     """Сроки хранения из политики обработки ПДн (/privacy): что обещано — то и удаляется."""
     from sqlalchemy import text
@@ -183,6 +196,7 @@ class WorkerSettings:
         bot_check,
         web_check,
         purge_personal_data,
+        run_watches,
     ]
     cron_jobs = [
         cron(collect_rss, minute=set(range(0, 60, 5)), unique=True, timeout=600),
@@ -192,6 +206,7 @@ class WorkerSettings:
         cron(recompute_source_ratings, hour=0, minute=0, unique=True, timeout=1800),
         # Сроки хранения персональных данных (/privacy); 03:30 по Москве.
         cron(purge_personal_data, hour=0, minute=30, unique=True, timeout=600),
+        cron(run_watches, minute=set(range(4, 60, 10)), unique=True, timeout=3000),
     ]
     on_startup = startup
     on_shutdown = shutdown

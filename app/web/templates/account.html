@@ -27,6 +27,19 @@
 </div>
 {% endif %}
 
+{% if watches %}
+<div class="card">
+  <b>👁 Слежу за новостями</b>
+  {% for item in watches %}{% set w = item.watch %}
+  <div class="row" style="gap:8px;align-items:center;margin-top:8px">
+    <div style="flex:1;min-width:0">{% if item.token %}<a href="/r/{{ item.token }}">{{ w.last_state.title or "новость" }}</a>{% else %}{{ w.last_state.title or "новость" }}{% endif %}
+      <div class="muted" style="font-size:13px">каждые {{ w.every_hours }} ч до {{ w.until | msk }} · проверок: {{ w.runs }}</div></div>
+    <form method="post" action="/watches/{{ w.id }}/stop"><button>Остановить</button></form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="card">
   <b>Почта</b>
   {% if user.email %}

@@ -16,7 +16,8 @@ START = (
     "Пришлите ссылку на статью или пост, перешлите сообщение из канала "
     "или вставьте текст — найду первоисточник, кто перепечатал и кто сообщил независимо.\n\n"
     "/source <code>tass.ru</code> или /source <code>@rbc_news</code> — карточка источника.\n"
-    "/tariff — ваш тариф и сколько проверок осталось.\n\n" + DISCLAIMER
+    "/tariff — ваш тариф и сколько проверок осталось.\n"
+    "/watches — новости, за которыми слежу (тарифы Pro и выше).\n\n" + DISCLAIMER
 )
 
 NOT_UNDERSTOOD = (
@@ -32,6 +33,31 @@ FAILED = "Не получилось проверить: {reason}"
 FEEDBACK_ASK = "Опишите одним сообщением, что в отчёте не так — передам аналитику."
 FEEDBACK_THANKS = "Спасибо, передал аналитику."
 RECHECK_SCHEDULED = "Хорошо, проверю ещё раз через {hours:g} ч и пришлю результат."
+WATCH_STARTED = (
+    "👁 Слежу за новостью: проверяю каждые {every} ч до {until}. Напишу, если появятся новые "
+    "публикации, подтверждения или изменится индекс, и пришлю итог в конце. "
+    "Каждая повторная проверка идёт в лимит тарифа. Список и остановка — /watches."
+)
+NO_WATCHES = (
+    "Сейчас ни за одной новостью не слежу. Нажмите «👁 Следить» под отчётом — "
+    "в тарифах Pro, «Команда» и «Редакция»."
+)
+
+
+def msk(moment: datetime) -> str:
+    return moment.astimezone(MSK).strftime("%d.%m %H:%M")
+
+
+def format_watches(watches) -> str:
+    lines = ["<b>Слежу за новостями:</b>", ""]
+    for i, w in enumerate(watches, 1):
+        title = escape((w.last_state or {}).get("title") or "новость")
+        lines.append(
+            f"{i}. {title}\n   каждые {w.every_hours} ч до {msk(w.until)}, "
+            f"следующая проверка {msk(w.next_run_at)}, проведено: {w.runs}"
+        )
+    return "\n".join(lines)
+
 
 ROLE = {"primary": "первоисточник", "derived": "перепечатка", "independent": "независимо"}
 

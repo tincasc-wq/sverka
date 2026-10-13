@@ -128,6 +128,55 @@ async def send_pdf(callback: CallbackQuery) -> None:
     )
 
 
+@router.callback_query(F.data.startswith("watch:"))
+async def watch_check(callback: CallbackQuery) -> None:
+    """«👁 Следить»: перепроверять новость по расписанию и писать об изменениях."""
+    from app.bot.telegram import WATCH_DEFAULT
+    from app.watches import WatchRefused, start_watch
+
+    every, days = WATCH_DEFAULT
+    async with SessionLocal() as session:
+        check = await session.get(Check, int(callback.data.split(":")[1]))
+        user = await get_or_create_user(session, callback.from_user.id)
+        await session.commit()
+        try:
+            if check is None:
+                raise WatchRefused("Проверка не найдена.")
+            watch = await start_watch(session, user, check, every, days)
+        except WatchRefused as exc:
+            await callback.answer(str(exc), show_alert=True)
+            return
+    await callback.answer()
+    await callback.message.answer(
+        texts.WATCH_STARTED.format(every=every, until=texts.msk(watch.until))
+    )
+
+
+@router.message(Command("watches"))
+async def watches(message: Message) -> None:
+    from app.bot.telegram import watches_keyboard
+    from app.watches import user_watches
+
+    async with SessionLocal() as session:
+        user = await get_or_create_user(session, message.from_user.id)
+        await session.commit()
+        items = await user_watches(session, user)
+    if not items:
+        await message.answer(texts.NO_WATCHES)
+        return
+    await message.answer(texts.format_watches(items), reply_markup=watches_keyboard(items))
+
+
+@router.callback_query(F.data.startswith("unwatch:"))
+async def unwatch(callback: CallbackQuery) -> None:
+    from app.watches import stop_watch
+
+    async with SessionLocal() as session:
+        user = await get_or_create_user(session, callback.from_user.id)
+        stopped = await stop_watch(session, user, int(callback.data.split(":")[1]))
+    await callback.answer("Слежение остановлено" if stopped else "Уже остановлено")
+
+
 @router.callback_query(F.data.startswith("report:"))
 async def report_error(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(FeedbackForm.text)

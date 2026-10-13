@@ -18,7 +18,8 @@ from app.core.db import get_session
 from app.models import Check, Feedback
 from app.models.enums import CheckStatus, FeedbackStatus
 from app.orgs.service import can_view_check, membership_of
-from app.plans import can_export_pdf
+from app.plans import can_export_pdf, can_schedule
+from app.watches import WatchRefused, active_watch, start_watch, stop_watch
 from app.web.session import current_user
 
 router = APIRouter()
@@ -62,6 +63,9 @@ async def report_page(request: Request, token: str, session: Session):
         "user": user,
         "membership": membership,
         "pdf": can_export_pdf(user, membership),
+        "schedule": can_schedule(user, membership),
+        "watch": await active_watch(session, user, check) if user else None,
+        "watch_error": request.query_params.get("watch_error"),
         "thanks": request.query_params.get("thanks") == "1",
     }
     template = "text_report.html" if "matches" in report else "report.html"
@@ -106,6 +110,37 @@ async def report_pdf(request: Request, token: str, session: Session):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="sverka-{token[:8]}.pdf"'},
     )
+
+
+@router.post("/r/{token}/watch")
+async def report_watch(
+    request: Request,
+    token: str,
+    session: Session,
+    every: Annotated[int, Form()] = 6,
+    days: Annotated[int, Form()] = 3,
+):
+    """«Следить за новостью»: повторная проверка по расписанию (тарифы с schedule: true)."""
+    from urllib.parse import quote
+
+    check = await check_by_token(session, token)
+    user = await current_user(request, session)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    try:
+        await start_watch(session, user, check, every, days)
+    except WatchRefused as exc:
+        return RedirectResponse(f"/r/{token}?watch_error={quote(str(exc))}#watch", 303)
+    return RedirectResponse(f"/r/{token}#watch", status_code=303)
+
+
+@router.post("/watches/{watch_id}/stop")
+async def watch_stop(request: Request, watch_id: int, session: Session):
+    user = await current_user(request, session)
+    if user is not None:
+        await stop_watch(session, user, watch_id)
+    back = request.headers.get("referer") or "/account"
+    return RedirectResponse(back if back.startswith(str(request.base_url)) else "/account", 303)
 
 
 @router.post("/r/{token}/feedback")

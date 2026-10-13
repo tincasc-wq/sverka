@@ -517,12 +517,18 @@ async def account(request: Request, session: Session):
         return RedirectResponse("/login", status_code=303)
     settings = get_settings()
     from app.plans import usage_of
+    from app.watches import user_watches
 
+    watches = []
+    for w in await user_watches(session, user):
+        last = await session.get(Check, w.last_check_id) if w.last_check_id else None
+        watches.append({"watch": w, "token": last.public_token if last else None})
     return await page(
         request,
         session,
         "account.html",
         user=user,
+        watches=watches,
         usage=await usage_of(session, user),
         widget=bool(settings.telegram_bot_username)
         and settings.public_base_url.startswith("https://"),

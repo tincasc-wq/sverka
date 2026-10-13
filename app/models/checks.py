@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -57,3 +57,27 @@ class ClaimEvidence(Base):
     quote: Mapped[str | None] = mapped_column(Text)
     discrepancy: Mapped[dict | None] = mapped_column(JSONB)
     is_independent: Mapped[bool] = mapped_column(Boolean, server_default="false", default=False)
+
+
+class Watch(CreatedAtMixin, Base):
+    """Повторная проверка по расписанию: новость перепроверяется, пока не истечёт срок.
+
+    Пользователю пишем только об изменениях (новые публикации, подтверждения, индекс)
+    и один раз в конце — итог за весь срок.
+    """
+
+    __tablename__ = "watches"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    check_id: Mapped[int] = mapped_column(ForeignKey("checks.id"))  # с чего началось
+    last_check_id: Mapped[int | None] = mapped_column(ForeignKey("checks.id"))
+    every_hours: Mapped[int] = mapped_column(Integer)
+    next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    runs: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
+    active: Mapped[bool] = mapped_column(Boolean, server_default="true", default=True)
+    # Состояние первой и последней проверки: с чем сравнивать и что показать в итоге.
+    first_state: Mapped[dict] = mapped_column(JSONB, server_default="{}", default=dict)
+    last_state: Mapped[dict] = mapped_column(JSONB, server_default="{}", default=dict)
+    stopped_reason: Mapped[str | None] = mapped_column(Text)

@@ -4,6 +4,27 @@
   {% if pdf %}<a href="/r/{{ check.public_token }}/pdf" class="btn" style="text-decoration:none">Скачать PDF</a>
   {% else %}<a href="/pricing?need=pdf" class="muted">PDF-отчёт — в тарифе Pro</a>{% endif %}
 </div>
+{% if "matches" not in report %}
+<div id="watch" class="card" style="margin-top:16px">
+  {% if watch_error %}<div class="error">{{ watch_error }}</div>{% endif %}
+  {% if watch %}
+    <b>👁 Слежу за этой новостью</b>
+    <p style="margin:6px 0">Проверяю каждые {{ watch.every_hours }} ч до {{ watch.until | msk }}; следующая проверка — {{ watch.next_run_at | msk }}.
+    Напишу{% if user and user.tg_id %} в Telegram{% elif user and user.email %} на почту{% endif %}, если появятся новые публикации, подтверждения или изменится индекс.</p>
+    <form method="post" action="/watches/{{ watch.id }}/stop"><button>Остановить слежение</button></form>
+  {% elif schedule %}
+    <form method="post" action="/r/{{ check.public_token }}/watch" class="row" style="gap:8px;align-items:center">
+      <b>👁 Следить за новостью:</b>
+      <label>проверять каждые <select name="every" id="watch-every"><option value="6">6 ч</option><option value="12">12 ч</option><option value="24">24 ч</option></select></label>
+      <label>в течение <select name="days" id="watch-days"><option value="1">суток</option><option value="3" selected>3 дней</option><option value="7">7 дней</option></select></label>
+      <button>Следить</button>
+    </form>
+    <p class="muted" style="margin:6px 0 0;font-size:13px">Сообщим только об изменениях и пришлём итог в конце. Каждая повторная проверка идёт в лимит тарифа.</p>
+  {% else %}
+    <span class="muted">👁 Слежение за новостью — повторная проверка по расписанию с сообщением об изменениях — <a href="/pricing">в тарифе Pro</a>.</span>
+  {% endif %}
+</div>
+{% endif %}
 <div id="feedback" class="card" style="margin-top:16px">
   {% if thanks %}<div class="note">Спасибо, передали аналитику.</div>{% endif %}
   <form method="post" action="/r/{{ check.public_token }}/feedback">
