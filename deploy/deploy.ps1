@@ -51,7 +51,7 @@ function Upload([string]$User, [string]$Local, [string]$RemotePath) {
 
 function App([string]$Cmd) { Remote "sverka" "cd ~/sverka && $Cmd" }
 
-function Wsl([string]$Cmd) {
+function LocalShell([string]$Cmd) {
     Native { wsl -d $Distro -u root -- bash -c "cd $WslRoot && $Cmd" } "Локальная команда завершилась с ошибкой"
 }
 
@@ -86,7 +86,7 @@ switch ($Command) {
     }
     "db" {
         Write-Host "Снимаю дамп локальной базы…"
-        Wsl "docker compose exec -T db pg_dump -U sverka -Fc sverka > sverka.dump"
+        LocalShell "docker compose exec -T db pg_dump -U sverka -Fc sverka > sverka.dump"
         Upload "sverka" (Join-Path $Root "sverka.dump") "/tmp/sverka.dump"
         Remove-Item (Join-Path $Root "sverka.dump")
         App ("$Compose stop app bot worker && " +
@@ -95,7 +95,7 @@ switch ($Command) {
     }
     "model" {
         Write-Host "Упаковываю модель эмбеддингов (~2.3 ГБ)…"
-        Wsl "docker run --rm -v sverka_hf_cache:/data alpine tar -C /data -cf - . > hf_cache.tar"
+        LocalShell "docker run --rm -v sverka_hf_cache:/data alpine tar -C /data -cf - . > hf_cache.tar"
         Upload "sverka" (Join-Path $Root "hf_cache.tar") "/tmp/hf_cache.tar"
         Remove-Item (Join-Path $Root "hf_cache.tar")
         App ("docker volume create sverka_hf_cache >/dev/null && " +
@@ -105,7 +105,7 @@ switch ($Command) {
     "images" {
         $images = "pgvector/pgvector:pg16 redis:7-alpine caddy:2-alpine python:3.12-slim alpine:latest"
         Write-Host "Сохраняю базовые образы…"
-        Wsl "for i in $images; do docker pull -q `$i >/dev/null || true; done; docker save $images > images.tar"
+        LocalShell "for i in $images; do docker pull -q `$i >/dev/null || true; done; docker save $images > images.tar"
         Upload "sverka" (Join-Path $Root "images.tar") "/tmp/images.tar"
         Remove-Item (Join-Path $Root "images.tar")
         App "docker load < /tmp/images.tar && rm /tmp/images.tar"

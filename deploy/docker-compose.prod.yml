@@ -102,3 +102,13 @@ volumes:
   hf_cache:
   caddy_data:
   caddy_config:
+
+# IPv6 для контейнеров: с сервера t.me по IPv4 не отвечает (проверено 13.10.2026), по IPv6 —
+# за 0.3 с. Docker по умолчанию даёт контейнерам только IPv4; наружу IPv6 идёт через NAT.
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+        - subnet: fd00:5e7a:0:1::/64
