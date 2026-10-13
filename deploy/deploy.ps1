@@ -29,7 +29,7 @@ if ($Server) { Set-Content -Path $ServerFile -Value $Server -NoNewline }
 elseif (Test-Path $ServerFile) { $Server = (Get-Content $ServerFile -Raw).Trim() }
 if (-not $Server -and $Command -ne "help") { throw "Укажите адрес: -Server <IP или домен>" }
 
-$SshOpts = @("-i", $Key, "-o", "StrictHostKeyChecking=accept-new")
+$SshOpts = @("-i", $Key, "-o", "StrictHostKeyChecking=accept-new", "-o", "LogLevel=ERROR")
 
 function Remote([string]$User, [string]$Cmd) {
     ssh @SshOpts "$User@$Server" $Cmd
