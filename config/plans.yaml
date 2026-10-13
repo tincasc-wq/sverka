@@ -61,7 +61,7 @@ plans:
     priority: true
     schedule: true
     features:
-      - До 15 мест, объём проверок под задачи редакции
+      - 5 мест и 6 000 проверок в базе; до 15 мест и 20 000 проверок
       - Кабинет организации, общая история, закрытые отчёты, PDF, приоритет, слежение
       - Конструктор — цена зависит от состава тарифа
     # Конструктор: цена = база + доп. места + доп. объём + опции. ЧЕРНОВЫЕ ставки — уточнить.
@@ -70,11 +70,11 @@ plans:
     constructor:
       base_price: 15000
       base_seats: 5
-      base_checks: 3000
+      base_checks: 6000
       max_seats: 15
       seat_price: 1500
       checks_step: 1000
-      checks_step_price: 2000
+      checks_step_price: 1500
       max_checks: 20000
       options:
         - code: ru_only

@@ -35,9 +35,9 @@ def test_editorial_constructor_quote() -> None:
     editorial = get_plans()["editorial"]
     c = editorial.constructor
     assert quote(editorial, 0, 0, set()) == (c.base_price, c.base_seats, c.base_checks)
-    # 7 мест, 4 500 проверок → округление вверх до шага 1 000 → 5 000
-    price, seats, checks = quote(editorial, 7, 4500, set())
-    assert (seats, checks) == (7, 5000)
+    # 7 мест, 7 500 проверок → округление вверх до шага 1 000 → 8 000
+    price, seats, checks = quote(editorial, 7, 7500, set())
+    assert (seats, checks) == (7, 8000)
     assert price == c.base_price + 2 * c.seat_price + 2 * c.checks_step_price
     # Мест не больше 15, проверок не больше потолка; российский контур — за каждую проверку
     price_ru, seats, checks = quote(editorial, 99, 10**6, {"ru_only", "bogus"})
@@ -201,7 +201,7 @@ async def test_editorial_request_carries_server_quote(db, monkeypatch) -> None: 
                 "plan": "editorial",
                 "contact": "chief@news.ru",
                 "seats": "7",
-                "checks": "4500",
+                "checks": "7500",
                 "options": ["ru_only"],
                 "consent": "on",
             },
@@ -210,9 +210,9 @@ async def test_editorial_request_carries_server_quote(db, monkeypatch) -> None: 
     async with db() as s:
         item = await s.scalar(select(PlanRequest))
     c = get_plans()["editorial"].constructor
-    total = c.base_price + 2 * c.seat_price + 2 * c.checks_step_price + 12 * 5000
+    total = c.base_price + 2 * c.seat_price + 2 * c.checks_step_price + 12 * 8000
     config = (
-        "Конфигурация: 7 мест, 5 000 проверок в месяц, российский контур — "
+        "Конфигурация: 7 мест, 8 000 проверок в месяц, российский контур — "
         + f"{total:,}".replace(",", " ")
         + " ₽/мес"
     )
