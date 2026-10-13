@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Сверка{% endblock %}</title>
-<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
-<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=2">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png?v=2">
 <meta name="theme-color" content="#12203A">
 <style>
   :root { --ink:#1d2433; --muted:#6b7385; --line:#dde2ea; --bg:#f6f7f9; --accent:#2f6fde;
@@ -57,7 +57,7 @@
 </head>
 <body>
 <header>
-  <a href="/" class="brand"><img src="/static/fox-64.png" alt="" width="28" height="28">Сверка</a>
+  <a href="/" class="brand"><img src="/static/fox-64.png?v=2" alt="" width="28" height="28">Сверка</a>
   {% if nav is defined %}{# админка #}
   <a href="/admin/stats" class="{{ 'on' if nav == 'stats' }}">Статистика</a>
   <a href="/admin/stories" class="{{ 'on' if nav == 'stories' }}">Истории</a>
