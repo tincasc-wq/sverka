@@ -27,7 +27,7 @@
     <br><span class="tag {{ 'good' if a.status == 'widely_confirmed' else 'bad' if a.status == 'refuted' else 'probable' }}">{{ a.status_text }}</span></div>
   <div><div class="muted">Сверено публикаций</div><span class="big">{{ a.verified_documents }}</span></div>
   <div class="muted" style="max-width:340px">Цитат отброшено проверкой: {{ a.rejected_quotes }}<br>
-    Противоречий с низкой уверенностью: {{ a.low_confidence }}<br>Стоимость анализа: {{ a.cost_rub }} ₽</div>
+    Противоречий с низкой уверенностью: {{ a.low_confidence }}</div>
 </div>
 
 <h2>Утверждения</h2>
