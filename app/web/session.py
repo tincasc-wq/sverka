@@ -12,7 +12,7 @@ import secrets
 import time
 
 from fastapi import Request, Response
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -83,14 +83,36 @@ def telegram_login_valid(data: dict[str, str], bot_token: str, max_age_s: int = 
     return fresh and hmac.compare_digest(expected, received)
 
 
+def is_anonymous(user: User) -> bool:
+    """Пользователь браузера без входа: ни Telegram, ни подтверждённой почты."""
+    return user.tg_id is None and user.email is None
+
+
+async def merge_anonymous(session: AsyncSession, anonymous: User, user: User) -> None:
+    """Перенести на вошедшего пользователя то, что накопилось в браузере до входа.
+
+    Проверки — всегда; членство в организации — если у пользователя её ещё нет
+    (иначе вступивший по приглашению до входа терял бы доступ к кабинету).
+    """
+    from app.models import OrgMember
+
+    await session.execute(
+        update(Check).where(Check.user_id == anonymous.id).values(user_id=user.id)
+    )
+    has_org = await session.scalar(select(OrgMember.id).where(OrgMember.user_id == user.id))
+    if not has_org:
+        await session.execute(
+            update(OrgMember).where(OrgMember.user_id == anonymous.id).values(user_id=user.id)
+        )
+
+
 async def login_telegram(session: AsyncSession, anonymous: User | None, tg_id: int) -> User:
-    """Пользователь бота с этим tg_id (или новый); анонимные проверки браузера — на него."""
+    """Пользователь бота с этим tg_id (или новый); накопленное в браузере — на него."""
     from app.bot.service import get_or_create_user
 
     user = await get_or_create_user(session, tg_id)
-    if anonymous is not None and anonymous.id != user.id and anonymous.tg_id is None:
-        await session.execute(
-            update(Check).where(Check.user_id == anonymous.id).values(user_id=user.id)
-        )
+    user.daily_quota = max(user.daily_quota or 0, get_settings().web_user_quota)
+    if anonymous is not None and anonymous.id != user.id and is_anonymous(anonymous):
+        await merge_anonymous(session, anonymous, user)
     await session.commit()
     return user

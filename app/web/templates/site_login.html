@@ -16,6 +16,9 @@
   .login-widget { display:flex; justify-content:center; margin:16px 0 6px; min-height:44px; }
   .login-foot { text-align:center; color:var(--muted); font-size:12px; margin-top:12px; }
   .login-body .accent { color:#C96A33; }
+  .brand-btn { background:#C96A33; border-color:#C96A33; color:#fff; font-weight:600; }
+  .or { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:13px; margin:18px 0 10px; }
+  .or::before, .or::after { content:""; flex:1; border-top:1px solid var(--line); }
 </style>
 <div class="login">
   <div class="login-top">
@@ -24,21 +27,35 @@
     <div class="by">проверка новостей · проект компании <b>«Ангрист»</b></div>
   </div>
   <div class="login-body">
-  {% if user and user.tg_id %}
-    <p>Вы уже вошли через Telegram.</p>
+  {% if user and (user.tg_id or user.email) %}
+    <p>Вы вошли{% if user.email %} как <b>{{ user.email }}</b>{% else %} через Telegram{% endif %}.</p>
     <p><a href="/history">Мои проверки →</a></p>
+  {% elif email_sent is defined %}
+    <h2 style="margin-top:0">Проверьте почту</h2>
+    <p>Мы отправили ссылку для входа на <b>{{ email_sent }}</b>. Она действует 30 минут.</p>
+    <p class="muted">Письма нет? Загляните в «Спам» или <a href="/login">запросите ещё раз</a>.</p>
+    {% if not mail_ready %}<p class="note">Почта на сервере не настроена: ссылка записана в журнал приложения.</p>{% endif %}
   {% else %}
-    <p>Вход через Telegram объединяет историю проверок на сайте и в боте и увеличивает дневной лимит.</p>
-    <p class="muted">Сервис получает только ваш Telegram ID — ни телефона, ни переписки.</p>
-    {% if error %}<div class="error">Не удалось подтвердить вход. Попробуйте ещё раз.</div>{% endif %}
+    <p>После входа история проверок сохраняется на любом устройстве, а дневной лимит проверок больше.</p>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post" action="/login/email" class="email-form">
+      <label for="email"><b>По почте</b> <span class="muted">— пришлём ссылку для входа, без пароля</span></label>
+      <div class="row" style="gap:8px;margin-top:6px">
+        <input type="email" id="email" name="email" required maxlength="254" autocomplete="email"
+               placeholder="you@example.ru" value="{{ email if email is defined else '' }}" style="flex:1;min-width:200px">
+        <button class="brand-btn">Получить ссылку</button>
+      </div>
+    </form>
+    <div class="or"><span>или</span></div>
+    <p style="margin-bottom:4px"><b>Через Telegram</b> <span class="muted">— та же история, что в боте</span></p>
+    <p class="muted" style="font-size:13px">Сервис получает только ваш Telegram ID — ни телефона, ни переписки.</p>
     {% if widget %}
       <div class="login-widget">
         <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bot }}"
                 data-size="large" data-radius="8" data-auth-url="{{ auth_url }}" data-request-access="false"></script>
       </div>
     {% else %}
-      <p class="note">Вход через Telegram заработает, когда сайт будет на сервере со своим доменом: Telegram
-      разрешает его только для домена, указанного у @BotFather. До этого история хранится в этом браузере.</p>
+      <p class="note">Вход через Telegram включится, когда домен сайта будет указан у @BotFather.</p>
     {% endif %}
     <div class="login-foot">Можно и без входа — <a href="/">проверить новость</a> прямо сейчас.</div>
   {% endif %}

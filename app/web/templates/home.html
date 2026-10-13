@@ -2,11 +2,26 @@
 {% set page = 'home' %}
 {% block title %}Сверка — проверка новостей{% endblock %}
 {% block content %}
+<style>
+  .intro { display:flex; gap:22px; align-items:center; margin-bottom:6px; }
+  .intro img { width:132px; height:132px; flex:none; filter:drop-shadow(0 6px 12px rgba(18,32,58,.18)); }
+  .intro h1 { margin-bottom:8px; }
+  .intro .by { font-size:13px; color:var(--muted); margin-top:4px; }
+  .intro .by b { color:#C96A33; font-weight:600; }
+  @media (max-width:600px) { .intro { flex-direction:column; text-align:center; gap:8px; }
+                             .intro img { width:96px; height:96px; } }
+</style>
 <div class="narrow">
-<h1>Откуда эта новость и подтверждают ли её другие?</h1>
-<p class="muted">Вставьте ссылку на публикацию — статью или пост в Telegram-канале. Сервис найдёт первоисточник,
-перепечатки и независимые подтверждения, сверит факты и посчитает индекс подтверждённости.
-Можно вставить и просто текст — покажем, где и когда он появлялся раньше всего.</p>
+<div class="intro">
+  <img src="/static/fox-256.png" alt="Лис — знак компании «Ангрист»" width="132" height="132">
+  <div>
+    <h1>Откуда эта новость и подтверждают ли её другие?</h1>
+    <p class="muted" style="margin:0">Вставьте ссылку на публикацию — статью или пост в Telegram-канале. Сервис найдёт первоисточник,
+    перепечатки и независимые подтверждения, сверит факты и посчитает индекс подтверждённости.
+    Можно вставить и просто текст — покажем, где и когда он появлялся раньше всего.</p>
+    <div class="by">Сверка — проект компании <b>«Ангрист»</b></div>
+  </div>
+</div>
 
 <form method="post" action="/check" class="hero card">
   <textarea name="value" placeholder="https://… или текст новости" required>{{ value }}</textarea>

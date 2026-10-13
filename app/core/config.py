@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     # (после перезапуска посетители «теряют» историю); на сервере задать обязательно.
     secret_key: str = ""
     web_anonymous_quota: int = 5  # проверок в сутки без входа
+    web_user_quota: int = 20  # после входа (Telegram или почта)
+
+    # Почта для входа по одноразовой ссылке. Пусто — письма не отправляются, ссылка пишется
+    # в лог приложения (только для локальной разработки).
+    smtp_host: str = ""
+    smtp_port: int = 465  # 465 — SSL; 587 — STARTTLS
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""  # например: Сверка <noreply@ang-rist.ru>
     search_days: int = 30  # окно поиска по архиву на сайте
     # Имя бота без @ для кнопки «Войти через Telegram»; домен сайта — у @BotFather (/setdomain).
     telegram_bot_username: str = ""

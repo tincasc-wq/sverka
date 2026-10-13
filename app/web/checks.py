@@ -35,8 +35,8 @@ async def create_web_check(session: AsyncSession, user: User, value: str) -> Che
     if user_input is None:
         raise CheckRefused(NOT_UNDERSTOOD)
     if refusal := await check_refusal(session, user):
-        if user.tg_id is None and "в сутки" in refusal:
-            refusal += " Войдите через Telegram — лимит станет больше."
+        if user.tg_id is None and user.email is None and "в сутки" in refusal:
+            refusal += " Войдите по почте или через Telegram — лимит станет больше."
         raise CheckRefused(refusal)
     membership = await membership_of(session, user)
     check = Check(

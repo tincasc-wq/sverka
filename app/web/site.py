@@ -18,6 +18,7 @@ from app.orgs.service import can_view_check, membership_of
 from app.registry.legal import display_name, legal_note
 from app.registry.service import source_card
 from app.web.checks import CheckRefused, create_web_check, failure_text
+from app.web.email_auth import LoginError, login_by_token, request_login, valid_token
 from app.web.queue import enqueue
 from app.web.report import check_by_token, templates
 from app.web.session import (
@@ -251,23 +252,76 @@ async def methodology(request: Request, session: Session):
     )
 
 
-@router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request, session: Session):
+async def _login_page(request: Request, session: AsyncSession, **context):
     settings = get_settings()
     # Виджет Telegram работает только на домене, заданном у @BotFather (/setdomain).
     widget = bool(settings.telegram_bot_username) and settings.public_base_url.startswith(
         "https://"
     )
+    context.setdefault("error", None)
     return await page(
         request,
         session,
         "site_login.html",
-        user=await current_user(request, session),
         widget=widget,
         bot=settings.telegram_bot_username,
         auth_url=settings.public_base_url.rstrip("/") + "/auth/telegram",
-        error=request.query_params.get("error"),
+        **context,
     )
+
+
+@router.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request, session: Session):
+    error = (
+        "Не удалось подтвердить вход. Попробуйте ещё раз."
+        if request.query_params.get("error")
+        else None
+    )
+    return await _login_page(request, session, error=error)
+
+
+@router.post("/login/email", response_class=HTMLResponse)
+async def login_email(request: Request, session: Session, email: Annotated[str, Form()]):
+    ip = request.client.host if request.client else None
+    try:
+        sent = await request_login(session, email, ip)
+    except LoginError as exc:
+        response = await _login_page(request, session, email=email, error=str(exc))
+        response.status_code = 422
+        return response
+    return await _login_page(request, session, email_sent=email.strip().lower(), mail_ready=sent)
+
+
+@router.get("/auth/email/{token}", response_class=HTMLResponse)
+async def email_confirm_page(request: Request, token: str, session: Session):
+    # Только показываем кнопку: почтовые сканеры открывают ссылки сами (GET), вход — по POST.
+    try:
+        item = await valid_token(session, token)
+        error = None
+    except LoginError as exc:
+        item, error = None, str(exc)
+    return await page(
+        request,
+        session,
+        "email_confirm.html",
+        token=token,
+        email=item.email if item else None,
+        error=error,
+    )
+
+
+@router.post("/auth/email/{token}")
+async def email_confirm(request: Request, token: str, session: Session):
+    try:
+        user = await login_by_token(session, token, await current_user(request, session))
+    except LoginError as exc:
+        await session.rollback()
+        return await page(
+            request, session, "email_confirm.html", token=token, email=None, error=str(exc)
+        )
+    response = RedirectResponse("/history", status_code=303)
+    set_user_cookie(response, user.id)
+    return response
 
 
 @router.get("/auth/telegram")

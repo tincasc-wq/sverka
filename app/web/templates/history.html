@@ -3,8 +3,8 @@
 {% block title %}Сверка — мои проверки{% endblock %}
 {% block content %}
 <h1>Мои проверки</h1>
-{% if not user or not user.tg_id %}
-<p class="note">История привязана к этому браузеру. <a href="/login">Войдите через Telegram</a>, чтобы видеть её
+{% if not user or not (user.tg_id or user.email) %}
+<p class="note">История привязана к этому браузеру. <a href="/login">Войдите по почте или через Telegram</a>, чтобы видеть её
 на любом устройстве вместе с проверками из бота.</p>
 {% endif %}
 {% if checks %}

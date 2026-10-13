@@ -70,8 +70,8 @@
   <a href="/methodology" class="{{ 'on' if page == 'methodology' }}">Методика</a>
   {% if membership is defined and membership %}<a href="/org" class="{{ 'on' if page == 'org' }}">{{ membership.org.name }}</a>{% endif %}
   <span class="right">
-    {% if user is defined and user and user.tg_id %}
-    <span class="muted">вход через Telegram</span>
+    {% if user is defined and user and (user.tg_id or user.email) %}
+    <span class="muted">{{ user.email or 'вход через Telegram' }}</span>
     <form method="post" action="/logout"><button class="link">Выйти</button></form>
     {% else %}<a href="/login" class="{{ 'on' if page == 'login' }}">Войти</a>{% endif %}
   </span>

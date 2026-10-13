@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% set page = 'login' %}
+{% block title %}Сверка — вход по почте{% endblock %}
+{% block content %}
+<div class="narrow" style="max-width:440px;margin:30px auto;text-align:center">
+  <img src="/static/fox-256.png" alt="" width="96" height="96">
+  {% if error %}
+    <h1>Ссылка не сработала</h1>
+    <div class="error">{{ error }}</div>
+    <p><a href="/login">← На страницу входа</a></p>
+  {% else %}
+    <h1>Вход в «Сверку»</h1>
+    <p>Войти как <b>{{ email }}</b>?</p>
+    <form method="post" action="/auth/email/{{ token }}">
+      <button style="background:#C96A33;border-color:#C96A33;color:#fff;font-weight:600;padding:9px 28px">Войти</button>
+    </form>
+    <p class="muted" style="margin-top:14px">Если вы не запрашивали вход — просто закройте страницу.</p>
+  {% endif %}
+</div>
+{% endblock %}
