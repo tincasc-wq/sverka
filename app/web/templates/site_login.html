@@ -45,6 +45,7 @@
                placeholder="you@example.ru" value="{{ email if email is defined else '' }}" style="flex:1;min-width:200px">
         <button class="brand-btn">Получить ссылку</button>
       </div>
+      <label class="consent"><input type="checkbox" name="consent" required> Я согласен(на) на обработку персональных данных согласно <a href="/privacy" target="_blank">Политике</a></label>
     </form>
     <div class="or"><span>или</span></div>
     <p style="margin-bottom:4px"><b>Через Telegram</b> <span class="muted">— та же история, что в боте</span></p>
@@ -54,6 +55,7 @@
         <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bot }}"
                 data-size="large" data-radius="8" data-auth-url="{{ auth_url }}" data-request-access="false"></script>
       </div>
+      <p class="muted" style="font-size:12px;margin-top:6px">Нажимая «Войти через Telegram», вы соглашаетесь с <a href="/privacy" target="_blank">Политикой обработки персональных данных</a>.</p>
     {% else %}
       <p class="note">Вход через Telegram включится, когда домен сайта будет указан у @BotFather.</p>
     {% endif %}

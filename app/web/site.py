@@ -40,6 +40,7 @@ from app.web.session import (
 
 router = APIRouter()
 Session = Annotated[AsyncSession, Depends(get_session)]
+CONSENT_ERROR = "Чтобы продолжить, отметьте согласие на обработку персональных данных."
 
 SOURCE_TYPES = {
     "agency": "агентство",
@@ -288,8 +289,11 @@ async def pricing_request(
     contact: Annotated[str, Form()] = "",
     org_name: Annotated[str, Form()] = "",
     comment: Annotated[str, Form()] = "",
+    consent: Annotated[str, Form()] = "",
 ):
     """Кнопка «Подключить»: заявка в базу и сообщение владельцу в Telegram."""
+    if consent != "on":
+        return RedirectResponse("/pricing?error=consent#request", 303)
     from html import escape
 
     from app.models import PlanRequest
@@ -324,6 +328,8 @@ async def pricing_request(
         ip=ip,
     )
     session.add(item)
+    if user is not None and user.pd_consent_at is None:
+        user.pd_consent_at = datetime.now(UTC)
     await session.flush()
     usage = await usage_of(session, user)
     total = (
@@ -357,6 +363,18 @@ async def pricing_request(
     item.notified = await notify_admin("\n".join(lines))
     await session.commit()
     return RedirectResponse(f"/pricing?requested={plan}#request", 303)
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy(request: Request, session: Session):
+    settings = get_settings()
+    return await page(
+        request,
+        session,
+        "privacy.html",
+        contact=settings.sales_contact or "ar@ang-rist.ru",
+        site=settings.public_base_url.rstrip("/"),
+    )
 
 
 @router.get("/methodology", response_class=HTMLResponse)
@@ -399,7 +417,16 @@ async def login_page(request: Request, session: Session):
 
 
 @router.post("/login/email", response_class=HTMLResponse)
-async def login_email(request: Request, session: Session, email: Annotated[str, Form()]):
+async def login_email(
+    request: Request,
+    session: Session,
+    email: Annotated[str, Form()],
+    consent: Annotated[str, Form()] = "",
+):
+    if consent != "on":
+        response = await _login_page(request, session, email=email, error=CONSENT_ERROR)
+        response.status_code = 422
+        return response
     ip = request.client.host if request.client else None
     try:
         sent = await request_login(session, email, ip)
@@ -486,12 +513,19 @@ async def account(request: Request, session: Session):
 
 
 @router.post("/account/email", response_class=HTMLResponse)
-async def account_link_email(request: Request, session: Session, email: Annotated[str, Form()]):
+async def account_link_email(
+    request: Request,
+    session: Session,
+    email: Annotated[str, Form()],
+    consent: Annotated[str, Form()] = "",
+):
     user = await current_user(request, session)
     if user is None or (user.tg_id is None and user.email is None):
         return RedirectResponse("/login", status_code=303)
     ip = request.client.host if request.client else None
     try:
+        if consent != "on":
+            raise LoginError(CONSENT_ERROR)
         sent = await request_login(session, email, ip, link_user=user)
     except LoginError as exc:
         response = await page(

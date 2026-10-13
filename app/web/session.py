@@ -10,6 +10,7 @@ import hmac
 import logging
 import secrets
 import time
+from datetime import UTC, datetime
 
 from fastapi import Request, Response
 from sqlalchemy import select, update
@@ -111,6 +112,8 @@ async def login_telegram(session: AsyncSession, anonymous: User | None, tg_id: i
     from app.bot.service import get_or_create_user
 
     user = await get_or_create_user(session, tg_id)
+    # Под кнопкой Telegram на сайте — текст о согласии с Политикой.
+    user.pd_consent_at = user.pd_consent_at or datetime.now(UTC)
     if anonymous is not None and anonymous.id != user.id and is_anonymous(anonymous):
         await merge_anonymous(session, anonymous, user)
     await session.commit()

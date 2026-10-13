@@ -49,7 +49,7 @@ async def test_linking_email_to_telegram_account(db, outbox) -> None:  # noqa: F
         await s.commit()
     async with client() as c:
         c.cookies.set(COOKIE, sign(tg_user.id))
-        sent = await c.post("/account/email", data={"email": "Tg@Example.ru"})
+        sent = await c.post("/account/email", data={"email": "Tg@Example.ru", "consent": "on"})
         token = _token(outbox[0])
         confirm = await c.get(f"/auth/email/{token}")
         done = await c.post(f"/auth/email/{token}")
@@ -76,7 +76,7 @@ async def test_link_token_only_for_requesting_account(db, outbox) -> None:  # no
         await s.commit()
     async with client() as c:
         c.cookies.set(COOKIE, sign(a.id))
-        await c.post("/account/email", data={"email": "new@example.ru"})
+        await c.post("/account/email", data={"email": "new@example.ru", "consent": "on"})
     # a уже с почтой — привязка второй почты запрещена, но проверим чужой браузер на свежем:
     async with db() as s:
         tg = await get_or_create_user(s, 9001)
@@ -84,7 +84,7 @@ async def test_link_token_only_for_requesting_account(db, outbox) -> None:  # no
     async with client() as owner, client() as other:
         owner.cookies.set(COOKIE, sign(tg.id))
         other.cookies.set(COOKIE, sign(b.id))
-        await owner.post("/account/email", data={"email": "link@example.ru"})
+        await owner.post("/account/email", data={"email": "link@example.ru", "consent": "on"})
         refused = await other.post(f"/auth/email/{_token(outbox[-1])}")
     assert "в том же браузере" in refused.text
     async with db() as s:
@@ -120,7 +120,7 @@ async def test_plain_email_login_does_not_merge_into_telegram_user(db, outbox) -
         await s.commit()
     async with client() as c:
         c.cookies.set(COOKIE, sign(tg_user.id))
-        await c.post("/login/email", data={"email": "other@example.ru"})
+        await c.post("/login/email", data={"email": "other@example.ru", "consent": "on"})
         await c.post(f"/auth/email/{_token(outbox[0])}")
     async with db() as s:
         assert (await s.get(User, tg_user.id)).email is None  # не слилось молча

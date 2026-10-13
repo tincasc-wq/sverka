@@ -42,6 +42,7 @@
       <input type="email" name="email" required maxlength="254" autocomplete="email" placeholder="you@example.ru"
              value="{{ email if email is defined else '' }}" style="flex:1;min-width:200px">
       <button>Привязать почту</button>
+      <div style="flex-basis:100%"><label class="consent"><input type="checkbox" name="consent" required> Я согласен(на) на обработку персональных данных согласно <a href="/privacy" target="_blank">Политике</a></label></div>
     </form>
   {% endif %}
 </div>
@@ -55,6 +56,7 @@
     {% if widget %}
       <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="{{ bot }}"
               data-size="medium" data-radius="8" data-auth-url="{{ link_auth_url }}" data-request-access="false"></script>
+      <p class="muted" style="font-size:12px;margin-top:6px">Нажимая «Войти через Telegram», вы соглашаетесь с <a href="/privacy" target="_blank">Политикой обработки персональных данных</a>.</p>
     {% else %}
       <p class="note">Привязка Telegram доступна на сайте с доменом, указанным у @BotFather.</p>
     {% endif %}

@@ -93,17 +93,27 @@ async def test_connect_button_sends_request_to_owner(db, monkeypatch) -> None:  
     async with client() as c:
         c.cookies.set(COOKIE, sign(user.id))
         done = await c.post(
-            "/pricing/request", data={"plan": "pro", "comment": "Нужно для редакции блога"}
+            "/pricing/request",
+            data={"plan": "pro", "comment": "Нужно для редакции блога", "consent": "on"},
         )
         page = await c.get(done.headers["location"])
     async with client() as guest:
-        no_contact = await guest.post("/pricing/request", data={"plan": "editorial"})
+        no_contact = await guest.post(
+            "/pricing/request", data={"plan": "editorial", "consent": "on"}
+        )
         for _ in range(2):  # вместе с заявкой выше — 3 с одного адреса, дальше лимит
             await guest.post(
                 "/pricing/request",
-                data={"plan": "editorial", "contact": "@someone", "org_name": "Аппарат"},
+                data={
+                    "plan": "editorial",
+                    "contact": "@someone",
+                    "org_name": "Аппарат",
+                    "consent": "on",
+                },
             )
-        limited = await guest.post("/pricing/request", data={"plan": "pro", "contact": "x@y.ru"})
+        limited = await guest.post(
+            "/pricing/request", data={"plan": "pro", "contact": "x@y.ru", "consent": "on"}
+        )
     async with client() as admin:
         admin.cookies.set("sverka_admin", "test-admin-token")
         listing = await admin.get("/admin/users")

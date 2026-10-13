@@ -31,6 +31,8 @@ class User(CreatedAtMixin, Base):
     # Вход по почте (одноразовая ссылка): адрес в нижнем регистре, подтверждён ссылкой.
     email: Mapped[str | None] = mapped_column(String(255), unique=True)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Когда пользователь дал согласие на обработку ПДн (галочка на сайте / вход через Telegram).
+    pd_consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class LoginToken(CreatedAtMixin, Base):

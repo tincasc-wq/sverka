@@ -136,6 +136,26 @@ async def embed_documents(ctx: dict) -> int:
 
 
 @single_flight
+async def purge_personal_data(ctx: dict) -> str:
+    """Сроки хранения из политики обработки ПДн (/privacy): что обещано — то и удаляется."""
+    from sqlalchemy import text
+
+    async with SessionLocal() as session:
+        tokens = await session.execute(
+            text("DELETE FROM login_tokens WHERE created_at < now() - interval '30 days'")
+        )
+        ips = await session.execute(
+            text(
+                "UPDATE plan_requests SET ip = NULL "
+                "WHERE ip IS NOT NULL AND created_at < now() - interval '90 days'"
+            )
+        )
+        await session.commit()
+    result = f"login_tokens={tokens.rowcount}, plan_request_ips={ips.rowcount}"
+    log.info("purge: %s", result)
+    return result
+
+
 async def recompute_source_ratings(ctx: dict) -> str:
     async with SessionLocal() as session:
         stats = await recompute_ratings(session)
@@ -154,6 +174,7 @@ class WorkerSettings:
         recompute_source_ratings,
         bot_check,
         web_check,
+        purge_personal_data,
     ]
     cron_jobs = [
         cron(collect_rss, minute=set(range(0, 60, 5)), unique=True, timeout=600),
@@ -161,6 +182,8 @@ class WorkerSettings:
         cron(embed_documents, second=30, unique=True, timeout=900),
         # Ночной пересчёт рейтинга (6.6); 03:00 по Москве = 00:00 UTC.
         cron(recompute_source_ratings, hour=0, minute=0, unique=True, timeout=1800),
+        # Сроки хранения персональных данных (/privacy); 03:30 по Москве.
+        cron(purge_personal_data, hour=0, minute=30, unique=True, timeout=600),
     ]
     on_startup = startup
     on_shutdown = shutdown

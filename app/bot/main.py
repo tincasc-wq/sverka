@@ -38,7 +38,11 @@ class FeedbackForm(StatesGroup):
 
 @router.message(CommandStart())
 async def start(message: Message) -> None:
-    await message.answer(texts.START)
+    base = get_settings().public_base_url.rstrip("/")
+    await message.answer(
+        texts.START + "\n\nПользуясь ботом, вы соглашаетесь с политикой обработки "
+        f"персональных данных: {base}/privacy"
+    )
 
 
 @router.message(Command("help"))

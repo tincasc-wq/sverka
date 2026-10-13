@@ -22,6 +22,7 @@
 <div id="request"></div>
 {% if requested %}<div class="note">Заявка отправлена — мы свяжемся с вами по указанному контакту.</div>{% endif %}
 {% if error == 'contact' %}<div class="error">Укажите почту или Telegram, чтобы мы могли связаться.</div>{% endif %}
+{% if error == 'consent' %}<div class="error">Чтобы отправить заявку, отметьте согласие на обработку персональных данных.</div>{% endif %}
 {% if error == 'limit' %}<div class="error">Заявок с этого адреса слишком много. Попробуйте через час или напишите нам.</div>{% endif %}
 {% if usage.org_name %}
   <p>Вы работаете в кабинете организации «{{ usage.org_name }}»: в этом месяце {{ usage.org_used }} из {{ usage.org_limit }} проверок.</p>
@@ -49,6 +50,7 @@
                value="{{ user.email if user and user.email else '' }}" {{ '' if user and (user.email or user.tg_id) else 'required' }}>
         {% if p.org %}<input type="text" name="org_name" maxlength="255" placeholder="название организации">{% endif %}
         <textarea name="comment" rows="2" maxlength="2000" placeholder="комментарий: сколько человек, для чего"></textarea>
+        <label class="consent"><input type="checkbox" name="consent" required> Я согласен(на) на обработку персональных данных согласно <a href="/privacy" target="_blank">Политике</a></label>
         <button style="background:#12203A;color:#fff;border-color:#12203A">Отправить заявку</button>
       </form>
     </details>

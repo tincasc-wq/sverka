@@ -69,6 +69,7 @@ async def link_email(session: AsyncSession, user: User, email: str) -> User:
     else:
         user.email = email
         user.email_verified_at = datetime.now(UTC)
+    user.pd_consent_at = user.pd_consent_at or datetime.now(UTC)
     await session.commit()
     return user
 
@@ -83,5 +84,6 @@ async def link_telegram(session: AsyncSession, user: User, tg_id: int) -> User:
         await merge_accounts(session, user, owner)
     else:
         user.tg_id = tg_id
+    user.pd_consent_at = user.pd_consent_at or datetime.now(UTC)
     await session.commit()
     return user
