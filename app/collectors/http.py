@@ -30,10 +30,18 @@ async def _guard_request(request: httpx.Request) -> None:
     await assert_public_host(request.url.host)
 
 
-def make_client(proxy: str | None = None, *, public_only: bool = False) -> httpx.AsyncClient:
-    """public_only — для ссылок от пользователей: каждый запрос, включая редиректы, проверяется."""
+def make_client(
+    proxy: str | None = None, *, public_only: bool = False, ipv6: bool = False
+) -> httpx.AsyncClient:
+    """public_only — для ссылок от пользователей: каждый запрос, включая редиректы, проверяется.
+
+    ipv6 — соединяться только по IPv6 (если нет прокси): с сервера в РФ t.me по IPv4 не
+    отвечает, а система в контейнере сначала пробует IPv4 и ждёт таймаута (13.10.2026).
+    """
     settings = get_settings()
+    transport = httpx.AsyncHTTPTransport(local_address="::") if ipv6 and not proxy else None
     return httpx.AsyncClient(
+        transport=transport,
         timeout=settings.http_timeout_s,
         follow_redirects=True,
         headers={"User-Agent": settings.user_agent},

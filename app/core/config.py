@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     fetch_full_text: bool = True
     # Прокси для t.me, если Telegram недоступен напрямую (например, http://host:port).
     telegram_proxy: str = ""
+    # Без прокси ходить к t.me только по IPv6 (сервер в РФ: по IPv4 t.me не отвечает).
+    telegram_ipv6: bool = False
     # Шлюз для RSS-источников с via_gateway; пусто — тот же прокси, что для Telegram.
     collector_proxy: str = ""
 

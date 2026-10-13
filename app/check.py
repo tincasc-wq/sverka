@@ -50,7 +50,8 @@ async def _download(url: str, source_id: int | None) -> DocumentIn:
     """Скачивает публикацию, которой ещё нет в архиве."""
     if domain_of(url) == "t.me":
         proxy = get_settings().telegram_proxy
-        async with make_client(proxy=proxy, public_only=True) as client:
+        ipv6 = get_settings().telegram_ipv6
+        async with make_client(proxy=proxy, public_only=True, ipv6=ipv6) as client:
             raw, _ = await fetch(client, f"{url}?embed=1")
         docs = telegram.parse_channel_page(raw, source_id)
         if not docs:

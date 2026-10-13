@@ -16,6 +16,8 @@ x-app: &app
   build:
     context: ..
   env_file: ../.env
+  environment:
+    TELEGRAM_IPV6: "true"
   restart: unless-stopped
   logging: *logging
   depends_on:

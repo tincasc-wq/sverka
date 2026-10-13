@@ -148,7 +148,8 @@ async def poll_rss(sessionmaker, client: httpx.AsyncClient | None = None) -> Cou
 
 async def poll_telegram(sessionmaker, client: httpx.AsyncClient | None = None) -> Counter:
     # Тип источника (официальный, СМИ) и канал доставки независимы: TG-канал узнаём по «@».
-    client = client or make_client(proxy=get_settings().telegram_proxy)
+    settings = get_settings()
+    client = client or make_client(proxy=settings.telegram_proxy, ipv6=settings.telegram_ipv6)
     try:
         return await poll_sources(
             sessionmaker,
