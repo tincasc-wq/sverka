@@ -7,6 +7,7 @@
 """
 
 import asyncio
+import copy
 import json
 import logging
 import time
@@ -58,8 +59,24 @@ class LlmClient:
         self._proxy = settings.llm_proxy or None
         # Сетевые запросы шагов идут параллельно, а сессия БД одна — операции с ней по очереди.
         self._db_lock = asyncio.Lock()
+        self.ru_only = False
+
+    def restricted(self, ru_only: bool) -> "LlmClient":
+        """Клиент для госконтура: любой шаг — только по ru_only_routes (раздел 12.5).
+
+        Ограничение держит сам клиент, а не каждый вызов: шагов много, и забытый флаг
+        в одном из них отправил бы запрос аппарата в зарубежную модель.
+        """
+        if not ru_only:
+            return self
+        clone = copy.copy(self)
+        clone._db_lock = asyncio.Lock()
+        clone.ru_only = True
+        return clone
 
     def available(self) -> bool:
+        if self.ru_only:
+            return any(self._routes(step, True) for step in self.config.ru_only_routes)
         return any(p.enabled and self._keys.get(name) for name, p in self.config.providers.items())
 
     def _routes(self, step: str, ru_only: bool) -> list[Route]:
@@ -121,7 +138,7 @@ class LlmClient:
         prompt_version: str | None = None,
         ru_only: bool = False,
     ) -> T:
-        routes = self._routes(step, ru_only)
+        routes = self._routes(step, ru_only or self.ru_only)
         if not routes:
             raise LlmUnavailable(f"no enabled route with API key for step {step}")
         fallback_reason: str | None = None

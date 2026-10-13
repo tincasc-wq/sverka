@@ -42,6 +42,22 @@ async def quota_exceeded(session: AsyncSession, user: User) -> bool:
     return await checks_today(session, user) >= user.daily_quota
 
 
+async def check_refusal(session: AsyncSession, user: User) -> str | None:
+    """Почему пользователю сейчас нельзя проверять; None — можно.
+
+    Сотрудник организации проверяет за счёт её месячной квоты (ФТ-9.1), остальные —
+    в пределах личного дневного лимита.
+    """
+    from app.orgs.service import membership_of, quota_refusal
+
+    membership = await membership_of(session, user)
+    if membership is not None:
+        return await quota_refusal(session, membership)
+    if await quota_exceeded(session, user):
+        return texts.QUOTA.format(limit=user.daily_quota)
+    return None
+
+
 def report_url(check: Check) -> str:
     return f"{get_settings().public_base_url.rstrip('/')}/r/{check.public_token}"
 
@@ -89,8 +105,14 @@ async def check_for_chat(
     fallback_date: str | None = None,
     llm: LlmClient | None = None,
 ) -> ChatReply:
+    from app.orgs.service import membership_of
+
     settings = get_settings()
     user = await get_or_create_user(session, tg_id)
+    membership = await membership_of(session, user)
+    org_id = membership.org.id if membership else None
+    if llm is not None and membership is not None:
+        llm = llm.restricted(membership.org.ru_only)
 
     if input_type == InputType.TEXT:
         [vector] = await asyncio.to_thread(embedder.embed, [value[: settings.embedding_max_chars]])
@@ -98,6 +120,7 @@ async def check_for_chat(
         session.add(
             Check(
                 user_id=user.id,
+                org_id=org_id,
                 input_type=InputType.TEXT,
                 input_raw=value,
                 status="done",
@@ -117,6 +140,7 @@ async def check_for_chat(
             input_type=input_type,
             cache_hours=settings.check_cache_hours if use_cache else 0,
             llm=llm,
+            org_id=org_id,
             fallback=DocumentIn(
                 url=value,
                 text=fallback_text,

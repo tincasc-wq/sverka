@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% set page = 'org' %}
+{% block title %}Сверка — {{ org.name }}{% endblock %}
+{% block content %}
+<h1>{{ org.name }}</h1>
+<p class="muted">Тариф: {{ org.plan }}{% if org.ru_only %} · <span class="tag good">российский контур</span>{% endif %}
+  {% if not org.active %} · <span class="tag bad">доступ приостановлен</span>{% endif %}
+  · вы — {{ 'владелец' if is_owner else 'сотрудник' }}</p>
+
+<div class="card row">
+  <div><div class="muted">Проверок в этом месяце</div><span class="big">{{ used }}</span> <span class="muted">из {{ org.monthly_quota }}</span></div>
+  <div><div class="muted">Места</div><span class="big">{{ seats }}</span> <span class="muted">из {{ org.seats }}</span></div>
+  {% if cost is not none %}<div><div class="muted">Расходы на языковые модели за месяц</div><span class="big">{{ cost }}</span> <span class="muted">₽</span></div>{% endif %}
+</div>
+{% if org.ru_only %}<p class="note">Российский контур: все шаги анализа идут только через российские модели. Если они недоступны,
+отчёт выходит без сверки утверждений — в зарубежные модели запросы организации не отправляются.</p>{% endif %}
+
+<h2>Сотрудники</h2>
+{% if removed == '1' %}<div class="note">Сотрудник удалён. Его прошлые проверки остались в истории организации.</div>{% endif %}
+<div class="table-wrap"><table>
+  <tr><th>Сотрудник</th><th>В организации с</th><th>Проверок в этом месяце</th>{% if is_owner %}<th></th>{% endif %}</tr>
+  {% for m in members %}
+  <tr><td>{{ m.label }}{% if m.user.id == user.id %} <span class="tag">это вы</span>{% endif %}</td>
+      <td class="muted">{{ m.member.created_at | msk }}</td><td>{{ m.checks }}</td>
+      {% if is_owner %}<td>{% if m.member.role != 'owner' %}<form method="post" action="/org/members/{{ m.member.id }}/remove" onsubmit="return confirm('Удалить сотрудника из организации?')"><button>Удалить</button></form>{% endif %}</td>{% endif %}</tr>
+  {% endfor %}
+</table></div>
+{% if is_owner %}
+<div id="invite" class="card" style="margin-top:12px">
+  {% if invite %}
+    <b>Ссылка-приглашение</b> <span class="muted">— одноразовая, действует 7 дней. Отправьте её сотруднику.</span>
+    <input type="text" readonly value="{{ invite }}" onclick="this.select()" style="margin-top:6px">
+  {% elif seats >= org.seats %}
+    <span class="muted">Все места заняты. Чтобы добавить сотрудника, удалите кого-то или расширьте тариф.</span>
+  {% else %}
+    <form method="post" action="/org/invite"><button>Пригласить сотрудника</button></form>
+  {% endif %}
+</div>
+{% endif %}
+
+<h2>Проверки организации</h2>
+<p class="muted">Отчёты организации видны только её сотрудникам и не попадают в общий кэш.</p>
+{% if checks %}
+<div class="table-wrap"><table>
+  <tr><th>Когда</th><th>Кто</th><th>Что проверяли</th><th>Результат</th></tr>
+  {% for c in checks %}{% set s = summary_of(c) %}
+  <tr>
+    <td class="muted" style="white-space:nowrap">{{ c.created_at | msk }}</td>
+    <td class="muted">{{ authors.get(c.user_id, 'бывший сотрудник') }}</td>
+    <td><a href="/r/{{ c.public_token }}">{{ (s.title or c.input_raw)[:100] }}</a></td>
+    <td>{% if c.status == 'done' %}{% if s.index is defined and s.index is not none %}<b>{{ "%g"|format(s.index) }}</b> · {% endif %}{{ s.status_text or s.text or 'готово' }}
+        {% elif c.status == 'failed' %}<span class="tag bad">не удалось</span>{% else %}<span class="tag probable">проверяется</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% else %}<p class="muted">Проверок пока нет. <a href="/">Проверить новость →</a></p>{% endif %}
+{% endblock %}

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import texts
 from app.bot.inputs import extract_input
-from app.bot.service import quota_exceeded, similar_to_text
+from app.bot.service import check_refusal, similar_to_text
 from app.check import run_check
 from app.collectors.http import UnsafeUrl
 from app.core.config import get_settings
@@ -18,6 +18,7 @@ from app.embeddings import Embedder
 from app.llm import LlmClient
 from app.models import Check, User
 from app.models.enums import CheckStatus, InputType
+from app.orgs.service import membership_of
 
 NOT_UNDERSTOOD = (
     "Не понял, что проверять. Вставьте ссылку на публикацию или текст новости "
@@ -33,13 +34,14 @@ async def create_web_check(session: AsyncSession, user: User, value: str) -> Che
     user_input = extract_input(value)
     if user_input is None:
         raise CheckRefused(NOT_UNDERSTOOD)
-    if await quota_exceeded(session, user):
-        raise CheckRefused(
-            f"Лимит {user.daily_quota} проверок в сутки исчерпан. Попробуйте завтра"
-            + (" или войдите через Telegram — лимит станет больше." if user.tg_id is None else ".")
-        )
+    if refusal := await check_refusal(session, user):
+        if user.tg_id is None and "в сутки" in refusal:
+            refusal += " Войдите через Telegram — лимит станет больше."
+        raise CheckRefused(refusal)
+    membership = await membership_of(session, user)
     check = Check(
         user_id=user.id,
+        org_id=membership.org.id if membership else None,
         input_type=user_input.type,
         input_raw=user_input.value,
         status=CheckStatus.QUEUED,
@@ -68,6 +70,11 @@ async def run_web_check(
 ) -> Check:
     settings = get_settings()
     check = await session.get(Check, check_id)
+    if llm is not None and check.org_id is not None:
+        from app.models import Organization
+
+        org = await session.get(Organization, check.org_id)
+        llm = llm.restricted(org.ru_only)
     check.status = CheckStatus.RUNNING
     await session.commit()
     try:

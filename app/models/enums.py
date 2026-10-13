@@ -58,6 +58,11 @@ class DecidedBy(StrEnum):
     AUTO = "auto"
 
 
+class OrgRole(StrEnum):
+    OWNER = "owner"
+    MEMBER = "member"
+
+
 class UserRole(StrEnum):
     USER = "user"
     ANALYST = "analyst"

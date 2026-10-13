@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Сверка — организации{% endblock %}
+{% block content %}
+<h1>Организации</h1>
+<p class="muted">Корпоративные клиенты по договору. Оплата — по счёту вручную; здесь только условия и статус доступа.
+Владельца кабинета приглашают ссылкой: он сам приглашает сотрудников.</p>
+
+{% if invite %}
+<div class="card note">
+  <b>Ссылка для владельца кабинета</b> — одноразовая, действует 7 дней. Отправьте её клиенту.
+  <input type="text" readonly value="{{ invite }}" onclick="this.select()" style="margin-top:6px">
+</div>
+{% endif %}
+
+<div class="table-wrap"><table>
+  <tr><th>Организация</th><th>Месяц: проверок / квота</th><th>Места: занято / всего</th><th>Расходы LLM, ₽</th><th>Условия</th></tr>
+  {% for r in rows %}{% set o = r.org %}
+  <tr>
+    <td><b>{{ o.name }}</b><br><span class="muted">тариф {{ o.plan }}</span>
+      {% if o.ru_only %}<br><span class="tag good">российский контур</span>{% endif %}
+      {% if not o.active %}<br><span class="tag bad">приостановлена</span>{% endif %}</td>
+    <td>{{ r.used }} / {{ o.monthly_quota }}</td>
+    <td>{{ r.seats }} / {{ o.seats }}</td>
+    <td>{{ r.cost }}</td>
+    <td>
+      <form method="post" action="/admin/orgs/{{ o.id }}" class="row" style="gap:6px;align-items:center">
+        <label class="muted">мест <input type="number" name="seats" value="{{ o.seats }}" min="1" style="width:64px"></label>
+        <label class="muted">квота <input type="number" name="monthly_quota" value="{{ o.monthly_quota }}" min="0" style="width:84px"></label>
+        <label class="muted"><input type="checkbox" name="ru_only" value="true" {{ 'checked' if o.ru_only }}> рос. контур</label>
+        <label class="muted"><input type="checkbox" name="active" value="true" {{ 'checked' if o.active }}> доступ</label>
+        <button>Сохранить</button>
+      </form>
+      <form method="post" action="/admin/orgs/{{ o.id }}/owner-invite" style="margin-top:4px"><button>Новая ссылка владельцу</button></form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5" class="muted">Организаций пока нет.</td></tr>
+  {% endfor %}
+</table></div>
+
+<h2>Новая организация</h2>
+<form method="post" action="/admin/orgs" class="card row" style="gap:10px;align-items:end">
+  <label>Название<br><input type="text" name="name" required maxlength="255" placeholder="Редакция «…»"></label>
+  <label>Тариф<br><input type="text" name="plan" value="editorial" maxlength="32" style="width:120px"></label>
+  <label>Мест<br><input type="number" name="seats" value="5" min="1" style="width:80px"></label>
+  <label>Проверок в месяц<br><input type="number" name="monthly_quota" value="3000" min="0" style="width:110px"></label>
+  <label class="muted"><input type="checkbox" name="ru_only" value="true"> российский контур (только российские модели)</label>
+  <button>Создать и получить ссылку владельцу</button>
+</form>
+{% endblock %}

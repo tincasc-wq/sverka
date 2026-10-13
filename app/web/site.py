@@ -14,6 +14,7 @@ from app.core.db import get_session
 from app.core.scoring import get_scoring
 from app.models import Check, Document, Source, SourceScore
 from app.models.enums import CheckStatus
+from app.orgs.service import can_view_check, membership_of
 from app.registry.legal import display_name, legal_note
 from app.registry.service import source_card
 from app.web.checks import CheckRefused, create_web_check, failure_text
@@ -40,8 +41,13 @@ SOURCE_TYPES = {
 }
 
 
-def _page(request: Request, name: str, **context):
-    return templates.TemplateResponse(request, name, {"site": True, **context})
+async def page(request: Request, session: AsyncSession, name: str, **context):
+    """Страница сайта: пользователь и его организация нужны шапке (ссылка на кабинет)."""
+    user = context.pop("user") if "user" in context else await current_user(request, session)
+    membership = await membership_of(session, user)
+    return templates.TemplateResponse(
+        request, name, {"site": True, "user": user, "membership": membership, **context}
+    )
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -54,7 +60,7 @@ async def home(request: Request, session: Session):
                 select(Check).where(Check.user_id == user.id).order_by(Check.id.desc()).limit(5)
             )
         )
-    return _page(request, "home.html", user=user, recent=recent, value="", error=None)
+    return await page(request, session, "home.html", user=user, recent=recent, value="", error=None)
 
 
 @router.post("/check")
@@ -69,7 +75,9 @@ async def start_check(
         check = await create_web_check(session, user, value.strip())
     except CheckRefused as exc:
         await session.commit()
-        response = _page(request, "home.html", user=user, recent=[], value=value, error=str(exc))
+        response = await page(
+            request, session, "home.html", user=user, recent=[], value=value, error=str(exc)
+        )
         response.status_code = 422
     else:
         await enqueue("web_check", check.id, not fresh)
@@ -82,17 +90,19 @@ async def start_check(
 @router.get("/c/{token}", response_class=HTMLResponse)
 async def wait_page(request: Request, token: str, session: Session):
     check = await check_by_token(session, token)
+    if not await can_view_check(session, check, await current_user(request, session)):
+        raise HTTPException(404, "Отчёт не найден")
     if check.status == CheckStatus.DONE:
         return RedirectResponse(f"/r/{token}", status_code=303)
     error = failure_text(check) if check.status == CheckStatus.FAILED else None
-    return _page(
-        request, "wait.html", check=check, error=error, user=await current_user(request, session)
-    )
+    return await page(request, session, "wait.html", check=check, error=error)
 
 
 @router.get("/c/{token}/status")
-async def check_status(token: str, session: Session) -> JSONResponse:
+async def check_status(request: Request, token: str, session: Session) -> JSONResponse:
     check = await check_by_token(session, token)
+    if not await can_view_check(session, check, await current_user(request, session)):
+        raise HTTPException(404, "Отчёт не найден")
     body = {"status": check.status}
     if check.status == CheckStatus.FAILED:
         body["error"] = failure_text(check)
@@ -109,7 +119,7 @@ async def history(request: Request, session: Session):
                 select(Check).where(Check.user_id == user.id).order_by(Check.id.desc()).limit(100)
             )
         )
-    return _page(request, "history.html", user=user, checks=checks)
+    return await page(request, session, "history.html", user=user, checks=checks)
 
 
 def _like(q: str) -> str:
@@ -152,8 +162,9 @@ async def search(request: Request, session: Session, q: str = ""):
                     "snippet": ("…" if start else "") + text[start : start + 240],
                 }
             )
-    return _page(
+    return await page(
         request,
+        session,
         "search.html",
         user=await current_user(request, session),
         q=q,
@@ -193,8 +204,9 @@ async def sources(request: Request, session: Session, lang: str = ""):
         }
         for source, score, n in await session.execute(query)
     ]
-    return _page(
+    return await page(
         request,
+        session,
         "public_sources.html",
         user=await current_user(request, session),
         rows=rows,
@@ -216,8 +228,9 @@ async def source_page(request: Request, source_id: int, session: Session):
             .limit(15)
         )
     )
-    return _page(
+    return await page(
         request,
+        session,
         "public_source.html",
         user=await current_user(request, session),
         source=source,
@@ -229,8 +242,9 @@ async def source_page(request: Request, source_id: int, session: Session):
 
 @router.get("/methodology", response_class=HTMLResponse)
 async def methodology(request: Request, session: Session):
-    return _page(
+    return await page(
         request,
+        session,
         "methodology.html",
         user=await current_user(request, session),
         cfg=get_scoring(),
@@ -244,8 +258,9 @@ async def login_page(request: Request, session: Session):
     widget = bool(settings.telegram_bot_username) and settings.public_base_url.startswith(
         "https://"
     )
-    return _page(
+    return await page(
         request,
+        session,
         "site_login.html",
         user=await current_user(request, session),
         widget=widget,

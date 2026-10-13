@@ -21,6 +21,8 @@ from tests.test_embeddings import FakeEmbedder
 from tests.test_story import vec
 
 CLEANUP = (
+    "org_invites",
+    "org_members",
     "feedback",
     "claim_evidence",
     "claims",
@@ -32,6 +34,7 @@ CLEANUP = (
     "documents",
     "sources",
     "users",
+    "organizations",
 )
 
 
@@ -154,7 +157,7 @@ async def test_nonsense_input_and_quota_are_refused(db, queued) -> None:
         user = User(daily_quota=0)
         s.add(user)
         await s.flush()
-        with pytest.raises(CheckRefused, match="войдите через Telegram"):
+        with pytest.raises(CheckRefused, match="Войдите через Telegram"):
             await create_web_check(s, user, "https://bbc.com/news/1")
 
 

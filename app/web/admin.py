@@ -10,9 +10,19 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_session
-from app.models import Check, Document, Feedback, Outcome, Source, Story, StoryDocument
-from app.models.enums import DecidedBy, FeedbackStatus, Stance, StoryStatus, Verdict
+from app.models import (
+    Check,
+    Document,
+    Feedback,
+    Organization,
+    Outcome,
+    Source,
+    Story,
+    StoryDocument,
+)
+from app.models.enums import DecidedBy, FeedbackStatus, OrgRole, Stance, StoryStatus, Verdict
 from app.registry.service import last_scores, set_outcome, source_card
 from app.web.auth import COOKIE, require_admin, token_valid
 
@@ -222,3 +232,89 @@ async def toggle_tracked(source_id: int, session: Session):
     source.is_tracked = not source.is_tracked
     await session.commit()
     return RedirectResponse(f"/admin/sources/{source_id}", status_code=303)
+
+
+# ---- организации (ФТ-9.2, 9.5): создаёт аналитик по договору, оплата — по счёту вручную ----
+
+
+@protected.get("/orgs", response_class=HTMLResponse)
+async def orgs(request: Request, session: Session):
+    from app.orgs.service import checks_this_month, month_cost_rub, seats_used
+
+    rows = []
+    for org in await session.scalars(select(Organization).order_by(Organization.id.desc())):
+        rows.append(
+            {
+                "org": org,
+                "seats": await seats_used(session, org),
+                "used": await checks_this_month(session, org),
+                "cost": await month_cost_rub(session, org),
+            }
+        )
+    invite = request.query_params.get("invite")
+    return templates.TemplateResponse(
+        request,
+        "admin_orgs.html",
+        {
+            "nav": "orgs",
+            "rows": rows,
+            "invite": f"{get_settings().public_base_url.rstrip('/')}/join/{invite}"
+            if invite
+            else None,
+        },
+    )
+
+
+@protected.post("/orgs")
+async def create_org(
+    session: Session,
+    name: Annotated[str, Form()],
+    plan: Annotated[str, Form()] = "editorial",
+    seats: Annotated[int, Form()] = 5,
+    monthly_quota: Annotated[int, Form()] = 3000,
+    ru_only: Annotated[bool, Form()] = False,
+):
+    from app.orgs.service import create_invite
+
+    org = Organization(
+        name=name.strip()[:255],
+        plan=plan.strip()[:32] or "editorial",
+        seats=max(1, seats),
+        monthly_quota=max(0, monthly_quota),
+        ru_only=ru_only,
+    )
+    session.add(org)
+    await session.commit()
+    invite = await create_invite(session, org, OrgRole.OWNER)
+    return RedirectResponse(f"/admin/orgs?invite={invite.token}", status_code=303)
+
+
+@protected.post("/orgs/{org_id}")
+async def update_org(
+    org_id: int,
+    session: Session,
+    seats: Annotated[int, Form()],
+    monthly_quota: Annotated[int, Form()],
+    ru_only: Annotated[bool, Form()] = False,
+    active: Annotated[bool, Form()] = False,
+):
+    org = await session.get(Organization, org_id)
+    if org is None:
+        raise HTTPException(404)
+    org.seats = max(1, seats)
+    org.monthly_quota = max(0, monthly_quota)
+    org.ru_only = ru_only
+    org.active = active
+    await session.commit()
+    return RedirectResponse("/admin/orgs", status_code=303)
+
+
+@protected.post("/orgs/{org_id}/owner-invite")
+async def owner_invite(org_id: int, session: Session):
+    from app.orgs.service import create_invite
+
+    org = await session.get(Organization, org_id)
+    if org is None:
+        raise HTTPException(404)
+    invite = await create_invite(session, org, OrgRole.OWNER)
+    return RedirectResponse(f"/admin/orgs?invite={invite.token}", status_code=303)

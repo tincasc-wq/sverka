@@ -20,7 +20,7 @@ from arq.connections import RedisSettings
 
 from app.bot import texts
 from app.bot.inputs import extract_input
-from app.bot.service import get_or_create_user, quota_exceeded
+from app.bot.service import check_refusal, get_or_create_user
 from app.bot.telegram import make_bot
 from app.core.config import get_settings
 from app.core.db import SessionLocal
@@ -125,8 +125,8 @@ async def check(message: Message, arq: ArqRedis) -> None:
     async with SessionLocal() as session:
         user = await get_or_create_user(session, message.from_user.id)
         await session.commit()
-        if await quota_exceeded(session, user):
-            await message.answer(texts.QUOTA.format(limit=user.daily_quota))
+        if refusal := await check_refusal(session, user):
+            await message.answer(refusal)
             return
 
     await message.answer(texts.CHECKING)

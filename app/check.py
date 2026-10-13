@@ -137,8 +137,13 @@ async def resolve_seed(
     return await session.scalar(select(Document).where(Document.url == url))
 
 
-async def recent_check(session: AsyncSession, document_id: int, hours: float) -> Check | None:
-    """Готовый отчёт по той же публикации моложе hours часов (ФТ-1.3)."""
+async def recent_check(
+    session: AsyncSession, document_id: int, hours: float, org_id: int | None = None
+) -> Check | None:
+    """Готовый отчёт по той же публикации моложе hours часов (ФТ-1.3).
+
+    Отчёты организаций в кэш для других не идут: по ним видно, что интересует клиента.
+    """
     since = datetime.now(UTC) - timedelta(hours=hours)
     return await session.scalar(
         select(Check)
@@ -146,6 +151,7 @@ async def recent_check(session: AsyncSession, document_id: int, hours: float) ->
             Check.document_id == document_id,
             Check.status == CheckStatus.DONE,
             Check.finished_at >= since,
+            Check.org_id.is_(None) | (Check.org_id == org_id),
         )
         .order_by(Check.finished_at.desc())
         .limit(1)
@@ -163,10 +169,13 @@ async def run_check(
     fallback: DocumentIn | None = None,
     llm: LlmClient | None = None,
     existing: Check | None = None,
+    org_id: int | None = None,
 ) -> Check:
     """existing — уже созданная запись проверки (сайт создаёт её сразу, чтобы показать ожидание)."""
     seed = await resolve_seed(session, arg, fallback)
-    if cache_hours and (cached := await recent_check(session, seed.id, cache_hours)):
+    if existing is not None:
+        org_id = existing.org_id
+    if cache_hours and (cached := await recent_check(session, seed.id, cache_hours, org_id)):
         if existing is not None:
             existing.document_id = seed.id
             existing.story_id = cached.story_id
@@ -200,6 +209,7 @@ async def run_check(
             document_id=seed.id,
             status=CheckStatus.RUNNING,
             public_token=secrets.token_urlsafe(12),
+            org_id=org_id,
         )
         session.add(check)
     await session.flush()
