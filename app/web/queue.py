@@ -8,8 +8,8 @@ from app.core.config import get_settings
 _pool: ArqRedis | None = None
 
 
-async def enqueue(job: str, *args) -> None:
+async def enqueue(job: str, *args, **options) -> None:
     global _pool
     if _pool is None:
         _pool = await create_pool(RedisSettings.from_dsn(get_settings().redis_url))
-    await _pool.enqueue_job(job, *args)
+    await _pool.enqueue_job(job, *args, **options)

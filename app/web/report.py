@@ -74,6 +74,20 @@ def render_pdf(html: str) -> bytes:
     return HTML(string=html, base_url=str(STATIC)).write_pdf()
 
 
+async def build_pdf(check: Check, membership=None) -> bytes:
+    """PDF отчёта — общий для сайта и бота; вёрстка в отдельном потоке, чтобы не держать цикл."""
+    base = get_settings().public_base_url.rstrip("/")
+    html = templates.get_template("report_pdf.html").render(
+        check=check,
+        report=json.loads(check.summary),
+        site=base.removeprefix("https://").removeprefix("http://"),
+        report_url=f"{base}/r/{check.public_token}",
+        now=msk(datetime.now(MSK)),
+        org_name=membership.org.name if membership else None,
+    )
+    return await run_in_threadpool(render_pdf, html)
+
+
 @router.get("/r/{token}/pdf")
 async def report_pdf(request: Request, token: str, session: Session):
     """PDF-версия отчёта — для платных тарифов и организаций (раздел 12.2)."""
@@ -86,16 +100,7 @@ async def report_pdf(request: Request, token: str, session: Session):
     membership = await membership_of(session, user)
     if not can_export_pdf(user, membership):
         return RedirectResponse("/pricing?need=pdf", status_code=303)
-    base = get_settings().public_base_url.rstrip("/")
-    html = templates.get_template("report_pdf.html").render(
-        check=check,
-        report=json.loads(check.summary),
-        site=base.removeprefix("https://").removeprefix("http://"),
-        report_url=f"{base}/r/{token}",
-        now=msk(datetime.now(MSK)),
-        org_name=membership.org.name if membership else None,
-    )
-    pdf = await run_in_threadpool(render_pdf, html)
+    pdf = await build_pdf(check, membership)
     return Response(
         pdf,
         media_type="application/pdf",

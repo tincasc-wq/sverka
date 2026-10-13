@@ -20,16 +20,17 @@ def make_bot() -> Bot:
     )
 
 
-def check_keyboard(check_id: int) -> InlineKeyboardMarkup:
+def check_keyboard(check_id: int, pdf: bool = False) -> InlineKeyboardMarkup:
     hours = get_settings().recheck_hours
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=f"🔁 Проверить снова через {hours:g} ч",
-                    callback_data=f"recheck:{check_id}",
-                )
-            ],
-            [InlineKeyboardButton(text="⚠️ Сообщить об ошибке", callback_data=f"report:{check_id}")],
-        ]
-    )
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=f"🔁 Проверить снова через {hours:g} ч",
+                callback_data=f"recheck:{check_id}",
+            )
+        ],
+        [InlineKeyboardButton(text="⚠️ Сообщить об ошибке", callback_data=f"report:{check_id}")],
+    ]
+    if pdf:
+        rows.insert(0, [InlineKeyboardButton(text="📄 PDF", callback_data=f"pdf:{check_id}")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)

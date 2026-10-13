@@ -91,7 +91,11 @@ async def start_check(
         )
         response.status_code = 422
     else:
-        await enqueue("web_check", check.id, not fresh)
+        from app.orgs.service import membership_of
+        from app.plans import has_priority, queue_options
+
+        priority = has_priority(user, await membership_of(session, user))
+        await enqueue("web_check", check.id, not fresh, **queue_options(priority))
         response = RedirectResponse(f"/c/{check.public_token}", status_code=303)
     if new_user:
         set_user_cookie(response, user.id)

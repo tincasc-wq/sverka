@@ -26,6 +26,8 @@ from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.models import Check, Feedback
 from app.models.enums import FeedbackStatus
+from app.orgs.service import can_view_check, membership_of
+from app.plans import can_export_pdf, has_priority, queue_options
 from app.registry.service import find_source, source_card
 
 log = logging.getLogger("sverka.bot")
@@ -100,6 +102,32 @@ async def recheck(callback: CallbackQuery, arq: ArqRedis) -> None:
     await callback.message.answer(texts.RECHECK_SCHEDULED.format(hours=hours))
 
 
+@router.callback_query(F.data.startswith("pdf:"))
+async def send_pdf(callback: CallbackQuery) -> None:
+    """Кнопка «📄 PDF»: бот сам присылает файл — без входа на сайт."""
+    from aiogram.types import BufferedInputFile
+
+    from app.web.report import build_pdf
+
+    async with SessionLocal() as session:
+        check = await session.get(Check, int(callback.data.split(":")[1]))
+        user = await get_or_create_user(session, callback.from_user.id)
+        await session.commit()
+        membership = await membership_of(session, user)
+        if check is None or not check.summary or not await can_view_check(session, check, user):
+            await callback.answer("Отчёт не найден")
+            return
+        if not can_export_pdf(user, membership):
+            await callback.answer("PDF-отчёт — в тарифе Pro. Подробнее: /tariff", show_alert=True)
+            return
+    await callback.answer("Готовлю PDF…")
+    pdf = await build_pdf(check, membership)
+    await callback.message.answer_document(
+        BufferedInputFile(pdf, filename=f"sverka-{check.public_token[:8]}.pdf"),
+        caption="Отчёт «Сверки» в PDF",
+    )
+
+
 @router.callback_query(F.data.startswith("report:"))
 async def report_error(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(FeedbackForm.text)
@@ -144,6 +172,7 @@ async def check(message: Message, arq: ArqRedis) -> None:
         if refusal := await check_refusal(session, user):
             await message.answer(refusal)
             return
+        priority = has_priority(user, await membership_of(session, user))
 
     await message.answer(texts.CHECKING)
     await arq.enqueue_job(
@@ -156,6 +185,7 @@ async def check(message: Message, arq: ArqRedis) -> None:
         True,
         user_input.text,
         user_input.published_at,
+        **queue_options(priority),
     )
 
 

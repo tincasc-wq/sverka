@@ -61,6 +61,14 @@ async def bot_check(
             fallback_date=fallback_date,
             llm=ctx.get("llm"),
         )
+        pdf = False
+        if reply.check_id:
+            from app.bot.service import get_or_create_user
+            from app.orgs.service import membership_of
+            from app.plans import can_export_pdf
+
+            user = await get_or_create_user(session, tg_id)
+            pdf = can_export_pdf(user, await membership_of(session, user))
     bot = ctx.get("bot")
     if bot is None:
         log.warning("bot token is not set, reply for chat %s dropped", chat_id)
@@ -69,7 +77,7 @@ async def bot_check(
         chat_id,
         reply.text,
         reply_parameters=ReplyParameters(message_id=reply_to, allow_sending_without_reply=True),
-        reply_markup=check_keyboard(reply.check_id) if reply.check_id else None,
+        reply_markup=check_keyboard(reply.check_id, pdf) if reply.check_id else None,
     )
     return f"check={reply.check_id}"
 

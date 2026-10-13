@@ -302,3 +302,35 @@ async def test_pdf_report_for_paid_plans_only(db) -> None:  # noqa: F811
     assert "sverka-tok-pdf-" in pdf.headers["content-disposition"]
     assert "PDF-отчёт — в тарифе Pro" in free_page.text
     assert refused.status_code == 303 and refused.headers["location"] == "/pricing?need=pdf"
+
+
+async def test_paid_checks_jump_the_queue(db, monkeypatch) -> None:  # noqa: F811
+    from app.bot.telegram import check_keyboard
+    from app.plans import has_priority, queue_options
+    from app.web import site
+
+    calls: list[dict] = []
+
+    async def fake_enqueue(job: str, *args, **options) -> None:
+        calls.append(options)
+
+    monkeypatch.setattr(site, "enqueue", fake_enqueue)
+    async with db() as s:
+        pro, free = User(email="fast@example.ru", plan="pro"), User(email="slow@example.ru")
+        s.add_all([pro, free])
+        await s.commit()
+    for user in (free, pro):
+        async with client() as c:
+            c.cookies.set(COOKIE, sign(user.id))
+            await c.post("/check", data={"value": "https://example.com/news/1"})
+
+    assert calls[0] == {}  # бесплатный — в конец очереди
+    head_start = datetime.now(UTC) - calls[1]["_defer_until"]
+    assert timedelta(minutes=59) < head_start < timedelta(minutes=61)
+    assert has_priority(pro) and not has_priority(free) and queue_options(False) == {}
+
+    def buttons(markup) -> list[str]:
+        return [b.callback_data for row in markup.inline_keyboard for b in row]
+
+    assert buttons(check_keyboard(7, pdf=True))[0] == "pdf:7"
+    assert "pdf:7" not in buttons(check_keyboard(7))

@@ -55,7 +55,7 @@ async def db() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
 def queued(monkeypatch) -> list[tuple]:
     jobs: list[tuple] = []
 
-    async def fake_enqueue(job: str, *args) -> None:
+    async def fake_enqueue(job: str, *args, **options) -> None:
         jobs.append((job, *args))
 
     monkeypatch.setattr(site, "enqueue", fake_enqueue)

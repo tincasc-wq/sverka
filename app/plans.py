@@ -6,7 +6,7 @@
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -56,6 +56,7 @@ class Plan(BaseModel):
     features: list[str] = []
     soon: list[str] = []
     pdf: bool = False  # выгрузка отчёта в PDF
+    priority: bool = False  # проверки встают в начало очереди
     constructor: Constructor | None = None
 
     @property
@@ -135,16 +136,34 @@ def quote(plan: Plan, seats: int, checks: int, options: set[str]) -> tuple[int, 
     return price, seats, checks
 
 
-def can_export_pdf(user: User | None, membership=None) -> bool:
-    """PDF-отчёт: сотрудники сервиса, тарифы с pdf: true, участники организаций с таким тарифом."""
+def _entitled(user: User | None, membership, feature: str) -> bool:
+    """Возможность тарифа: у сотрудников сервиса всегда, у участника организации — по её тарифу."""
     from app.web.auth import is_staff
 
     if is_staff(user):
         return True
     if membership is not None:
         org_plan = get_plans().get(membership.org.plan)
-        return bool(org_plan and org_plan.pdf)
-    return plan_for(user).pdf
+        return bool(org_plan and getattr(org_plan, feature))
+    return getattr(plan_for(user), feature)
+
+
+def can_export_pdf(user: User | None, membership=None) -> bool:
+    return _entitled(user, membership, "pdf")
+
+
+def has_priority(user: User | None, membership=None) -> bool:
+    return _entitled(user, membership, "priority")
+
+
+# arq берёт задачи по возрастанию времени запуска: задача «из прошлого» обгоняет всех,
+# кто встал в очередь позже этого момента. Час — с запасом больше любой реальной очереди.
+PRIORITY_HEAD_START = timedelta(hours=1)
+
+
+def queue_options(priority: bool) -> dict:
+    """Аргументы enqueue_job: платные проверки — в начало очереди, без отдельного воркера."""
+    return {"_defer_until": datetime.now(UTC) - PRIORITY_HEAD_START} if priority else {}
 
 
 @dataclass
