@@ -58,6 +58,8 @@ class VerifyResult(BaseModel):
     stance: Literal["supports", "contradicts", "refines", "unrelated"]
     quote: str | None = None
     discrepancy: str | None = None
+    # Второй контур явно отвечает «могут ли оба быть верны одновременно»; да — не противоречие.
+    both_can_be_true: bool | None = None
 
 
 class VerifyAnswer(BaseModel):
@@ -182,6 +184,9 @@ async def verify_document(
             # Вывод без дословной цитаты из публикации не принимаем (ТЗ 6.4).
             rejected += 1
             r = VerifyResult(claim=r.claim, stance="unrelated")
+        elif r.stance == "contradicts" and r.both_can_be_true:
+            # Модель сама признала, что оба факта совместимы, — это уточнение, а не противоречие.
+            r = VerifyResult(claim=r.claim, stance="refines", quote=r.quote)
         results.append(r)
     return results, rejected
 

@@ -318,3 +318,45 @@ async def test_old_news_before_full_collection_is_archive_gap(session: AsyncSess
 
     assert analysis["status"] == "archive_gap" and analysis["index"] is None
     assert "0 из 4 источников" in analysis["status_text"]  # сбор начат после новости
+
+
+async def test_second_contour_compatible_verdict_replaces_contradiction(
+    session: AsyncSession,
+) -> None:
+    ifx = Source(type="agency", name="Интерфакс", handle_or_domain="interfax.ru")
+    session.add(ifx)
+    await session.flush()
+    seed = await _doc(session, "https://a.ru/1", 1.0, 30, None, "Горит склад площадью 2000 кв. м")
+    await _doc(
+        session,
+        "https://interfax.ru/1",
+        0.94,
+        5,
+        ifx,
+        "Сообщают: площадь пожара 3000 квадратных метров",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if json.loads(request.content)["model"] == "deepseek-v4-pro":
+            # Вторая модель сама говорит «оба могут быть верны» — противоречием это не считается.
+            return answer(
+                {
+                    "results": [
+                        {
+                            "claim": 1,
+                            "both_can_be_true": True,
+                            "stance": "contradicts",
+                            "quote": "площадь пожара 3000 квадратных метров",
+                        }
+                    ]
+                }
+            )
+        return fake_model(request)
+
+    check = await run_check(session, f"doc:{seed.id}", FakeEmbedder(), llm=client(handler))
+    analysis = json.loads(check.summary)["analysis"]
+
+    [evidence] = analysis["claims"][0]["evidence"]
+    assert evidence["stance"] == "refines" and not evidence["low_confidence"]
+    assert analysis["low_confidence"] == 0
+    assert analysis["claims"][0]["independent_groups"] == 1

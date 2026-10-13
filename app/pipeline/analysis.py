@@ -137,7 +137,8 @@ async def analyze(
     )
     rejected = sum(r for _, r in verified.values())
 
-    # Второй контур (раздел 13): противоречия перепроверяет другая модель с рассуждениями.
+    # Второй контур (раздел 13): противоречия перепроверяет другая, более сильная модель со
+    # своим промптом (prompts/dispute.md) — «могут ли оба быть верны одновременно».
     disputed_docs = [
         docs[i] for i, (res, _) in verified.items() if any(r.stance == "contradicts" for r in res)
     ]
@@ -172,7 +173,13 @@ async def analyze(
             stance, flag = r.stance, False
             if r.stance == "contradicts" and doc_id in second:
                 again = checked.get(r.claim)
-                if again is None or again.stance != "contradicts":
+                if again is not None and again.stance in ("supports", "refines"):
+                    # Вторая модель нашла, что факты совместимы, и подкрепила это своей цитатой:
+                    # берём её вывод (прогон качества 13.10.2026 — так снимались перечни
+                    # примеров и совместимые подробности).
+                    r = again
+                    stance = again.stance
+                elif again is None or again.stance != "contradicts":
                     # Модели разошлись — в индекс не идёт, показываем как «низкая уверенность».
                     stance, flag = "unrelated", True
                     low_confidence += 1
