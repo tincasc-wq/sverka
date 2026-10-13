@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Сверка — проверяю…{% endblock %}
+{% block content %}
+<div class="narrow">
+{% if error %}
+  <h1>Проверка не удалась</h1>
+  <div class="error">{{ error }}</div>
+  <p class="muted">Что проверяли: {{ check.input_raw[:300] }}</p>
+  <p><a href="/">← Проверить другую публикацию</a></p>
+{% else %}
+  <h1><span class="spinner"></span>Проверяю…</h1>
+  <p class="muted">Ищу публикацию в архиве, собираю историю события и сверяю утверждения с другими источниками.
+  Обычно это 5–20 секунд; страница сама откроет отчёт.</p>
+  <p class="muted">Что проверяем: {{ check.input_raw[:300] }}</p>
+  <div id="failed" class="error" hidden></div>
+  <noscript><p>Без JavaScript обновите страницу через полминуты.</p></noscript>
+  <script>
+    (function poll() {
+      fetch("/c/{{ check.public_token }}/status", {cache: "no-store"})
+        .then(r => r.json())
+        .then(s => {
+          if (s.status === "done") { location.replace("/r/{{ check.public_token }}"); return; }
+          if (s.status === "failed") {
+            const box = document.getElementById("failed");
+            box.textContent = s.error; box.hidden = false;
+            document.querySelector("h1").textContent = "Проверка не удалась";
+            return;
+          }
+          setTimeout(poll, 2000);
+        })
+        .catch(() => setTimeout(poll, 4000));
+    })();
+  </script>
+{% endif %}
+</div>
+{% endblock %}

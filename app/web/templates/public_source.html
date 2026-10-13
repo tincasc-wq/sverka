@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% set page = 'sources' %}
+{% block title %}Сверка — {{ card.name }}{% endblock %}
+{% block content %}
+<p><a href="/sources">← Реестр источников</a></p>
+<h1>{{ card.name }}</h1>
+<p class="muted">{{ type }} · {{ source.handle_or_domain }}{% if source.owner %} · владелец: {{ source.owner }}{% endif %}{% if source.lang == 'en' %} · на английском{% endif %}</p>
+{% set r = card.rating %}
+<div class="card row">
+  <div><div class="muted">Рейтинг надёжности</div>
+    {% if r and r.shown %}<span class="big">{{ "%.0f"|format(r.score) }}</span> <span class="muted">из 100, интервал {{ "%.0f"|format(r.ci[0]) }}–{{ "%.0f"|format(r.ci[1]) }}</span>
+    {% else %}<span class="big">—</span><br><span class="muted">мало разобранных историй{% if r %} ({{ r.outcomes }}){% endif %}</span>{% endif %}
+  </div>
+  <div><div class="muted">Публикаций в архиве</div><span class="big">{{ card.documents_in_archive }}</span></div>
+</div>
+{% if card.history %}
+<h2>Почему рейтинг такой</h2>
+<div class="table-wrap"><table>
+  <tr><th>Когда</th><th>Рейтинг</th><th>Причина</th></tr>
+  {% for h in card.history %}<tr><td class="muted">{{ h.at | msk }}</td><td>{{ "%.0f"|format(h.score) }}</td><td>{{ h.reason }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+<h2>Последние публикации</h2>
+<div class="table-wrap"><table>
+  {% for d in latest %}
+  <tr><td class="muted" style="white-space:nowrap">{{ (d.published_at or d.first_seen_at) | msk }}</td>
+      <td><a href="{{ d.url }}" target="_blank" rel="noopener">{{ (d.title or d.text or d.url)[:140] }}</a></td></tr>
+  {% else %}<tr><td class="muted">Публикаций пока нет.</td></tr>{% endfor %}
+</table></div>
+<p class="muted" style="margin-top:16px">Не согласны с данными? Источник может подать апелляцию — она рассматривается аналитиком вручную.</p>
+{% endblock %}

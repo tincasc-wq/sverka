@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% set page = 'search' %}
+{% block title %}Сверка — поиск по архиву{% endblock %}
+{% block content %}
+<h1>Поиск по архиву</h1>
+<form method="get" action="/search" class="row" style="gap:8px;align-items:center;margin-bottom:14px">
+  <input type="text" name="q" value="{{ q }}" placeholder="слово или фраза, например «Эр-Рияд»" style="flex:1;min-width:220px" autofocus>
+  <button type="submit">Найти</button>
+</form>
+<p class="muted">Ищем по заголовкам и текстам публикаций за последние {{ days }} дней во всех источниках реестра, новые — сверху.</p>
+{% if q and q|length < 3 %}<p class="muted">Нужно хотя бы 3 символа.</p>
+{% elif q and not results %}<p>Ничего не нашлось.</p>
+{% endif %}
+{% for r in results %}
+<div class="card">
+  <div class="muted">{{ r.time | msk }} ·
+    {% if r.source_id %}<a href="/sources/{{ r.source_id }}">{{ r.source }}</a>{% else %}{{ r.source }}{% endif %}</div>
+  <a href="{{ r.url }}" target="_blank" rel="noopener"><b>{{ r.title }}</b></a>
+  <div class="muted">{{ r.snippet }}</div>
+  <form method="post" action="/check" style="margin-top:6px"><input type="hidden" name="value" value="{{ r.url }}"><button>Проверить эту публикацию</button></form>
+</div>
+{% endfor %}
+{% endblock %}

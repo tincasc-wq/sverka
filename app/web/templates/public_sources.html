@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set page = 'sources' %}
+{% block title %}Сверка — реестр источников{% endblock %}
+{% block content %}
+<h1>Реестр источников</h1>
+<p class="muted">Издания и каналы, которые сервис читает постоянно. Рейтинг надёжности показывается, когда по источнику
+накоплено достаточно разобранных историй; до этого — «мало данных». Пометки о статусе в РФ — факты из реестра,
+они не влияют на рейтинг. <a href="/methodology#rating">Как считается рейтинг</a></p>
+<p>
+  <a href="/sources" class="tag {{ 'good' if not lang }}">все</a>
+  <a href="/sources?lang=ru" class="tag {{ 'good' if lang == 'ru' }}">русскоязычные</a>
+  <a href="/sources?lang=en" class="tag {{ 'good' if lang == 'en' }}">англоязычные</a>
+  <span class="muted">· {{ rows|length }}</span>
+</p>
+<div class="table-wrap"><table>
+  <tr><th>Источник</th><th>Тип</th><th>Рейтинг</th><th>Публикаций в архиве</th><th>Владелец</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td><a href="/sources/{{ r.source.id }}">{{ r.name }}</a><br><span class="muted">{{ r.source.handle_or_domain }}</span></td>
+    <td>{{ r.type }}{% if r.source.lang == 'en' %} · англ.{% endif %}</td>
+    <td>{% if r.rating %}<b>{{ "%.0f"|format(r.rating.score) }}</b> <span class="muted">({{ "%.0f"|format(r.rating.ci_low) }}–{{ "%.0f"|format(r.rating.ci_high) }})</span>{% else %}<span class="muted">мало данных</span>{% endif %}</td>
+    <td>{{ r.documents }}</td>
+    <td class="muted">{{ r.source.owner or '' }}</td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% endblock %}

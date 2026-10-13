@@ -78,6 +78,6 @@
 </table>
 {% endif %}
 
-<p class="muted" style="margin-top:20px">{% if r.note %}{{ r.note }}<br>{% endif %}
-Автоматический анализ открытых источников, не является утверждением об истинности или ложности.</p>
+{% if r.note %}<p class="muted" style="margin-top:20px">{{ r.note }}</p>{% endif %}
+{% include "_report_actions.html" %}
 {% endblock %}

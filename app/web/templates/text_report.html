@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Сверка — где появлялся текст{% endblock %}
+{% block content %}
+{% set r = report %}
+<h1>Где и когда появлялся этот текст</h1>
+<p class="muted">Проверка от {{ check.finished_at | msk }} · поиск по архиву за {{ r.days or 7 }} дней</p>
+<div class="card"><div class="muted">Текст</div>{{ check.input_raw[:600] }}{% if check.input_raw|length > 600 %}…{% endif %}</div>
+{% if r.matches %}
+<h2>Похожие публикации — самые ранние сверху</h2>
+<div class="table-wrap"><table>
+  <tr><th>Время</th><th>Источник</th><th>Публикация</th></tr>
+  {% for m in r.matches %}
+  <tr><td class="muted" style="white-space:nowrap">{{ m.time | msk }}</td><td>{{ m.source }}</td>
+      <td><a href="{{ m.url }}" target="_blank" rel="noopener">{{ m.title }}</a>
+        <form method="post" action="/check" style="margin-top:4px"><input type="hidden" name="value" value="{{ m.url }}"><button>Проверить</button></form></td></tr>
+  {% endfor %}
+</table></div>
+<p class="muted">Самая ранняя публикация — кандидат в первоисточник. Чтобы получить полный отчёт с подтверждениями, проверьте её по ссылке.</p>
+{% else %}
+<p>Похожих публикаций в архиве не нашлось. Если это новость, она могла появиться раньше, чем мы начали собирать её источники, или выйти не в нашем реестре.</p>
+{% endif %}
+{% include "_report_actions.html" %}
+{% endblock %}

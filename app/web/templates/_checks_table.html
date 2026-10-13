@@ -1,0 +1,17 @@
+{% set rows = checks if checks is defined else recent %}
+<div class="table-wrap"><table>
+  <tr><th>Когда</th><th>Что проверяли</th><th>Результат</th></tr>
+  {% for c in rows %}{% set s = summary_of(c) %}
+  <tr>
+    <td class="muted" style="white-space:nowrap">{{ c.created_at | msk }}</td>
+    <td><a href="/r/{{ c.public_token }}">{{ (s.title or c.input_raw)[:110] }}</a>
+      {% if c.input_type == 'text' %}<span class="tag">текст</span>{% endif %}</td>
+    <td>
+      {% if c.status == 'done' %}
+        {% if s.index is defined and s.index is not none %}<b>{{ "%g"|format(s.index) }}</b> · {% endif %}{{ s.status_text or s.text or 'готово' }}
+      {% elif c.status == 'failed' %}<span class="tag bad">не удалось</span>
+      {% else %}<span class="tag probable">проверяется</span>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table></div>

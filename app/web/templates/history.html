@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% set page = 'history' %}
+{% block title %}Сверка — мои проверки{% endblock %}
+{% block content %}
+<h1>Мои проверки</h1>
+{% if not user or not user.tg_id %}
+<p class="note">История привязана к этому браузеру. <a href="/login">Войдите через Telegram</a>, чтобы видеть её
+на любом устройстве вместе с проверками из бота.</p>
+{% endif %}
+{% if checks %}
+  {% include "_checks_table.html" with context %}
+{% else %}
+  <p class="muted">Проверок пока нет. <a href="/">Проверить новость →</a></p>
+{% endif %}
+{% endblock %}

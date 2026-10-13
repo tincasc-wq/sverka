@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     # Вход в админку (временная схема до Telegram Login). Пусто — вход закрыт.
     admin_token: str = ""
 
+    # Сайт (этап 6): подпись cookie посетителя. Пусто — случайный ключ на время работы процесса
+    # (после перезапуска посетители «теряют» историю); на сервере задать обязательно.
+    secret_key: str = ""
+    web_anonymous_quota: int = 5  # проверок в сутки без входа
+    search_days: int = 30  # окно поиска по архиву на сайте
+    # Имя бота без @ для кнопки «Войти через Telegram»; домен сайта — у @BotFather (/setdomain).
+    telegram_bot_username: str = ""
+
     # Telegram-бот (этап 4). Сеть до api.telegram.org — через telegram_proxy, как и сбор каналов.
     telegram_bot_token: str = ""
     # Адрес, по которому пользователь открывает веб-отчёт /r/<token>.

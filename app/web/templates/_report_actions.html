@@ -1,0 +1,12 @@
+<div class="row" style="margin-top:22px;gap:10px;align-items:center">
+  <form method="post" action="/check"><input type="hidden" name="value" value="{{ check.input_raw }}"><input type="hidden" name="fresh" value="true"><button>Проверить снова</button></form>
+  <a href="/" class="btn" style="text-decoration:none">Проверить другую новость</a>
+</div>
+<div id="feedback" class="card" style="margin-top:16px">
+  {% if thanks %}<div class="note">Спасибо, передали аналитику.</div>{% endif %}
+  <form method="post" action="/r/{{ check.public_token }}/feedback">
+    <b>Нашли ошибку в отчёте?</b>
+    <textarea name="text" rows="2" placeholder="Что не так: неверный первоисточник, чужое событие, ошибка в сверке…" required minlength="3" maxlength="4000" style="margin-top:6px"></textarea>
+    <button style="margin-top:6px">Сообщить</button>
+  </form>
+</div>

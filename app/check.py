@@ -162,9 +162,19 @@ async def run_check(
     cache_hours: float = 0,
     fallback: DocumentIn | None = None,
     llm: LlmClient | None = None,
+    existing: Check | None = None,
 ) -> Check:
+    """existing — уже созданная запись проверки (сайт создаёт её сразу, чтобы показать ожидание)."""
     seed = await resolve_seed(session, arg, fallback)
     if cache_hours and (cached := await recent_check(session, seed.id, cache_hours)):
+        if existing is not None:
+            existing.document_id = seed.id
+            existing.story_id = cached.story_id
+            existing.summary = cached.summary
+            existing.confirmation_index = cached.confirmation_index
+            existing.status = CheckStatus.DONE
+            existing.finished_at = datetime.now(UTC)
+            cached = existing
         await session.commit()  # сохранить скачанную публикацию, если её не было
         return cached
     if seed.embedding is None:
@@ -178,15 +188,20 @@ async def run_check(
         await session.flush()
 
     # Проверка создаётся до LLM-вызовов: к ней привязывается учёт расходов (llm_calls).
-    check = Check(
-        user_id=user_id,
-        input_type=input_type,
-        input_raw=arg,
-        document_id=seed.id,
-        status=CheckStatus.RUNNING,
-        public_token=secrets.token_urlsafe(12),
-    )
-    session.add(check)
+    if existing is not None:
+        check = existing
+        check.document_id = seed.id
+        check.status = CheckStatus.RUNNING
+    else:
+        check = Check(
+            user_id=user_id,
+            input_type=input_type,
+            input_raw=arg,
+            document_id=seed.id,
+            status=CheckStatus.RUNNING,
+            public_token=secrets.token_urlsafe(12),
+        )
+        session.add(check)
     await session.flush()
 
     scoring = get_scoring()

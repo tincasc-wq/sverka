@@ -74,6 +74,17 @@ async def bot_check(
     return f"check={reply.check_id}"
 
 
+async def web_check(ctx: dict, check_id: int, use_cache: bool = True) -> str:
+    """Проверка, запущенная с сайта: результат сайт показывает сам, опрашивая статус."""
+    from app.web.checks import run_web_check
+
+    async with SessionLocal() as session:
+        check = await run_web_check(
+            session, check_id, ctx["embedder"], ctx.get("llm"), use_cache=use_cache
+        )
+    return f"check={check.id} {check.status}"
+
+
 async def startup(ctx: dict) -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(asctime)s %(name)s: %(message)s", "%H:%M:%S"))
@@ -142,6 +153,7 @@ class WorkerSettings:
         embed_documents,
         recompute_source_ratings,
         bot_check,
+        web_check,
     ]
     cron_jobs = [
         cron(collect_rss, minute=set(range(0, 60, 5)), unique=True, timeout=600),

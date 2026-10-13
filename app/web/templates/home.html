@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% set page = 'home' %}
+{% block title %}Сверка — проверка новостей{% endblock %}
+{% block content %}
+<div class="narrow">
+<h1>Откуда эта новость и подтверждают ли её другие?</h1>
+<p class="muted">Вставьте ссылку на публикацию — статью или пост в Telegram-канале. Сервис найдёт первоисточник,
+перепечатки и независимые подтверждения, сверит факты и посчитает индекс подтверждённости.
+Можно вставить и просто текст — покажем, где и когда он появлялся раньше всего.</p>
+
+<form method="post" action="/check" class="hero card">
+  <textarea name="value" placeholder="https://… или текст новости" required>{{ value }}</textarea>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <button type="submit">Проверить</button>
+  <span class="muted" style="margin-left:10px">обычно 5–20 секунд</span>
+</form>
+
+{% if recent %}
+<h2>Ваши последние проверки</h2>
+{% include "_checks_table.html" with context %}
+<p><a href="/history">Все проверки →</a></p>
+{% endif %}
+
+<h2>Как читать результат</h2>
+<div class="row">
+  <div class="card" style="flex:1;min-width:220px"><b>Первоисточник</b><br><span class="muted">самая ранняя публикация о событии и то, кто у кого взял текст</span></div>
+  <div class="card" style="flex:1;min-width:220px"><b>Независимые подтверждения</b><br><span class="muted">сообщения разных редакций; перепечатки и издания одного владельца считаются за одно</span></div>
+  <div class="card" style="flex:1;min-width:220px"><b>Индекс 0–100</b><br><span class="muted">насколько утверждения новости подтверждаются независимо; формула — в <a href="/methodology">методике</a></span></div>
+</div>
+</div>
+{% endblock %}

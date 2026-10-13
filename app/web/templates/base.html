@@ -3,13 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Сверка — админка{% endblock %}</title>
+<title>{% block title %}Сверка{% endblock %}</title>
 <style>
   :root { --ink:#1d2433; --muted:#6b7385; --line:#dde2ea; --bg:#f6f7f9; --accent:#2f6fde;
           --good:#2e8b57; --bad:#c0392b; --warn:#b7791f; }
   * { box-sizing: border-box; }
   body { margin:0; font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--ink); background:var(--bg); }
-  header { background:#fff; border-bottom:1px solid var(--line); padding:10px 20px; display:flex; gap:20px; align-items:center; }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:10px 20px; display:flex; gap:8px 20px; align-items:center; flex-wrap:wrap; }
+  header .right { margin-left:auto; display:flex; gap:12px; align-items:center; }
+  header form { margin:0; }
+  header .link { border:0; background:none; padding:0; color:var(--muted); cursor:pointer; font:inherit; }
   header b { font-size:17px; }
   header a { color:var(--muted); text-decoration:none; }
   header a.on { color:var(--ink); font-weight:600; }
@@ -33,18 +36,43 @@
   button.refuted { border-color:var(--bad); color:var(--bad); }
   input[type=text], input[type=url], input[type=password], textarea { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; width:100%; }
   .stances label { margin-right:10px; font-size:13px; white-space:nowrap; }
-  @media (max-width: 700px) { th:nth-child(n+4), td:nth-child(n+4) { display:none; } }
+  .narrow { max-width:760px; }
+  .hero textarea { min-height:110px; font-size:16px; }
+  .hero button { margin-top:10px; background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; padding:9px 22px; }
+  .error { background:#fbeaea; color:var(--bad); border-radius:6px; padding:8px 12px; margin:10px 0; }
+  .note { background:#eef4fd; border-radius:6px; padding:8px 12px; margin:10px 0; }
+  .spinner { width:28px; height:28px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; margin-right:10px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .table-wrap { overflow-x:auto; }
+  footer { max-width:1180px; margin:30px auto; padding:0 16px; color:var(--muted); font-size:13px; }
+  @media (max-width: 700px) { th:nth-child(n+4), td:nth-child(n+4) { display:none; } main { margin-top:12px; } }
 </style>
 </head>
 <body>
 <header>
-  <b>Сверка</b>
-  {% if nav is defined %}{# меню только в админке; публичный отчёт его не показывает #}
+  <b><a href="/" style="color:inherit">Сверка</a></b>
+  {% if nav is defined %}{# админка #}
   <a href="/admin/stories" class="{{ 'on' if nav == 'stories' }}">Истории</a>
   <a href="/admin/sources" class="{{ 'on' if nav == 'sources' }}">Источники</a>
   <a href="/admin/feedback" class="{{ 'on' if nav == 'feedback' }}">Жалобы</a>
+  {% else %}{# публичный сайт #}
+  {% set page = page if page is defined else '' %}
+  <a href="/" class="{{ 'on' if page == 'home' }}">Проверить</a>
+  <a href="/history" class="{{ 'on' if page == 'history' }}">Мои проверки</a>
+  <a href="/search" class="{{ 'on' if page == 'search' }}">Поиск</a>
+  <a href="/sources" class="{{ 'on' if page == 'sources' }}">Источники</a>
+  <a href="/methodology" class="{{ 'on' if page == 'methodology' }}">Методика</a>
+  <span class="right">
+    {% if user is defined and user and user.tg_id %}
+    <span class="muted">вход через Telegram</span>
+    <form method="post" action="/logout"><button class="link">Выйти</button></form>
+    {% else %}<a href="/login" class="{{ 'on' if page == 'login' }}">Войти</a>{% endif %}
+  </span>
   {% endif %}
 </header>
 <main>{% block content %}{% endblock %}</main>
+{% if nav is not defined %}
+<footer>Автоматический анализ открытых источников, не является утверждением об истинности или ложности. · <a href="/methodology">Как это работает</a></footer>
+{% endif %}
 </body>
 </html>
