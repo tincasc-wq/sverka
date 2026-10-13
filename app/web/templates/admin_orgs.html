@@ -1,5 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Сверка — организации{% endblock %}
+{% block title %}Сверка — организации<p class="muted">Места и квота подставляются из тарифа; для «Редакции» впишите состав из заявки (конструктор).</p>
+<script>
+(function () {
+  var s = document.getElementById('org-plan'), f = s.form;
+  function apply() { var o = s.selectedOptions[0]; f.seats.value = o.dataset.seats; f.monthly_quota.value = o.dataset.quota; }
+  s.addEventListener('change', apply); apply();
+})();
+</script>
+{% endblock %}
 {% block content %}
 <h1>Организации</h1>
 <p class="muted">Корпоративные клиенты по договору. Оплата — по счёту вручную; здесь только условия и статус доступа.
@@ -16,7 +24,7 @@
   <tr><th>Организация</th><th>Месяц: проверок / квота</th><th>Места: занято / всего</th><th>Расходы LLM, ₽</th><th>Условия</th></tr>
   {% for r in rows %}{% set o = r.org %}
   <tr>
-    <td><b>{{ o.name }}</b><br><span class="muted">тариф {{ o.plan }}</span>
+    <td><b>{{ o.name }}</b><br><span class="muted">тариф {{ org_plans[o.plan].name if o.plan in org_plans else o.plan }}</span>
       {% if o.ru_only %}<br><span class="tag good">российский контур</span>{% endif %}
       {% if not o.active %}<br><span class="tag bad">приостановлена</span>{% endif %}</td>
     <td>{{ r.used }} / {{ o.monthly_quota }}</td>
@@ -41,9 +49,13 @@
 <h2>Новая организация</h2>
 <form method="post" action="/admin/orgs" class="card row" style="gap:10px;align-items:end">
   <label>Название<br><input type="text" name="name" required maxlength="255" placeholder="Редакция «…»"></label>
-  <label>Тариф<br><input type="text" name="plan" value="editorial" maxlength="32" style="width:120px"></label>
-  <label>Мест<br><input type="number" name="seats" value="5" min="1" style="width:80px"></label>
-  <label>Проверок в месяц<br><input type="number" name="monthly_quota" value="3000" min="0" style="width:110px"></label>
+  <label>Тариф<br><select name="plan" id="org-plan">
+    {% for code, p in org_plans.items() %}{% set c = p.constructor %}
+    <option value="{{ code }}" data-seats="{{ p.seats or (c.base_seats if c else 5) }}"
+            data-quota="{{ p.monthly_checks or (c.base_checks if c else 3000) }}" {{ 'selected' if code == 'team' }}>{{ p.name }} — {{ p.price }}</option>
+    {% endfor %}</select></label>
+  <label>Мест<br><input type="number" name="seats" value="3" min="1" style="width:80px"></label>
+  <label>Проверок в месяц<br><input type="number" name="monthly_quota" value="2000" min="0" style="width:110px"></label>
   <label class="muted"><input type="checkbox" name="ru_only" value="true"> российский контур (только российские модели)</label>
   <button>Создать и получить ссылку владельцу</button>
 </form>

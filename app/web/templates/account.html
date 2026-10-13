@@ -20,7 +20,7 @@
     <p style="margin:6px 0 0">Организация «{{ usage.org_name }}»: в этом месяце {{ usage.org_used }} из {{ usage.org_limit }} проверок.
     <a href="/org">Кабинет →</a></p>
   {% else %}
-    <p style="margin:6px 0 0">Сегодня {{ usage.used }} из {{ usage.limit }} проверок — лимит общий для сайта и бота.
+    <p style="margin:6px 0 0">{{ usage.period_text | capitalize }} {{ usage.used }} из {{ usage.limit }} проверок — лимит общий для сайта и бота.
     {% if user.plan_until and usage.plan.paid %}Тариф действует до {{ user.plan_until | msk }}.{% endif %}
     <a href="/pricing">Тарифы →</a></p>
   {% endif %}

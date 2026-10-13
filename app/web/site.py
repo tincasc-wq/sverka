@@ -290,6 +290,9 @@ async def pricing_request(
     org_name: Annotated[str, Form()] = "",
     comment: Annotated[str, Form()] = "",
     consent: Annotated[str, Form()] = "",
+    seats: Annotated[int, Form()] = 0,
+    checks: Annotated[int, Form()] = 0,
+    options: Annotated[list[str], Form()] = [],  # noqa: B006 — FastAPI создаёт список сам
 ):
     """Кнопка «Подключить»: заявка в базу и сообщение владельцу в Telegram."""
     if consent != "on":
@@ -297,7 +300,7 @@ async def pricing_request(
     from html import escape
 
     from app.models import PlanRequest
-    from app.plans import get_plans, usage_of
+    from app.plans import get_plans, quote, usage_of
     from app.web.notify import notify_admin
 
     plans = get_plans()
@@ -319,12 +322,23 @@ async def pricing_request(
         reason = "contact" if not contact else "limit"
         return RedirectResponse(f"/pricing?error={reason}#request", 303)
 
+    config_line = None
+    if chosen.constructor:
+        # Цену считает сервер: значения из браузера только как пожелание состава.
+        price, seats, checks = quote(chosen, seats, checks, set(options))
+        names = [o.name.lower() for o in chosen.constructor.options if o.code in options]
+
+        def num(n: int) -> str:
+            return f"{n:,}".replace(",", " ")
+
+        parts = [f"{seats} мест", f"{num(checks)} проверок в месяц", *names]
+        config_line = f"Конфигурация: {', '.join(parts)} — {num(price)} ₽/мес"
     item = PlanRequest(
         user_id=user.id if user else None,
         plan=plan,
         contact=contact,
         org_name=org_name.strip()[:255] or None,
-        comment=comment.strip()[:2000] or None,
+        comment="\n".join(x for x in (config_line, comment.strip()[:2000]) if x) or None,
         ip=ip,
     )
     session.add(item)
@@ -350,12 +364,14 @@ async def pricing_request(
     ]
     if item.org_name:
         lines.append(f"Организация: {escape(item.org_name)}")
+    if config_line:
+        lines.append(f"<b>{escape(config_line)}</b>")
     lines.append(
         f"Пользователь: {escape(', '.join(who)) if who else 'без входа'}"
         f" · сейчас «{escape(usage.plan.name)}» · проверок всего: {total}"
     )
-    if item.comment:
-        lines.append(f"Комментарий: {escape(item.comment)}")
+    if comment.strip():
+        lines.append(f"Комментарий: {escape(comment.strip()[:2000])}")
     if user:
         lines.append(
             f"Назначить тариф: {get_settings().public_base_url.rstrip('/')}/admin/users?q={user.id}"

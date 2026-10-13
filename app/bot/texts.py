@@ -16,7 +16,7 @@ START = (
     "Пришлите ссылку на статью или пост, перешлите сообщение из канала "
     "или вставьте текст — найду первоисточник, кто перепечатал и кто сообщил независимо.\n\n"
     "/source <code>tass.ru</code> или /source <code>@rbc_news</code> — карточка источника.\n"
-    "/tariff — ваш тариф и сколько проверок осталось на сегодня.\n\n" + DISCLAIMER
+    "/tariff — ваш тариф и сколько проверок осталось.\n\n" + DISCLAIMER
 )
 
 NOT_UNDERSTOOD = (
@@ -25,7 +25,7 @@ NOT_UNDERSTOOD = (
 )
 CHECKING = "🔎 Проверяю… Обычно это занимает до пары минут."
 QUOTA = (
-    "Лимит проверок на сегодня исчерпан: тариф «{plan}», {limit} в сутки. Возвращайтесь завтра "
+    "Лимит проверок исчерпан: тариф «{plan}», {limit} {period}. Возвращайтесь {when} "
     "или подключите тариф с бо́льшим лимитом — /tariff."
 )
 FAILED = "Не получилось проверить: {reason}"
@@ -214,7 +214,7 @@ def format_source_card(card: dict) -> str:
 
 
 def format_tariff(usage, plans: dict, base_url: str) -> str:
-    """Ответ на /tariff: тариф, остаток на сегодня, что можно подключить."""
+    """Ответ на /tariff: тариф, остаток в периоде тарифа, что можно подключить."""
     base = base_url.rstrip("/")
     if usage.org_name:
         return "\n".join(
@@ -228,8 +228,8 @@ def format_tariff(usage, plans: dict, base_url: str) -> str:
         )
     lines = [
         f"Тариф: <b>{escape(usage.plan.name)}</b>.",
-        f"Сегодня: {usage.used} из {usage.limit} проверок, осталось {usage.left}. "
-        "Лимит общий для бота и сайта.",
+        f"{usage.period_text.capitalize()}: {usage.used} из {usage.limit} проверок, "
+        f"осталось {usage.left}. Лимит общий для бота и сайта.",
     ]
     upgrades = [
         p for p in plans.values() if p.public and (p.paid or p.org) and p.code != usage.plan.code

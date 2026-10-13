@@ -1,4 +1,4 @@
-"""Тарифы пользователей (ФТ-9.1): какой действует и сколько проверок осталось на сегодня.
+"""Тарифы пользователей (ФТ-9.1): какой действует и сколько проверок осталось в периоде тарифа (сутки или месяц).
 
 Описание тарифов — config/plans.yaml. У пользователя хранится назначенный платный тариф
 (users.plan, users.plan_until — ставит админ) и необязательная личная поправка лимита
@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import yaml
 from pydantic import BaseModel
@@ -18,18 +19,47 @@ from app.models import User
 
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "plans.yaml"
 GUEST, STANDARD = "guest", "standard"
+MSK = ZoneInfo("Europe/Moscow")
+
+
+class Option(BaseModel):
+    code: str
+    name: str
+    per_check: float = 0  # ₽ за каждую проверку месячного объёма
+    description: str = ""
+
+
+class Constructor(BaseModel):
+    """Конструктор «Редакции»: цена складывается из мест, объёма проверок и опций."""
+
+    base_price: int
+    base_seats: int
+    base_checks: int
+    max_seats: int
+    seat_price: int
+    checks_step: int
+    checks_step_price: int
+    max_checks: int
+    options: list[Option] = []
 
 
 class Plan(BaseModel):
     code: str = ""
     name: str
     daily_checks: int | None = None
+    monthly_checks: int | None = None
+    seats: int | None = None
     price: str = ""
     paid: bool = False
     org: bool = False
     public: bool = True
     features: list[str] = []
     soon: list[str] = []
+    constructor: Constructor | None = None
+
+    @property
+    def period(self) -> str:
+        return "month" if self.monthly_checks is not None else "day"
 
 
 @lru_cache
@@ -54,10 +84,54 @@ def plan_for(user: User | None, now: datetime | None = None) -> Plan:
     return plans[STANDARD]
 
 
-def daily_limit(user: User | None) -> int:
+def personal_limit(user: User | None) -> tuple[int, str]:
+    """(лимит, период: day | month). Личная поправка админа — в периоде тарифа."""
+    plan = plan_for(user)
     if user is not None and user.daily_quota is not None:
-        return user.daily_quota  # личная поправка админа
-    return plan_for(user).daily_checks or 0
+        return user.daily_quota, plan.period
+    return (
+        (plan.monthly_checks or 0, "month")
+        if plan.period == "month"
+        else (
+            plan.daily_checks or 0,
+            "day",
+        )
+    )
+
+
+def daily_limit(user: User | None) -> int:
+    """Лимит в периоде тарифа (имя сохранено ради совместимости вызовов)."""
+    return personal_limit(user)[0]
+
+
+def period_start(period: str) -> datetime:
+    now = datetime.now(MSK)
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return start.replace(day=1) if period == "month" else start
+
+
+async def checks_in_period(session: AsyncSession, user: User, period: str) -> int:
+    from sqlalchemy import func, select
+
+    from app.models import Check
+
+    return await session.scalar(
+        select(func.count())
+        .select_from(Check)
+        .where(Check.user_id == user.id, Check.created_at >= period_start(period))
+    )
+
+
+def quote(plan: Plan, seats: int, checks: int, options: set[str]) -> tuple[int, int, int]:
+    """Цена конструктора за месяц и нормализованные места/проверки (сервер не верит браузеру)."""
+    c = plan.constructor
+    seats = max(c.base_seats, min(seats, c.max_seats))
+    checks = max(c.base_checks, min(checks, c.max_checks))
+    steps = -(-(checks - c.base_checks) // c.checks_step)  # вверх до целого шага
+    checks = c.base_checks + steps * c.checks_step
+    price = c.base_price + (seats - c.base_seats) * c.seat_price + steps * c.checks_step_price
+    price += sum(round(o.per_check * checks) for o in c.options if o.code in options)
+    return price, seats, checks
 
 
 @dataclass
@@ -65,6 +139,7 @@ class Usage:
     plan: Plan
     used: int
     limit: int | None  # None — лимит организации, а не личный
+    period: str = "day"
     org_name: str | None = None
     org_used: int | None = None
     org_limit: int | None = None
@@ -73,21 +148,27 @@ class Usage:
     def left(self) -> int | None:
         return None if self.limit is None else max(0, self.limit - self.used)
 
+    @property
+    def period_text(self) -> str:
+        return "в этом месяце" if self.period == "month" else "сегодня"
+
 
 async def usage_of(session: AsyncSession, user: User | None) -> Usage:
-    from app.bot.service import checks_today
     from app.orgs.service import checks_this_month, membership_of
 
-    used = await checks_today(session, user) if user is not None else 0
     membership = await membership_of(session, user)
+    plans = get_plans()
     if membership is not None:
         org = membership.org
         return Usage(
-            plan=get_plans()["editorial"],
-            used=used,
+            plan=plans.get(org.plan) or plans["editorial"],
+            used=await checks_in_period(session, user, "month"),
             limit=None,
+            period="month",
             org_name=org.name,
             org_used=await checks_this_month(session, org),
             org_limit=org.monthly_quota,
         )
-    return Usage(plan=plan_for(user), used=used, limit=daily_limit(user))
+    limit, period = personal_limit(user)
+    used = await checks_in_period(session, user, period) if user is not None else 0
+    return Usage(plan=plan_for(user), used=used, limit=limit, period=period)

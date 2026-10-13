@@ -45,7 +45,7 @@
             <option value="{{ code }}" {{ 'selected' if u.role == code }}>{{ label }}</option>{% endfor %}</select>
           <button>Роль</button>
         </form></td>
-    <td><b>{{ r.plan.name }}</b> · {{ r.limit }}/сутки
+    <td><b>{{ r.plan.name }}</b> · {{ r.limit }}/{{ 'мес' if r.plan.period == 'month' else 'сутки' }}
         {% if u.plan_until %}<br><span class="muted">до {{ u.plan_until | msk }}</span>{% endif %}
         {% if u.daily_quota is not none %}<br><span class="tag probable">личный лимит</span>{% endif %}</td>
     <td>{{ r.total }}</td>

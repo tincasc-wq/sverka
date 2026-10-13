@@ -17,6 +17,11 @@
   .plan summary::-webkit-details-marker { display:none; }
   .plan details form { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
   .plan details input, .plan details textarea { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; }
+  .builder { display:flex; flex-direction:column; gap:6px; background:#FBF6F1; border-radius:8px; padding:8px; }
+  .builder input[type=range] { width:100%; padding:0; border:0; }
+  .builder .option { display:flex; gap:6px; align-items:baseline; }
+  .builder .total { font-size:17px; margin-top:4px; }
+  .small { font-size:13px; }
 </style>
 <h1>Тарифы</h1>
 <div id="request"></div>
@@ -27,7 +32,7 @@
 {% if usage.org_name %}
   <p>Вы работаете в кабинете организации «{{ usage.org_name }}»: в этом месяце {{ usage.org_used }} из {{ usage.org_limit }} проверок.</p>
 {% else %}
-  <p>Ваш тариф — <b>{{ usage.plan.name }}</b>: сегодня {{ usage.used }} из {{ usage.limit }} проверок.
+  <p>Ваш тариф — <b>{{ usage.plan.name }}</b>: {{ usage.period_text }} {{ usage.used }} из {{ usage.limit }} проверок.
   Лимит общий для сайта и {% if bot %}бота @{{ bot }}{% else %}бота{% endif %}.
   {% if usage.plan.code == 'guest' %}<a href="/login">Войдите</a> — бесплатный тариф «Стандарт» даёт больше проверок.{% endif %}</p>
 {% endif %}
@@ -49,6 +54,22 @@
         <input type="text" name="contact" maxlength="255" placeholder="почта или @telegram для связи"
                value="{{ user.email if user and user.email else '' }}" {{ '' if user and (user.email or user.tg_id) else 'required' }}>
         {% if p.org %}<input type="text" name="org_name" maxlength="255" placeholder="название организации">{% endif %}
+        {% if p.constructor %}{% set c = p.constructor %}
+        <div class="builder" data-base="{{ c.base_price }}" data-base-seats="{{ c.base_seats }}" data-seat="{{ c.seat_price }}"
+             data-base-checks="{{ c.base_checks }}" data-step="{{ c.checks_step }}" data-step-price="{{ c.checks_step_price }}">
+          <label>Мест: <b data-out="seats">{{ c.base_seats }}</b>
+            <input type="range" name="seats" min="{{ c.base_seats }}" max="{{ c.max_seats }}" value="{{ c.base_seats }}"></label>
+          <label>Проверок в месяц: <b data-out="checks">{{ c.base_checks }}</b>
+            <input type="range" name="checks" min="{{ c.base_checks }}" max="{{ c.max_checks }}" step="{{ c.checks_step }}" value="{{ c.base_checks }}"></label>
+          {% for o in c.options %}
+          <label class="option" title="{{ o.description }}"><input type="checkbox" name="options" value="{{ o.code }}" data-per-check="{{ o.per_check }}">
+            {{ o.name }} <span class="muted">+{{ '%g'|format(o.per_check) }} ₽ за проверку объёма</span></label>
+          {% if o.description %}<div class="muted small">{{ o.description }}</div>{% endif %}
+          {% endfor %}
+          <div class="total">Итого: <b data-out="price">{{ '{:,}'.format(c.base_price).replace(',', ' ') }}</b> ₽/мес</div>
+          <div class="muted small">Предварительный расчёт — точную сумму подтвердим в ответе на заявку.</div>
+        </div>
+        {% endif %}
         <textarea name="comment" rows="2" maxlength="2000" placeholder="комментарий: сколько человек, для чего"></textarea>
         <label class="consent"><input type="checkbox" name="consent" required> Я согласен(на) на обработку персональных данных согласно <a href="/privacy" target="_blank">Политике</a></label>
         <button style="background:#12203A;color:#fff;border-color:#12203A">Отправить заявку</button>
@@ -66,4 +87,23 @@
   {% else %}Напишите нам через бот{% if bot %} @{{ bot }}{% endif %}.{% endif %}</p>
   <p class="muted" style="margin:6px 0 0">Каждая проверка — сотни публикаций и работа языковой модели, поэтому у бесплатных тарифов дневной лимит.</p>
 </div>
+<script>
+document.querySelectorAll('.builder').forEach(function (b) {
+  var d = b.dataset, form = b.closest('form');
+  function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+  function update() {
+    var seats = +form.seats.value, checks = +form.checks.value;
+    var steps = Math.ceil((checks - d.baseChecks) / d.step);
+    var price = +d.base + (seats - d.baseSeats) * d.seat + steps * d.stepPrice;
+    b.querySelectorAll('input[name=options]:checked').forEach(function (o) {
+      price += Math.round(o.dataset.perCheck * checks);
+    });
+    b.querySelector('[data-out=seats]').textContent = seats;
+    b.querySelector('[data-out=checks]').textContent = fmt(checks);
+    b.querySelector('[data-out=price]').textContent = fmt(price);
+  }
+  b.addEventListener('input', update);
+  update();
+});
+</script>
 {% endblock %}

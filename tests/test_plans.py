@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import texts
 from app.bot.service import check_refusal, get_or_create_user
 from app.models import Check, User
-from app.plans import daily_limit, get_plans, plan_for, usage_of
+from app.plans import daily_limit, get_plans, personal_limit, plan_for, quote, usage_of
 from app.web.session import COOKIE, sign
 from tests.test_site import client, db  # noqa: F401 — фикстура
 
@@ -27,6 +27,57 @@ def test_plan_selection() -> None:
     assert plan_for(User(email="a@b.ru", plan="pro")).code == "pro"  # без срока — бессрочно
     assert daily_limit(User(tg_id=1)) == get_plans()["standard"].daily_checks
     assert daily_limit(User(tg_id=1, daily_quota=3)) == 3  # личная поправка админа
+    pro = User(email="a@b.ru", plan="pro")
+    assert personal_limit(pro) == (get_plans()["pro"].monthly_checks, "month")
+
+
+def test_editorial_constructor_quote() -> None:
+    editorial = get_plans()["editorial"]
+    c = editorial.constructor
+    assert quote(editorial, 0, 0, set()) == (c.base_price, c.base_seats, c.base_checks)
+    # 7 мест, 4 500 проверок → округление вверх до шага 1 000 → 5 000
+    price, seats, checks = quote(editorial, 7, 4500, set())
+    assert (seats, checks) == (7, 5000)
+    assert price == c.base_price + 2 * c.seat_price + 2 * c.checks_step_price
+    # Мест не больше 15, проверок не больше потолка; российский контур — за каждую проверку
+    price_ru, seats, checks = quote(editorial, 99, 10**6, {"ru_only", "bogus"})
+    assert seats == c.max_seats == 15 and checks == c.max_checks
+    assert price_ru == quote(editorial, 99, 10**6, set())[0] + 12 * c.max_checks
+    assert get_plans()["team"].seats == 3
+
+
+async def test_pro_limit_is_monthly(session: AsyncSession) -> None:
+    user = User(email="monthly@example.ru", plan="pro")
+    session.add(user)
+    await session.flush()
+    old = datetime.now(UTC) - timedelta(days=40)  # прошлый месяц не считается
+    session.add_all(
+        [Check(user_id=user.id, input_type="url", input_raw="x", status="done", created_at=old)]
+        + [
+            Check(user_id=user.id, input_type="url", input_raw=str(i), status="done")
+            for i in range(3)
+        ]
+    )
+    await session.flush()
+    usage = await usage_of(session, user)
+    assert usage.period == "month" and usage.used == 3 and usage.limit == 1000
+    assert "В этом месяце: 3 из 1000" in texts.format_tariff(usage, get_plans(), "https://x")
+    user.daily_quota = 3  # поправка админа — в периоде тарифа
+    refusal = await check_refusal(session, user)
+    assert refusal is not None and "3 в месяц" in refusal and "в следующем месяце" in refusal
+
+
+async def test_team_member_sees_team_plan(session: AsyncSession) -> None:
+    from app.models import Organization, OrgMember
+
+    org = Organization(name="Тройка", plan="team", seats=3, monthly_quota=2000)
+    user = User(email="t@example.ru")
+    session.add_all([org, user])
+    await session.flush()
+    session.add(OrgMember(org_id=org.id, user_id=user.id, role="member"))
+    await session.flush()
+    usage = await usage_of(session, user)
+    assert usage.plan.name == "Команда" and usage.org_limit == 2000
 
 
 async def test_bot_and_site_share_one_daily_limit(session: AsyncSession) -> None:
@@ -70,7 +121,7 @@ async def test_admin_assigns_plan_and_pricing_shows_it(db) -> None:  # noqa: F81
         guest_pricing = await guest.get("/pricing")
 
     assert "Сохранено" in listing.text and "Pro" in listing.text
-    assert "Ваш тариф — <b>Pro</b>" in pricing.text and "0 из 100" in pricing.text
+    assert "Ваш тариф — <b>Pro</b>" in pricing.text and "в этом месяце 0 из 1000" in pricing.text
     assert "Тариф: Pro" in account.text and "действует до" in account.text
     assert "Ваш тариф — <b>Гость</b>" in guest_pricing.text and "Войдите" in guest_pricing.text
 
@@ -117,6 +168,7 @@ async def test_connect_button_sends_request_to_owner(db, monkeypatch) -> None:  
     async with client() as admin:
         admin.cookies.set("sverka_admin", "test-admin-token")
         listing = await admin.get("/admin/users")
+        orgs_page = await admin.get("/admin/orgs")
 
     async with db() as s:
         items = (await s.scalars(select(PlanRequest).order_by(PlanRequest.id))).all()
@@ -128,6 +180,44 @@ async def test_connect_button_sends_request_to_owner(db, monkeypatch) -> None:  
     assert limited.headers["location"] == "/pricing?error=limit#request"
     assert len(items) == 3 and items[1].org_name == "Аппарат" and items[0].notified
     assert "Заявки на тарифы" in listing.text and "buyer@example.ru" in listing.text
+    assert 'value="team"' in orgs_page.text and "Команда" in orgs_page.text
+
+
+async def test_editorial_request_carries_server_quote(db, monkeypatch) -> None:  # noqa: F811
+    from app.models import PlanRequest
+    from app.web import notify
+
+    sent: list[str] = []
+
+    async def fake_notify(text: str) -> bool:
+        sent.append(text)
+        return True
+
+    monkeypatch.setattr(notify, "notify_admin", fake_notify)
+    async with client() as editor:
+        await editor.post(
+            "/pricing/request",
+            data={
+                "plan": "editorial",
+                "contact": "chief@news.ru",
+                "seats": "7",
+                "checks": "4500",
+                "options": ["ru_only"],
+                "consent": "on",
+            },
+        )
+        page = await editor.get("/pricing")
+    async with db() as s:
+        item = await s.scalar(select(PlanRequest))
+    c = get_plans()["editorial"].constructor
+    total = c.base_price + 2 * c.seat_price + 2 * c.checks_step_price + 12 * 5000
+    config = (
+        "Конфигурация: 7 мест, 5 000 проверок в месяц, российский контур — "
+        + f"{total:,}".replace(",", " ")
+        + " ₽/мес"
+    )
+    assert config in sent[0] and item.comment == config
+    assert 'name="seats"' in page.text and "Российский контур" in page.text
 
 
 async def test_staff_user_enters_admin_without_token(db) -> None:  # noqa: F811

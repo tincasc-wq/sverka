@@ -52,7 +52,7 @@ async def help_(message: Message) -> None:
 
 @router.message(Command("tariff", "plan"))
 async def tariff(message: Message) -> None:
-    """Тариф и остаток проверок на сегодня — лимит общий для бота и сайта."""
+    """Тариф и остаток проверок — лимит общий для бота и сайта."""
     from app.plans import get_plans, usage_of
 
     async with SessionLocal() as session:

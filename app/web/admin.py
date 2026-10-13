@@ -253,6 +253,8 @@ async def orgs(request: Request, session: Session):
                 "cost": await month_cost_rub(session, org),
             }
         )
+    from app.plans import get_plans
+
     invite = request.query_params.get("invite")
     return templates.TemplateResponse(
         request,
@@ -260,6 +262,7 @@ async def orgs(request: Request, session: Session):
         {
             "nav": "orgs",
             "rows": rows,
+            "org_plans": {code: p for code, p in get_plans().items() if p.org},
             "invite": f"{get_settings().public_base_url.rstrip('/')}/join/{invite}"
             if invite
             else None,
@@ -336,7 +339,7 @@ async def stats(request: Request, session: Session, days: int = 14):
 @protected.get("/users", response_class=HTMLResponse)
 async def users(request: Request, session: Session, q: str = ""):
     from app.models import OrgMember, User
-    from app.plans import daily_limit, get_plans, plan_for
+    from app.plans import get_plans, personal_limit, plan_for
 
     query = select(User).order_by(User.id.desc()).limit(100)
     q = q.strip()
@@ -361,7 +364,7 @@ async def users(request: Request, session: Session, q: str = ""):
             {
                 "user": user,
                 "plan": plan_for(user),
-                "limit": daily_limit(user),
+                "limit": personal_limit(user)[0],
                 "total": total,
                 "org": org,
             }
