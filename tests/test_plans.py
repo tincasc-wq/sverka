@@ -98,7 +98,7 @@ async def test_bot_and_site_share_one_daily_limit(session: AsyncSession) -> None
 
     assert refusal is not None and "«Стандарт»" in refusal and "/tariff" in refusal
     assert usage.used == limit and usage.left == 0
-    assert "Сегодня: 10 из 10" in reply and "Pro — 690 ₽/мес" in reply
+    assert "Сегодня: 10 из 10" in reply and "Pro — 1 990 ₽/мес" in reply
     assert "https://ang-rist.ru/pricing" in reply
 
 
