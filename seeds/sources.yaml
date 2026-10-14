@@ -7,7 +7,7 @@
 # одно подтверждение, 6.3) и решить по зарубежным русскоязычным изданиям и ресурсам
 # со статусом иноагента/блокировки.
 #
-# type: media | tg | vk | official | agency
+# type: media | tg | vk | official | agency | satire | aggregator
 # rss — для media/official/agency; для tg — handle_or_domain вида @канал.
 # aliases — как источник называют в чужих текстах («по данным ТАСС», «сообщают „Известия“»),
 #   включая падежные формы. Используются для рёбер attribution в графе заимствований.
@@ -63,7 +63,7 @@ sources:
   - {name: РБК (TG), type: tg, handle_or_domain: "@rbc_news", owner: РБК}
   - {name: Коммерсантъ (TG), type: tg, handle_or_domain: "@kommersant", owner: Коммерсантъ}
   - {name: Интерфакс (TG), type: tg, handle_or_domain: "@interfaxonline", owner: Интерфакс}
-  - {name: Раньше всех. Ну почти, type: tg, handle_or_domain: "@bbbreaking", aliases: [Раньше всех]}
+  - {name: Раньше всех. Ну почти, type: aggregator, handle_or_domain: "@bbbreaking", aliases: [Раньше всех]}
   - {name: Mash, type: tg, handle_or_domain: "@breakingmash", owner: Mash, aliases: [Mash]}
   - {name: SHOT, type: tg, handle_or_domain: "@shot_shot", aliases: [SHOT, Shot]}
   - {name: Readovka, type: tg, handle_or_domain: "@readovkanews", aliases: [Readovka]}
@@ -95,7 +95,7 @@ sources:
      rss: "https://www.mskagency.ru/rss/index.rss", aliases: [агентство «Москва», агентству «Москва», агентства «Москва»]}
   - {name: BFM, type: media, handle_or_domain: bfm.ru, owner: BFM,
      rss: "https://www.bfm.ru/news.rss", aliases: [BFM, BFM.ru, Business FM]}
-  - {name: Рамблер/новости, type: media, handle_or_domain: news.rambler.ru, owner: Рамблер,
+  - {name: Рамблер/новости, type: aggregator, handle_or_domain: news.rambler.ru, owner: Рамблер,
      rss: "https://news.rambler.ru/rss/head/", aliases: [Рамблер, Rambler]}
   - {name: Банки.ру, type: media, handle_or_domain: banki.ru, owner: Банки.ру,
      rss: "https://www.banki.ru/xml/news.rss", aliases: [Банки.ру, Banki.ru]}
@@ -136,7 +136,7 @@ sources:
   - {name: Военная хроника, type: tg, handle_or_domain: "@Warhronika", aliases: [«Военная хроника»]}
   - {name: СОЛОВЬЁВ, type: tg, handle_or_domain: "@SolovievLive"}
   - {name: Baza, type: tg, handle_or_domain: "@bazabazon", aliases: [Baza]}
-  - {name: Осторожно, новости, type: tg, handle_or_domain: "@ostorozhno_novosti", aliases: [«Осторожно, новости»]}
+  - {name: Осторожно, новости, type: aggregator, handle_or_domain: "@ostorozhno_novosti", aliases: [«Осторожно, новости»]}
   - {name: Лентач, type: tg, handle_or_domain: "@lentachold", aliases: [Лентач]}
   - {name: Новости Москвы, type: tg, handle_or_domain: "@moscowmap"}
   - {name: Полит.Ру, type: tg, handle_or_domain: "@polit_ru", aliases: [Полит.ру, Полит.Ру]}
@@ -328,3 +328,26 @@ sources:
   # комментарии. Отнесён к сатире решением владельца — основание записано в legal_flags.
   - {name: Империя очень зла, type: satire, handle_or_domain: "@verysexydasha", owner: Империя очень зла,
      legal_flags: {satire_basis: "решение владельца 14.10.2026; канал сам не называет себя сатирой"}}
+
+  # Агрегаторы (14.10.2026). Пересказывают чужие публикации: не независимое подтверждение
+  # и не первоисточник, но расширяют охват — по ним видно, как история расходится. Ленты
+  # проверены с сервера 14.10.2026 (отвечают, есть свежие записи). Не взяты: Яндекс Новости/
+  # Дзен и СМИ2 (нет RSS), Google News (только ссылки-переадресации без текста), Drudge
+  # (ссылки ведут прямо на чужие статьи — путались бы с оригиналами), ИноСМИ (лента не
+  # обновляется с 2020 г.). Рамблер, «Раньше всех» и «Осторожно, новости» — выше по списку.
+  - {name: Новости Mail, type: aggregator, handle_or_domain: news.mail.ru, owner: VK,
+     rss: "https://news.mail.ru/rss/", aliases: [Новости Mail, Новости Mail.ru, «Новости Mail»]}
+  - {name: Москвач, type: aggregator, handle_or_domain: "@moscowach", aliases: [Москвач]}
+  - {name: ТОПОР, type: aggregator, handle_or_domain: "@topor", aliases: [ТОПОР, Топор]}
+  - {name: Yahoo News, type: aggregator, handle_or_domain: news.yahoo.com, owner: Yahoo,
+     rss: "https://news.yahoo.com/rss/", lang: en, aliases: [Yahoo News, Yahoo]}
+  - {name: The Week, type: aggregator, handle_or_domain: theweek.com, owner: Future plc,
+     rss: "https://www.theweek.com/feeds.xml", lang: en, via_gateway: true,
+     legal_flags: {blocked_in_ru: "таймаут из РФ, 14.10.2026"}, aliases: [The Week]}
+  - {name: Memeorandum, type: aggregator, handle_or_domain: memeorandum.com, owner: Techmeme,
+     rss: "https://www.memeorandum.com/feed.xml", lang: en, aliases: [Memeorandum]}
+  - {name: Techmeme, type: aggregator, handle_or_domain: techmeme.com, owner: Techmeme,
+     rss: "https://www.techmeme.com/feed.xml", lang: en, aliases: [Techmeme]}
+  - {name: AllSides, type: aggregator, handle_or_domain: allsides.com, owner: AllSides,
+     rss: "https://www.allsides.com/rss/news", lang: en, via_gateway: true,
+     legal_flags: {geo_blocks_ru: "403 для российских адресов, 14.10.2026"}, aliases: [AllSides]}

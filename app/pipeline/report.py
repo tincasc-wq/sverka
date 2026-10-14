@@ -74,9 +74,18 @@ def build_report(result: StoryResult, cfg: GraphConfig) -> dict:
     def is_satire(node: Node | None) -> bool:
         return bool(node and node.source and node.source.type == "satire")
 
-    satire_groups = {n.group for n in result.nodes if is_satire(n)}
+    def is_aggregator(node: Node | None) -> bool:
+        return bool(node and node.source and node.source.type == "aggregator")
+
+    # Группы, которые не считаются независимым подтверждением.
+    satire_groups = {n.group for n in result.nodes if is_satire(n) or is_aggregator(n)}
     origin = core_primary or primary
     seed_node = nodes[result.seed.id]
+    if is_aggregator(primary):
+        notes.append(
+            "Это агрегатор: он пересказывает другие издания — исходная публикация, "
+            "вероятно, вышла раньше в другом месте"
+        )
     satire = None
     if is_satire(origin) or is_satire(seed_node):
         about = origin if is_satire(origin) else seed_node
@@ -97,6 +106,7 @@ def build_report(result: StoryResult, cfg: GraphConfig) -> dict:
             "source": _source_name(primary),
             "time": primary.effective_at(cfg).isoformat(),
             "membership": membership[primary.id],
+            "aggregator": is_aggregator(primary),
             "notes": notes,
             "earliest_core_root": {"url": core_primary.url, "source": _source_name(core_primary)}
             if core_primary
@@ -112,14 +122,17 @@ def build_report(result: StoryResult, cfg: GraphConfig) -> dict:
             if e["membership"] == "probable"
             and e["time"] < next(x["time"] for x in timeline if x["membership"] == "core")
         ][:3],
-        # Сатира не подтверждает: её «сообщения» — вымысел по замыслу.
+        # Сатира и агрегаторы не подтверждают: вымысел по замыслу и пересказ чужого.
         "independent_reports": len([g for g in graph.independent_groups if g not in satire_groups]),
         # То же, но только по ядру события — «вероятные» публикации могут быть о другом.
         "independent_core": len(
             {
                 n.group
                 for n in result.nodes
-                if membership[n.id] == "core" and n.id not in has_incoming and not is_satire(n)
+                if membership[n.id] == "core"
+                and n.id not in has_incoming
+                and not is_satire(n)
+                and not is_aggregator(n)
             }
         ),
         "independent_groups": graph.independent_groups,

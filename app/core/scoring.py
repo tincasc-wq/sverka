@@ -47,6 +47,7 @@ class SourceRatingConfig(BaseModel):
         "tg": (2, 2),
         "vk": (2, 2),
         "satire": (1, 9),
+        "aggregator": (2, 2),
     }
     # Меньше этого изменения рейтинга новую запись в историю не пишем (шум затухания).
     min_score_change: float = 0.5
@@ -62,6 +63,7 @@ class IndexConfig(BaseModel):
         "tg": 0.5,
         "vk": 0.5,
         "satire": 0.0,
+        "aggregator": 0.0,
     }
     stance_sign: dict[str, float] = {
         "supports": 1.0,

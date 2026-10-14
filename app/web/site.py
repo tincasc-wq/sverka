@@ -49,6 +49,7 @@ SOURCE_TYPES = {
     "tg": "Telegram",
     "vk": "VK",
     "satire": "сатира",
+    "aggregator": "агрегатор",
 }
 
 

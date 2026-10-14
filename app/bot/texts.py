@@ -109,6 +109,11 @@ def format_check(
     if primary_is_seed and report["seed"]["url"].startswith("user-text://"):
         # Проверяли произвольный текст, и раньше него в архиве ничего похожего нет.
         lines.append("Похожих публикаций за последние 30 дней в архиве не нашлось.")
+    elif confirmed and primary.get("aggregator"):
+        lines.append(
+            f"Раньше всех в архиве — агрегатор {_link(primary)}, {_time(primary['time'])}: "
+            "он пересказывает другие издания, исходная публикация, вероятно, в другом месте."
+        )
     elif confirmed and not (primary_is_seed and seed_cites):
         lines.append(f"Первоисточник: {_link(primary)}, {_time(primary['time'])}")
     elif confirmed:

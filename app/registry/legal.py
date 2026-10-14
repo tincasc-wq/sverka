@@ -19,13 +19,17 @@ def legal_note(flags: dict | None) -> str | None:
 
 
 SATIRE_NOTE = "сатирическое издание"
+AGGREGATOR_NOTE = "агрегатор"
 
 
 def source_note(source_type: str | None, flags: dict | None) -> str | None:
     """Пометка у имени источника: сатира важнее правового статуса — она меняет смысл вывода."""
     if source_type == "satire":
         return SATIRE_NOTE
-    return legal_note(flags)
+    legal = legal_note(flags)
+    if source_type == "aggregator":
+        return f"{AGGREGATOR_NOTE}, {legal}" if legal else AGGREGATOR_NOTE
+    return legal
 
 
 def display_name(name: str, note: str | None) -> str:

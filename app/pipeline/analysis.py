@@ -43,6 +43,11 @@ def _satire(node: Node) -> bool:
     return bool(node.source and node.source.type == "satire")
 
 
+def _not_confirming(node: Node) -> bool:
+    """Сатира и агрегаторы не подтверждают: первая выдумывает, вторые пересказывают."""
+    return bool(node.source and node.source.type in ("satire", "aggregator"))
+
+
 def documents_to_verify(result: StoryResult, limit: int) -> list[tuple[Node, bool]]:
     """По одной публикации на группу владения (кроме группы самой новости).
 
@@ -54,7 +59,7 @@ def documents_to_verify(result: StoryResult, limit: int) -> list[tuple[Node, boo
     seed_node = next(n for n in result.nodes if n.id == result.seed.id)
     first_by_group: dict[str, Node] = {}
     for n in sorted(result.nodes, key=lambda n: n.observed_at):
-        if n.id in core and n.group != seed_node.group and not _satire(n):
+        if n.id in core and n.group != seed_node.group and not _not_confirming(n):
             first_by_group.setdefault(n.group, n)
     picked = [(n, n.id not in has_incoming) for n in first_by_group.values()]
     picked.sort(key=lambda p: (not p[1], p[0].observed_at))
