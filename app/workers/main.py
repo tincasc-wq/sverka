@@ -213,7 +213,9 @@ class WorkerSettings:
         run_watches,
     ]
     cron_jobs = [
-        cron(collect_rss, minute=set(range(0, 60, 5)), unique=True, timeout=600),
+        # Таймаут с запасом: полные тексты после простоя качаются долго; single_flight не даёт
+        # запускам накладываться — пока идёт длинный цикл, пятиминутные просто пропускаются.
+        cron(collect_rss, minute=set(range(0, 60, 5)), unique=True, timeout=1500),
         cron(collect_telegram, minute=set(range(2, 60, 10)), unique=True, timeout=600),
         cron(embed_documents, second=30, unique=True, timeout=900),
         # Ночной пересчёт рейтинга (6.6); 03:00 по Москве = 00:00 UTC.

@@ -118,7 +118,7 @@ async def poll_sources(
 
 async def poll_rss(sessionmaker, client: httpx.AsyncClient | None = None) -> Counter:
     settings = get_settings()
-    total = await poll_sources(
+    direct = poll_sources(
         sessionmaker,
         Source.feed_url.is_not(None) & Source.via_gateway.is_(False),
         fetch_rss_source,
@@ -128,21 +128,27 @@ async def poll_rss(sessionmaker, client: httpx.AsyncClient | None = None) -> Cou
     # Источники, недоступные из РФ (или не пускающие российские адреса), — через шлюз.
     proxy = settings.collector_proxy or settings.telegram_proxy
     if client is None and not proxy:
-        return total
+        return await direct
     gateway = client or make_client(proxy=proxy)
     try:
-        total.update(
-            await poll_sources(
+        # Параллельно, а не после прямых: долгий прямой цикл (14.10.2026 — после
+        # восстановления базы) иначе съедал весь таймаут, и до шлюза очередь не доходила.
+        results = await asyncio.gather(
+            direct,
+            poll_sources(
                 sessionmaker,
                 Source.feed_url.is_not(None) & Source.via_gateway.is_(True),
                 fetch_rss_source,
                 full_text=settings.fetch_full_text,
                 client=gateway,
-            )
+            ),
         )
     finally:
         if client is None:
             await gateway.aclose()
+    total = Counter()
+    for counter in results:
+        total.update(counter)
     return total
 
 
