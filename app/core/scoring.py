@@ -68,9 +68,13 @@ class IndexConfig(BaseModel):
     stance_sign: dict[str, float] = {
         "supports": 1.0,
         "contradicts": -1.0,
+        "corrects": -1.5,
         "refines": 0.5,
         "unrelated": 0.0,
     }
+    # Поправка от независимого источника: утверждение «оспорено», индекс не выше этого —
+    # сколько бы изданий ни повторили ошибку раньше (случай Minerva Zen, 14.10.2026).
+    correction_cap: float = 35
     main_claim_weight: float = 2.0
     too_early_hours: float = 6
     statuses: dict[str, float] = {

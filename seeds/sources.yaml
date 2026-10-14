@@ -343,6 +343,9 @@ sources:
   # Авторский канал блогера (не агрегатор): веб-превью t.me/s открывается, Telethon не нужен.
   - {name: Анатолий Шарий, type: tg, handle_or_domain: "@ASupersharij", owner: Анатолий Шарий,
      aliases: [Шарий, Шария, Шарию, Анатолий Шарий, Анатолия Шария]}
+  # Частный военно-политический канал (40 тыс.); 12.10.2026 первым по-русски сообщил, что
+  # Minerva Zen везёт удобрения, а не дизель (эталонный случай поправки, tests/test_corrections.py).
+  - {name: Оперативная линия, type: tg, handle_or_domain: "@operline_ru", aliases: [«Оперативная линия»]}
   - {name: Yahoo News, type: aggregator, handle_or_domain: news.yahoo.com, owner: Yahoo,
      rss: "https://news.yahoo.com/rss/", lang: en, aliases: [Yahoo News, Yahoo]}
   - {name: The Week, type: aggregator, handle_or_domain: theweek.com, owner: Future plc,

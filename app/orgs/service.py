@@ -53,7 +53,11 @@ async def checks_this_month(session: AsyncSession, org: Organization) -> int:
     return await session.scalar(
         select(func.count())
         .select_from(Check)
-        .where(Check.org_id == org.id, Check.created_at >= month_start())
+        .where(
+            Check.org_id == org.id,
+            Check.created_at >= month_start(),
+            Check.channel.is_distinct_from("auto"),
+        )
     )
 
 
@@ -157,7 +161,10 @@ def member_label(member: OrgMember, user: User) -> str:
 async def org_checks(session: AsyncSession, org: Organization, limit: int = 100) -> list[Check]:
     return list(
         await session.scalars(
-            select(Check).where(Check.org_id == org.id).order_by(Check.id.desc()).limit(limit)
+            select(Check)
+            .where(Check.org_id == org.id, Check.channel.is_distinct_from("auto"))
+            .order_by(Check.id.desc())
+            .limit(limit)
         )
     )
 

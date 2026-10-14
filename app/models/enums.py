@@ -48,6 +48,8 @@ class CheckStatus(StrEnum):
 class Stance(StrEnum):
     SUPPORTS = "supports"
     CONTRADICTS = "contradicts"
+    # Поправка: публикация прямо говорит, что прежние сообщения ошибочны, и как на самом деле.
+    CORRECTS = "corrects"
     REFINES = "refines"
     UNRELATED = "unrelated"
 

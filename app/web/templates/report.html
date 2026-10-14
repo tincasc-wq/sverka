@@ -5,6 +5,12 @@
 <h1>{{ r.seed.title or "Публикация" }}</h1>
 <p class="muted">Проверка от {{ check.finished_at.isoformat() | msk }} · {% if r.seed.url.startswith('user-text://') %}проверяли текст{% else %}<a href="{{ r.seed.url }}" target="_blank" rel="noopener">исходная публикация</a>{% endif %}</p>
 
+{% if r.followup %}
+<div class="card" style="border-color:#B3261E;background:#fbe7e5">
+  <b style="color:#B3261E">⚠️ Есть обновление:</b> после этой проверки вышла поправка — {{ r.followup.status_text }}.
+  <a href="/r/{{ r.followup.token }}">Обновлённый отчёт →</a>
+</div>
+{% endif %}
 {% if r.primary %}
 <div class="card row">
   <div><div class="muted">Первоисточник</div>
@@ -26,13 +32,24 @@
 </div>
 {% endif %}
 {% set a = r.analysis %}
+{% if a and a.corrections %}
+<div class="card" style="border-color:#B3261E;background:#fbe7e5">
+  <b style="color:#B3261E">⚠️ Позднее вышла поправка</b>
+  {% for c in a.corrections %}
+  <p style="margin:6px 0 0"><a href="{{ c.url }}" target="_blank" rel="noopener">{{ c.source }}</a>, {{ c.time | msk }}:
+    «{{ c.quote }}»{% if c.discrepancy %}<br><span class="muted">{{ c.discrepancy }}</span>{% endif %}</p>
+  {% endfor %}
+  <p class="muted" style="margin:6px 0 0">Утверждение оспорено: источник, у которого есть свои данные, прямо исправляет прежние сообщения.
+    Число изданий, повторивших первую версию, этого не перевешивает.</p>
+</div>
+{% endif %}
 {% if a and a.error %}
 <p class="tag bad">Сверка утверждений не выполнена: языковая модель недоступна.</p>
 {% elif a %}
 <div class="card row">
   <div><div class="muted">Индекс подтверждённости</div>
     <span class="big">{{ "%g"|format(a.index) if a.index is not none else "—" }}</span> <span class="muted">из 100</span>
-    <br><span class="tag {{ 'good' if a.status == 'widely_confirmed' else 'bad' if a.status == 'refuted' else 'probable' }}">{{ a.status_text }}</span></div>
+    <br><span class="tag {{ 'good' if a.status == 'widely_confirmed' else 'bad' if a.status in ('refuted', 'disputed') else 'probable' }}">{{ a.status_text }}</span></div>
   <div><div class="muted">Сверено публикаций</div><span class="big">{{ a.verified_documents }}</span></div>
   <div class="muted" style="max-width:340px">Цитат отброшено проверкой: {{ a.rejected_quotes }}<br>
     Противоречий с низкой уверенностью: {{ a.low_confidence }}</div>
@@ -45,13 +62,15 @@
   {% if c.attributed_to %}<span class="muted"> · по данным: {{ c.attributed_to }}</span>{% endif %}
   {% if not c.checkable %}<span class="tag">мнение — не проверяется</span>
   {% elif c.independent_groups == 0 %}<span class="tag">нет независимых подтверждений</span>
+  {% elif c.status == 'disputed' %}<span class="tag bad">оспорено поправкой · {{ "%g"|format(c.index) }}</span>
   {% else %}<span class="tag {{ 'good' if c.status == 'widely_confirmed' else 'bad' if c.status == 'refuted' else 'probable' }}">{{ "%g"|format(c.index) }} · независимых групп: {{ c.independent_groups }}</span>{% endif %}
   {% if c.evidence %}
   <table style="margin-top:8px">
     {% for e in c.evidence %}
     <tr>
       <td style="width:22%"><a href="{{ e.url }}" target="_blank" rel="noopener">{{ e.source }}</a>{% if not e.independent %}<br><span class="muted">перепечатка</span>{% endif %}</td>
-      <td style="width:16%">{{ {"supports": "подтверждает", "contradicts": "противоречит", "refines": "уточняет"}.get(e.stance, e.stance) }}
+      <td style="width:16%">{{ {"supports": "подтверждает", "contradicts": "противоречит", "corrects": "поправка", "refines": "уточняет"}.get(e.stance, e.stance) }}
+        {% if e.sourcing == 'retelling' and e.stance in ('supports', 'refines') %}<br><span class="tag">пересказ — не засчитан</span>{% endif %}
         {% if e.low_confidence %}<br><span class="tag probable">низкая уверенность</span>{% endif %}</td>
       <td class="muted">«{{ e.quote }}»{% if e.discrepancy %}<br><b>Расхождение:</b> {{ e.discrepancy }}{% endif %}</td>
     </tr>

@@ -171,6 +171,17 @@ async def run_watches(ctx: dict) -> str:
 
 
 @single_flight
+async def follow_up_checks(ctx: dict) -> str:
+    """Отслеживание поправок к недавним проверкам (app/followups.py)."""
+    from app.followups import run_followups
+
+    result = await run_followups(SessionLocal, ctx["embedder"], ctx.get("llm"), ctx.get("bot"))
+    if result:
+        log.info("followups: %s", result)
+    return str(result)
+
+
+@single_flight
 async def purge_personal_data(ctx: dict) -> str:
     """Сроки хранения из политики обработки ПДн (/privacy): что обещано — то и удаляется."""
     from sqlalchemy import text
@@ -211,6 +222,7 @@ class WorkerSettings:
         web_check,
         purge_personal_data,
         run_watches,
+        follow_up_checks,
     ]
     cron_jobs = [
         # Таймаут с запасом: полные тексты после простоя качаются долго; single_flight не даёт
@@ -223,6 +235,7 @@ class WorkerSettings:
         # Сроки хранения персональных данных (/privacy); 03:30 по Москве.
         cron(purge_personal_data, hour=0, minute=30, unique=True, timeout=600),
         cron(run_watches, minute=set(range(4, 60, 10)), unique=True, timeout=3000),
+        cron(follow_up_checks, minute={17, 47}, unique=True, timeout=1500),
     ]
     on_startup = startup
     on_shutdown = shutdown

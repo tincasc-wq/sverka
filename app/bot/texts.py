@@ -165,6 +165,7 @@ def format_check(
 
 
 CLAIM_MARK = {
+    "disputed": "⚠️",
     "widely_confirmed": "✅",
     "partially_confirmed": "☑️",
     "not_confirmed": "❔",
@@ -174,14 +175,22 @@ CLAIM_MARK = {
 
 def _claim_line(claim: dict) -> str:
     supports = [
-        e for e in claim["evidence"] if e["stance"] in ("supports", "refines") and e["independent"]
+        e
+        for e in claim["evidence"]
+        if e["stance"] in ("supports", "refines")
+        and e["independent"]
+        and e.get("sourcing") != "retelling"
     ]
     contra = [
-        e for e in claim["evidence"] if e["stance"] == "contradicts" and not e["low_confidence"]
+        e
+        for e in claim["evidence"]
+        if e["stance"] in ("corrects", "contradicts") and not e["low_confidence"]
     ]
+    contra.sort(key=lambda e: e["stance"] != "corrects")  # поправка важнее противоречия
     if contra:
         e = contra[0]
-        detail = f" — противоречит {escape(e['source'])}"
+        verb = "поправка от" if e["stance"] == "corrects" else "противоречит"
+        detail = f" — {verb} {escape(e['source'])}"
         if e.get("discrepancy"):
             detail += f": {escape(e['discrepancy'])}"
     elif supports:
@@ -200,7 +209,13 @@ def _analysis_lines(analysis: dict | None) -> list[str]:
     if analysis.get("index") is None:
         return [f"Индекс подтверждённости: {escape(analysis['status_text'])}.", ""]
     status = escape(analysis["status_text"])
-    lines = [f"<b>Индекс подтверждённости: {analysis['index']:g} из 100</b> — {status}"]
+    lines = []
+    for c in analysis.get("corrections") or []:
+        lines.append(
+            f"⚠️ <b>Позднее вышла поправка:</b> {_link(c)}, {_time(c['time'])} — "
+            f"«{escape(c['quote'] or '')}»"
+        )
+    lines.append(f"<b>Индекс подтверждённости: {analysis['index']:g} из 100</b> — {status}")
     checkable = [c for c in analysis["claims"] if c["checkable"]][:3]
     lines += [_claim_line(c) for c in checkable]
     return [*lines, ""]

@@ -5,7 +5,12 @@
 b₀ = (R₀ − 50)/25 — смещение по рейтингу первоисточника; s — знак позиции группы
 (+1 подтверждает, −1 противоречит, +0.5 уточняет); w — вес типа источника; R — рейтинг.
 Независимая группа — группа владения, чья первая публикация в истории не заимствована
-(корень графа). Перепечатки подтверждением не считаются.
+(корень графа). Перепечатки подтверждением не считаются — и пересказы тоже: издание без
+собственного источника («как сообщают СМИ») повторяет чужое, даже если владелец другой.
+
+Поправка (corrects) — публикация прямо исправляет прежние сообщения. Если она есть от
+независимой группы, утверждение «оспорено» и индекс ограничен сверху: ошибка, которую
+повторили многие, не перевешивает одну поправку от знающего источника.
 """
 
 import math
@@ -13,7 +18,7 @@ from dataclasses import dataclass, field
 
 from app.core.scoring import IndexConfig
 
-STANCE_PRIORITY = {"contradicts": 3, "supports": 2, "refines": 1, "unrelated": 0}
+STANCE_PRIORITY = {"corrects": 4, "contradicts": 3, "supports": 2, "refines": 1, "unrelated": 0}
 
 
 @dataclass(frozen=True)
@@ -23,6 +28,7 @@ class Evidence:
     rating: float | None  # рейтинг источника 0–100; None — нет в реестре
     stance: str
     independent: bool
+    sourcing: str | None = None  # own | retelling | None (не определено)
 
 
 @dataclass
@@ -55,6 +61,8 @@ def score_claim(
     for e in evidence:
         if not e.independent or e.stance == "unrelated":
             continue
+        if e.sourcing == "retelling" and e.stance in ("supports", "refines"):
+            continue  # пересказ без своего источника не подтверждает
         current = by_group.get(e.group)
         if current is None or STANCE_PRIORITY[e.stance] > STANCE_PRIORITY[current.stance]:
             by_group[e.group] = e
@@ -67,6 +75,10 @@ def score_claim(
         for e in by_group.values()
     )
     index = round(100 * sigmoid(total), 1)
+    if any(e.stance == "corrects" for e in by_group.values()):
+        return ClaimScore(
+            min(index, cfg.correction_cap), "disputed", {g: e.stance for g, e in by_group.items()}
+        )
     # Без независимых сообщений число отражает только репутацию первоисточника —
     # называть это «подтверждено» нельзя.
     status = status_for(index, cfg) if by_group else "not_confirmed"
@@ -104,4 +116,6 @@ def score_news(
         # Число здесь отражало бы только репутацию первоисточника — не показываем его.
         return NewsScore(None, "no_independent", scores)
     index = round(sum(i * w for i, w in weighted) / sum(w for _, w in weighted), 1)
+    if any(s.status == "disputed" for s, ok in zip(scores, checkable, strict=True) if ok):
+        return NewsScore(min(index, cfg.correction_cap), "disputed", scores)
     return NewsScore(index, status_for(index, cfg), scores)

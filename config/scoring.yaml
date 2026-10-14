@@ -13,8 +13,10 @@ confirmation_index:
   stance_sign:
     supports: 1.0
     contradicts: -1.0
+    corrects: -1.5     # поправка: прямо исправляет прежние сообщения
     refines: 0.5
     unrelated: 0.0
+  correction_cap: 35   # при поправке от независимого источника индекс не выше — «оспорено»
   main_claim_weight: 2.0
   too_early_hours: 6
   statuses:            # нижняя граница включительно

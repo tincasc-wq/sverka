@@ -121,7 +121,11 @@ async def checks_in_period(session: AsyncSession, user: User, period: str) -> in
     return await session.scalar(
         select(func.count())
         .select_from(Check)
-        .where(Check.user_id == user.id, Check.created_at >= period_start(period))
+        .where(
+            Check.user_id == user.id,
+            Check.created_at >= period_start(period),
+            Check.channel.is_distinct_from("auto"),  # отслеживание поправок — за счёт сервиса
+        )
     )
 
 

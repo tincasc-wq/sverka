@@ -30,6 +30,10 @@ class Check(CreatedAtMixin, Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Неугадываемая часть ссылки на веб-отчёт /r/<token>: id подряд перебирались бы.
     public_token: Mapped[str | None] = mapped_column(String(32), unique=True)
+    # Отслеживание поправок (app/followups.py): когда последний раз смотрели, сколько раз
+    # перепроверяли автоматически.
+    auto_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    auto_runs: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
 
 
 class Claim(Base):
@@ -57,6 +61,8 @@ class ClaimEvidence(Base):
     quote: Mapped[str | None] = mapped_column(Text)
     discrepancy: Mapped[dict | None] = mapped_column(JSONB)
     is_independent: Mapped[bool] = mapped_column(Boolean, server_default="false", default=False)
+    # own — у публикации свой источник; retelling — пересказ чужого (подтверждением не считается).
+    sourcing: Mapped[str | None] = mapped_column(String(16))
 
 
 class Watch(CreatedAtMixin, Base):

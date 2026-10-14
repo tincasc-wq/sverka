@@ -23,6 +23,7 @@ STATUS_RU = {
     "partially_confirmed": "частично подтверждено",
     "not_confirmed": "не подтверждено",
     "refuted": "есть опровержения",
+    "disputed": "оспорено: позднее вышла поправка",
     "too_early": "слишком рано: независимых сообщений ещё нет",
     "no_checkable_claims": "нет проверяемых утверждений",
     "no_independent": "не подтверждено: независимых сообщений в архиве нет",
@@ -152,7 +153,9 @@ async def analyze(
     # Второй контур (раздел 13): противоречия перепроверяет другая, более сильная модель со
     # своим промптом (prompts/dispute.md) — «могут ли оба быть верны одновременно».
     disputed_docs = [
-        docs[i] for i, (res, _) in verified.items() if any(r.stance == "contradicts" for r in res)
+        docs[i]
+        for i, (res, _) in verified.items()
+        if any(r.stance in ("contradicts", "corrects") for r in res)
     ]
     second = (
         await verify_many(
@@ -184,12 +187,13 @@ async def analyze(
         for c in claims_out
     ]
     low_confidence = 0
+    corrections: list[dict] = []
     for doc_id, (results, _) in verified.items():
         node = nodes[doc_id]
         checked = {r.claim: r for r in second.get(doc_id, ([], 0))[0]}
         for r in results:
             stance, flag = r.stance, False
-            if r.stance == "contradicts" and doc_id in second:
+            if r.stance in ("contradicts", "corrects") and doc_id in second:
                 again = checked.get(r.claim)
                 if again is not None and again.stance in ("supports", "refines"):
                     # Вторая модель нашла, что факты совместимы, и подкрепила это своей цитатой:
@@ -197,10 +201,14 @@ async def analyze(
                     # примеров и совместимые подробности).
                     r = again
                     stance = again.stance
-                elif again is None or again.stance != "contradicts":
+                elif again is None or again.stance not in ("contradicts", "corrects"):
                     # Модели разошлись — в индекс не идёт, показываем как «низкая уверенность».
                     stance, flag = "unrelated", True
                     low_confidence += 1
+                elif "corrects" in (r.stance, again.stance):
+                    # Обе согласны, что факты несовместимы; хоть одна увидела явную поправку.
+                    stance = "corrects"
+                    r = r if r.stance == "corrects" else again
             idx = r.claim - 1
             session.add(
                 ClaimEvidence(
@@ -212,6 +220,7 @@ async def analyze(
                     if r.discrepancy or flag
                     else None,
                     is_independent=independent[doc_id],
+                    sourcing=r.sourcing,
                 )
             )
             if stance == "unrelated" and not flag:
@@ -223,6 +232,7 @@ async def analyze(
                     rating=ratings.get(node.source.id) if node.source else None,
                     stance=stance,
                     independent=independent[doc_id],
+                    sourcing=r.sourcing,
                 )
             )
             report_claims[idx]["evidence"].append(
@@ -233,9 +243,22 @@ async def analyze(
                     "quote": r.quote,
                     "discrepancy": r.discrepancy,
                     "independent": independent[doc_id],
+                    "sourcing": r.sourcing,
                     "low_confidence": flag,
                 }
             )
+            if stance == "corrects" and not flag and independent[doc_id]:
+                doc = docs[doc_id]
+                corrections.append(
+                    {
+                        "claim": texts[idx],
+                        "source": node.source.display_name if node.source else node.group,
+                        "url": node.url,
+                        "time": (doc.published_at or doc.first_seen_at).isoformat(),
+                        "quote": r.quote,
+                        "discrepancy": r.discrepancy,
+                    }
+                )
 
     seed_time = seed.published_at or seed.first_seen_at
     hours = (datetime.now(UTC) - seed_time).total_seconds() / 3600
@@ -267,6 +290,8 @@ async def analyze(
         "status_text": status_text,
         "coverage": coverage,
         "claims": report_claims,
+        # Поправки от независимых источников — показываются первыми в отчёте и в боте.
+        "corrections": sorted(corrections, key=lambda c: c["time"]),
         "verified_documents": len(verified),
         "rejected_quotes": rejected,
         "low_confidence": low_confidence,

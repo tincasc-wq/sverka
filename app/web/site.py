@@ -69,7 +69,10 @@ async def home(request: Request, session: Session):
     if user is not None:
         recent = list(
             await session.scalars(
-                select(Check).where(Check.user_id == user.id).order_by(Check.id.desc()).limit(5)
+                select(Check)
+                .where(Check.user_id == user.id, Check.channel.is_distinct_from("auto"))
+                .order_by(Check.id.desc())
+                .limit(5)
             )
         )
     return await page(request, session, "home.html", user=user, recent=recent, value="", error=None)
@@ -132,7 +135,10 @@ async def history(request: Request, session: Session):
     if user is not None:
         checks = list(
             await session.scalars(
-                select(Check).where(Check.user_id == user.id).order_by(Check.id.desc()).limit(100)
+                select(Check)
+                .where(Check.user_id == user.id, Check.channel.is_distinct_from("auto"))
+                .order_by(Check.id.desc())
+                .limit(100)
             )
         )
     return await page(request, session, "history.html", user=user, checks=checks)
