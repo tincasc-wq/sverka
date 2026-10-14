@@ -18,6 +18,7 @@ from app.core.scoring import IndexConfig
 from app.followups import follow_up, news_of_correction
 from app.models import Check, Document, Source, User
 from app.pipeline.index import Evidence, score_claim
+from app.pipeline.story import distinctive_names
 from app.plans import checks_in_period
 from tests.test_embeddings import FakeEmbedder
 from tests.test_llm import answer, client
@@ -47,7 +48,16 @@ def model(request: httpx.Request) -> httpx.Response:
     """Модель по содержимому публикации: пересказ, свой источник, поправка."""
     user = json.loads(request.content)["messages"][1]["content"]
     if "Кандидаты:" in user:
-        return answer({"decisions": []})
+        # То же событие — кандидаты про этот танкер (их нашли по имени, а не по близости).
+        docs = user.split("Кандидаты:")[1].split("<document id=")[1:]
+        return answer(
+            {
+                "decisions": [
+                    {"id": i, "same_event": "Minerva" in d, "reason": "тот же танкер"}
+                    for i, d in enumerate(docs, 1)
+                ]
+            }
+        )
     if "<claims>" not in user:
         return answer({"claims": [{"text": CLAIM}]})
     doc = user.split("<document>")[1]
@@ -205,3 +215,23 @@ def test_only_new_corrections_are_news() -> None:
     )
     worse = news_of_correction({"status": "widely_confirmed"}, {"status": "refuted"})
     assert worse and worse[0]["source"] is None
+
+
+def test_distinctive_names_keep_rare_proper_names() -> None:
+    names = distinctive_names(SEED + " По данным Vortexa, танкер шёл из Санкт-Петербурга.", 8)
+    assert "minerva" in names and "vortexa" in names
+    assert "первая" not in names  # слово в начале предложения — не имя
+
+
+async def test_ironic_correction_far_by_embedding_is_found_by_name(
+    session: AsyncSession,
+) -> None:
+    seed, sources = await _story(session, with_correction=False)
+    # Ирония про капитана и канистры: по эмбеддингу далеко (как 0.53 в жизни), но то же судно.
+    await _doc(session, "https://t.me/op/47128", 0.5, 3000, sources[5], JOKE)
+
+    check = await run_check(session, f"doc:{seed.id}", FakeEmbedder(), llm=client(model))
+    analysis = json.loads(check.summary)["analysis"]
+
+    assert analysis["status"] == "disputed"
+    assert [c["source"] for c in analysis["corrections"]] == ["Оперативная линия"]

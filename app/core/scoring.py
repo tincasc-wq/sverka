@@ -18,6 +18,12 @@ class ClusteringConfig(BaseModel):
     candidates_top_k: int = 50
     title_trgm_threshold: float = 0.5
     crosslingual_offset: float = 0.08  # прибавка к близости пар на разных языках
+    # Поиск по редким именам (6.2): публикация в окне, где упомянуто то же редкое имя
+    # (название судна, компании, фамилия), идёт на решение LLM при любой близости.
+    # Поправки и опровержения часто сформулированы совсем иначе (Minerva Zen: 0.53).
+    name_max_docs: int = 20  # имя встречается не больше чем в стольких публикациях окна
+    name_terms: int = 8  # сколько имён из новости проверять
+    name_candidates: int = 6  # сколько таких публикаций отдавать на решение LLM
 
 
 class GraphConfig(BaseModel):

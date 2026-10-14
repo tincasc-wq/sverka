@@ -1,6 +1,7 @@
 """Сборка истории вокруг публикации: кандидаты → кластер → граф → запись в БД (6.2–6.3)."""
 
 import math
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -26,6 +27,7 @@ class Candidate:
     # core — точно то же событие; probable — та же тема рядом по времени, решит LLM (6.2 п.3).
     membership: str = "core"
     llm_reason: str | None = None  # объяснение LLM, если решение «то же событие?» принимала она
+    by_name: str | None = None  # найдена по редкому имени из новости — на решение LLM
 
 
 @dataclass
@@ -39,6 +41,24 @@ class StoryResult:
     sources: dict[int, SourceInfo] = field(default_factory=dict)
 
 
+LATIN_NAME = re.compile(r"\b[A-Z][A-Za-z0-9-]{3,}\b")
+CYR_WORD = re.compile(r"(?<![.!?…\n«\"])\s([А-ЯЁ][а-яё]{4,})")
+
+
+def distinctive_names(text: str, limit: int) -> list[str]:
+    """Имена собственные из новости: латиница с заглавной (MINERVA, Vortexa) и русские
+    слова с заглавной не в начале предложения. Русские — по основе, без окончания:
+    «Минервой», «Минерва» найдутся по «Минерв». Частые имена отсеиваются по числу
+    публикаций (США, Трамп) — здесь только кандидаты."""
+    found: dict[str, None] = {}
+    for word in LATIN_NAME.findall(text):
+        found.setdefault(word.lower(), None)
+    for word in CYR_WORD.findall(text):
+        stem = word[:-2] if len(word) > 6 else word[:-1]
+        found.setdefault(stem.lower(), None)
+    return sorted(found, key=len, reverse=True)[:limit]
+
+
 def _event_time(doc: Document):
     return func.coalesce(doc.published_at, doc.first_seen_at)
 
@@ -48,6 +68,7 @@ async def find_candidates(
 ) -> list[Candidate]:
     if seed.embedding is None:
         raise SeedNotEmbedded(f"document {seed.id} has no embedding yet")
+    c = cfg.clustering
     center = seed.published_at or seed.first_seen_at
     window = timedelta(hours=cfg.clustering.window_hours)
     in_window = _event_time(Document).between(center - window, center + window)
@@ -99,6 +120,38 @@ async def find_candidates(
         sims = await shifted(found, raw)
     candidates = {i: Candidate(d, sims[i]) for i, d in found.items()}
 
+    # Редкие имена: та же Minerva Zen, сказанная другими словами (поправка, ирония).
+    names = distinctive_names(" ".join(p for p in (seed.title, seed.text) if p), c.name_terms)
+    by_name: list[Candidate] = []
+    for name in names:
+        if len(by_name) >= c.name_candidates:
+            break
+        mentions = Document.text.ilike(f"%{name}%") | Document.title.ilike(f"%{name}%")
+        base = select(Document).where(
+            Document.id != seed.id,
+            in_window,
+            mentions,
+            ~Document.url.startswith(USER_TEXT_PREFIX),
+        )
+        count = await session.scalar(select(func.count()).select_from(base.subquery()))
+        if not count or count > c.name_max_docs:
+            continue  # не встречается — или слишком частое имя, чтобы что-то значить
+        for doc in await session.scalars(base.limit(c.name_candidates)):
+            if any(b.document.id == doc.id for b in by_name):
+                continue
+            known = candidates.get(doc.id)
+            if known is not None:
+                # Уже нашли по эмбеддингу, но слишком далеко для LLM — имя даёт ему шанс.
+                weak = known.similarity is not None and known.similarity < c.llm_review_from
+                if weak:
+                    known.by_name = name
+                    by_name.append(known)
+                continue
+            sim = _dot(seed_vec, _unit(doc.embedding)) if doc.embedding is not None else None
+            by_name.append(Candidate(doc, sim, by_name=name))
+    for cand in by_name[: c.name_candidates]:
+        candidates[cand.document.id] = cand
+
     # Свежие публикации без эмбеддинга ещё не попали в векторный поиск — ловим по заголовку.
     if seed.title:
         title_sim = func.similarity(Document.title, seed.title)
@@ -112,7 +165,9 @@ async def find_candidates(
             )
         )
         for doc in rows:
-            candidates.setdefault(doc.id, Candidate(doc, None))
+            # Совпавший заголовок важнее находки по имени: это то же событие без LLM.
+            if doc.id not in candidates or candidates[doc.id].by_name is not None:
+                candidates[doc.id] = Candidate(doc, None)
     return list(candidates.values())
 
 
@@ -174,7 +229,8 @@ async def _apply_judge(
     остаётся как было — с пометкой «вероятно».
     """
     doubtful = [c for c in members if c.membership == "probable"] + borderline
-    doubtful.sort(key=lambda c: -(c.similarity or 0))
+    # Найденные по редкому имени — первыми: иначе их, далёких по эмбеддингу, отрезал бы лимит.
+    doubtful.sort(key=lambda c: (c.by_name is None, -(c.similarity or 0)))
     doubtful = doubtful[:MAX_JUDGED]
     if not doubtful:
         return members, borderline
@@ -246,6 +302,10 @@ def is_same_event(
     события тоже бывают ~0.83, поэтому средняя близость засчитывается только рядом по времени.
     """
     c = cfg.clustering
+    if candidate.by_name is not None and (
+        candidate.similarity is None or candidate.similarity < c.strong_threshold
+    ):
+        return False  # найдена только по имени — решает LLM, а не близость
     if candidate.similarity is None or candidate.similarity >= c.strong_threshold:
         candidate.membership = "core"  # почти совпадающий заголовок или высокая близость
         return True
@@ -286,8 +346,10 @@ async def build_story(
         c
         for c in candidates
         if c.document.id not in member_ids
-        and c.similarity is not None
-        and c.similarity >= cfg.clustering.llm_review_from
+        and (
+            c.by_name is not None
+            or (c.similarity is not None and c.similarity >= cfg.clustering.llm_review_from)
+        )
     ]
     if judge is not None:
         members, borderline = await _apply_judge(judge, seed, members, borderline, cfg)
