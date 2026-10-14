@@ -276,9 +276,14 @@ async def analyze(
             )
             if stance == "corrects" and not flag and independent[doc_id]:
                 doc = docs[doc_id]
+                same = next((c for c in corrections if c["url"] == node.url), None)
+                if same is not None:
+                    same["claims"].append(texts[idx])  # одна публикация — одна запись
+                    continue
                 corrections.append(
                     {
                         "claim": texts[idx],
+                        "claims": [texts[idx]],
                         "source": node.source.display_name if node.source else node.group,
                         "source_type": node.source.type if node.source else None,
                         "url": node.url,

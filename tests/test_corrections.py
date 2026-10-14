@@ -154,7 +154,8 @@ async def test_minerva_zen_is_disputed_not_confirmed(session: AsyncSession) -> N
     assert by_source["Издание А"]["sourcing"] == "retelling"
     assert claim["independent_groups"] == 3  # Lloyd's List, две поправки; пересказы — нет
     sources = [c["source"] for c in analysis["corrections"]]
-    assert sources == ["The Defense News", "Оперативная линия"]  # по времени
+    assert sources == ["The Defense News", "Оперативная линия"]  # по времени, без повторов
+    assert analysis["corrections"][0]["claims"] == [CLAIM]
 
     text = texts.format_check(json.loads(check.summary), None, "http://x/r/1")
     assert "Позднее вышла поправка" in text and "The Defense News" in text
