@@ -95,12 +95,26 @@ async def web_check(ctx: dict, check_id: int, use_cache: bool = True) -> str:
     return f"check={check.id} {check.status}"
 
 
+async def clear_stale_in_progress(redis) -> int:
+    """Воркер один: после перезапуска ни одна прежняя задача на самом деле не выполняется.
+
+    Отметки «в работе» от убитого процесса arq держит до истечения таймаута задачи — всё это
+    время прерванная проверка висит в очереди. Снимаем их, чтобы задачи пошли заново сразу.
+    """
+    keys = [key async for key in redis.scan_iter(match="arq:in-progress:*")]
+    if keys:
+        await redis.delete(*keys)
+    return len(keys)
+
+
 async def startup(ctx: dict) -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter("%(asctime)s %(name)s: %(message)s", "%H:%M:%S"))
     sverka_log = logging.getLogger("sverka")
     sverka_log.addHandler(handler)
     sverka_log.setLevel(logging.INFO)
+    if stale := await clear_stale_in_progress(ctx["redis"]):
+        log.info("сняты отметки прерванных задач: %d", stale)
     ctx["embedder"] = SentenceTransformerEmbedder()
     from app.llm import LlmClient
 
