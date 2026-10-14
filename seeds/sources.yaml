@@ -340,6 +340,9 @@ sources:
   - {name: Москвач, type: aggregator, handle_or_domain: "@moscowach", aliases: [Москвач]}
   - {name: ТОПОР, type: aggregator, handle_or_domain: "@topor", aliases: [ТОПОР, Топор]}
   - {name: Караульный, type: aggregator, handle_or_domain: "@karaulny", aliases: [Караульный, «Караульный»]}
+  # Авторский канал блогера (не агрегатор): веб-превью t.me/s открывается, Telethon не нужен.
+  - {name: Анатолий Шарий, type: tg, handle_or_domain: "@ASupersharij", owner: Анатолий Шарий,
+     aliases: [Шарий, Шария, Шарию, Анатолий Шарий, Анатолия Шария]}
   - {name: Yahoo News, type: aggregator, handle_or_domain: news.yahoo.com, owner: Yahoo,
      rss: "https://news.yahoo.com/rss/", lang: en, aliases: [Yahoo News, Yahoo]}
   - {name: The Week, type: aggregator, handle_or_domain: theweek.com, owner: Future plc,
