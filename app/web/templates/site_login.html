@@ -11,6 +11,7 @@
   .login-top h1 { color:#fff; font-size:24px; margin:0; letter-spacing:.2px; }
   .login-top .by { color:#c8d1e0; font-size:13px; margin-top:4px; }
   .login-top .by b { color:#E9A36F; font-weight:600; }
+  .login-top .by a { text-decoration:none; } .login-top .by a:hover b { text-decoration:underline; }
   .login-body { padding:20px 24px 24px; }
   .login-body p { margin:0 0 12px; }
   .login-widget { display:flex; justify-content:center; margin:16px 0 6px; min-height:44px; }
@@ -24,7 +25,7 @@
   <div class="login-top">
     <img src="/static/fox-256.png?v=2" alt="Лис — знак компании «Ангрист»" width="128" height="128">
     <h1>Сверка</h1>
-    <div class="by">проверка новостей · проект компании <b>«Ангрист»</b></div>
+    <div class="by">проверка новостей · проект компании <a href="https://ангрист.рф" target="_blank" rel="noopener"><b>«Ангрист»</b></a></div>
   </div>
   <div class="login-body">
   {% if user and (user.tg_id or user.email) %}

@@ -352,3 +352,90 @@ sources:
   - {name: AllSides, type: aggregator, handle_or_domain: allsides.com, owner: AllSides,
      rss: "https://www.allsides.com/rss/news", lang: en, via_gateway: true,
      legal_flags: {geo_blocks_ru: "403 для российских адресов, 14.10.2026"}, aliases: [AllSides]}
+
+  # Региональные СМИ (14.10.2026). Ленты проверены с сервера: отвечают, свежие записи
+  # (не старше 3 ч). Не взяты — нет RSS по типовым адресам или не пускают сборщик:
+  # 36on, 56orb, 78.ru, B-port, Бабр, Бел.ру, IRK.ru, Клопс, Новый Калининград, Myslo,
+  # Newslab, NewsNN, ProPerm, Реальное время, Sakhalin.info, Петербургский дневник,
+  # Югра-news, VSE42, Ykt.ru, DVHAB, Пенза-Информ — можно добавить позже вручную.
+  #
+  # Городские порталы одной сети (общая платформа /rss-feeds/rss.xml) — одна группа
+  # владения: часто перепечатывают друг у друга федеральные новости, поэтому их сообщения
+  # об одном событии считаются одним подтверждением, а не шестнадцатью. Владельцу — уточнить.
+  - {name: Фонтанка, type: media, handle_or_domain: fontanka.ru, owner: Сеть городских порталов,
+     rss: "https://www.fontanka.ru/rss-feeds/rss.xml",
+     aliases: [Фонтанка, Фонтанки, Фонтанке, Фонтанка.ру, Fontanka]}
+  - {name: E1 (Екатеринбург), type: media, handle_or_domain: e1.ru, owner: Сеть городских порталов,
+     rss: "https://www.e1.ru/rss-feeds/rss.xml", aliases: [E1, Е1, E1.RU]}
+  - {name: НГС (Новосибирск), type: media, handle_or_domain: ngs.ru, owner: Сеть городских порталов,
+     rss: "https://ngs.ru/rss-feeds/rss.xml", aliases: [НГС, NGS.RU]}
+  - {name: НГС24 (Красноярск), type: media, handle_or_domain: ngs24.ru, owner: Сеть городских порталов,
+     rss: "https://ngs24.ru/rss-feeds/rss.xml", aliases: [НГС24]}
+  - {name: НГС55 (Омск), type: media, handle_or_domain: ngs55.ru, owner: Сеть городских порталов,
+     rss: "https://ngs55.ru/rss-feeds/rss.xml", aliases: [НГС55]}
+  - {name: 74.ru (Челябинск), type: media, handle_or_domain: 74.ru, owner: Сеть городских порталов,
+     rss: "https://74.ru/rss-feeds/rss.xml", aliases: [74.ru, 74.RU]}
+  - {name: 161.ru (Ростов-на-Дону), type: media, handle_or_domain: 161.ru, owner: Сеть городских порталов,
+     rss: "https://161.ru/rss-feeds/rss.xml", aliases: [161.ru, 161.RU]}
+  - {name: 93.ru (Краснодар), type: media, handle_or_domain: 93.ru, owner: Сеть городских порталов,
+     rss: "https://93.ru/rss-feeds/rss.xml", aliases: [93.ru, 93.RU]}
+  - {name: V1.ru (Волгоград), type: media, handle_or_domain: v1.ru, owner: Сеть городских порталов,
+     rss: "https://v1.ru/rss-feeds/rss.xml", aliases: [V1.ru, V1.RU]}
+  - {name: 63.ru (Самара), type: media, handle_or_domain: 63.ru, owner: Сеть городских порталов,
+     rss: "https://63.ru/rss-feeds/rss.xml", aliases: [63.ru, 63.RU]}
+  - {name: 59.ru (Пермь), type: media, handle_or_domain: 59.ru, owner: Сеть городских порталов,
+     rss: "https://59.ru/rss-feeds/rss.xml", aliases: [59.ru, 59.RU]}
+  - {name: 72.ru (Тюмень), type: media, handle_or_domain: 72.ru, owner: Сеть городских порталов,
+     rss: "https://72.ru/rss-feeds/rss.xml", aliases: [72.ru, 72.RU]}
+  - {name: 76.ru (Ярославль), type: media, handle_or_domain: 76.ru, owner: Сеть городских порталов,
+     rss: "https://76.ru/rss-feeds/rss.xml", aliases: [76.ru, 76.RU]}
+  - {name: 29.ru (Архангельск), type: media, handle_or_domain: 29.ru, owner: Сеть городских порталов,
+     rss: "https://29.ru/rss-feeds/rss.xml", aliases: [29.ru, 29.RU]}
+  - {name: NN.ru (Нижний Новгород), type: media, handle_or_domain: nn.ru, owner: Сеть городских порталов,
+     rss: "https://www.nn.ru/rss-feeds/rss.xml", aliases: [NN.ru, NN.RU]}
+  - {name: Ufa1 (Уфа), type: media, handle_or_domain: ufa1.ru, owner: Сеть городских порталов,
+     rss: "https://ufa1.ru/rss-feeds/rss.xml", aliases: [Ufa1, UFA1.RU]}
+
+  # Региональные информагентства (в основном учредители — власти регионов).
+  - {name: Татар-информ, type: agency, handle_or_domain: tatar-inform.ru, owner: Татар-информ,
+     rss: "https://www.tatar-inform.ru/rss", aliases: [Татар-информ, «Татар-информ»]}
+  - {name: Башинформ, type: agency, handle_or_domain: bashinform.ru, owner: Башинформ,
+     rss: "https://www.bashinform.ru/rss/yandex", aliases: [Башинформ, «Башинформ»]}
+  - {name: РИА Дагестан, type: agency, handle_or_domain: riadagestan.ru, owner: РИА Дагестан,
+     rss: "https://riadagestan.ru/rss", aliases: [РИА Дагестан, «РИА Дагестан»]}
+  - {name: Грозный-информ, type: agency, handle_or_domain: grozny-inform.ru, owner: Грозный-информ,
+     rss: "https://grozny-inform.ru/feeds/rss/index.xml", aliases: [Грозный-информ, «Грозный-информ»]}
+  - {name: Крыминформ, type: agency, handle_or_domain: c-inform.info, owner: Крыминформ,
+     rss: "https://c-inform.info/rss", aliases: [Крыминформ, «Крыминформ»]}
+  - {name: РИА Новости Крым, type: agency, handle_or_domain: crimea.ria.ru, owner: МИА «Россия сегодня»,
+     rss: "https://crimea.ria.ru/export/rss2/index.xml", aliases: [РИА Новости Крым]}
+  - {name: РИА Воронеж, type: agency, handle_or_domain: riavrn.ru, owner: РИА Воронеж,
+     rss: "https://riavrn.ru/news/ya-widget-rss/", aliases: [РИА Воронеж, «РИА Воронеж»]}
+
+  # Региональные СМИ
+  - {name: БИЗНЕС Online, type: media, handle_or_domain: business-gazeta.ru, owner: БИЗНЕС Online,
+     rss: "https://www.business-gazeta.ru/rss.xml",
+     aliases: [БИЗНЕС Online, «БИЗНЕС Online», Бизнес Онлайн]}
+  - {name: Вечерняя Москва, type: media, handle_or_domain: vm.ru, owner: Вечерняя Москва,
+     rss: "https://vm.ru/rss", aliases: [Вечерняя Москва, «Вечерняя Москва», «Вечерней Москвы», ВМ]}
+  - {name: Кубанские новости, type: media, handle_or_domain: kubnews.ru, owner: Кубанские новости,
+     rss: "https://kubnews.ru/rss/", aliases: [Кубанские новости, «Кубанские новости»]}
+  - {name: Победа26, type: media, handle_or_domain: pobeda26.ru, owner: Победа26,
+     rss: "https://pobeda26.ru/yandex.rss", aliases: [Победа26, «Победа26»]}
+  - {name: Взгляд-инфо (Саратов), type: media, handle_or_domain: vzsar.ru, owner: Взгляд-инфо,
+     rss: "https://www.vzsar.ru/rss/", aliases: [Взгляд-инфо, «Взгляд-инфо»]}
+  - {name: 66.ru (Екатеринбург), type: media, handle_or_domain: 66.ru, owner: 66.ru,
+     rss: "https://66.ru/feed/", aliases: [66.ru, 66.RU]}
+  - {name: Izhlife (Ижевск), type: media, handle_or_domain: izhlife.ru, owner: Izhlife,
+     rss: "https://izhlife.ru/rss.xml", aliases: [Izhlife]}
+  - {name: Алтапресс (Барнаул), type: media, handle_or_domain: altapress.ru, owner: Алтапресс,
+     rss: "https://altapress.ru/rss", aliases: [Алтапресс, «Алтапресс»]}
+  - {name: Амител (Барнаул), type: media, handle_or_domain: amic.ru, owner: Амител,
+     rss: "https://www.amic.ru/rss", aliases: [Амител, amic.ru]}
+  - {name: vtomske (Томск), type: media, handle_or_domain: vtomske.ru, owner: vtomske,
+     rss: "https://vtomske.ru/rss/news", aliases: [vtomske]}
+  - {name: PrimaMedia (Приморье), type: media, handle_or_domain: primamedia.ru, owner: PrimaMedia,
+     rss: "https://primamedia.ru/news/export/rss/?sSourceNamePattern=%25s%2Fnews_main%25d.rss",
+     aliases: [PrimaMedia, ПримаМедиа]}
+  - {name: ЯСИА (Якутия), type: media, handle_or_domain: ysia.ru, owner: ЯСИА,
+     rss: "https://ysia.ru/feed/", aliases: [ЯСИА, «ЯСИА»]}
