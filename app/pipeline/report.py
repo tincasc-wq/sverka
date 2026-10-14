@@ -141,7 +141,9 @@ def build_report(result: StoryResult, cfg: GraphConfig) -> dict:
             {
                 "url": c.document.url,
                 "title": _short(c.document.title or c.document.text),
-                "similarity": round(c.similarity, 3),
+                # Найденные по имени могут быть ещё без эмбеддинга — близости нет.
+                "similarity": round(c.similarity, 3) if c.similarity is not None else None,
+                "by_name": c.by_name,
             }
             for c in result.borderline
         ],

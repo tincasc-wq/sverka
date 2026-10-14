@@ -101,7 +101,7 @@
 {% if r.borderline %}
 <h2>Похожие, но, вероятно, другие события</h2>
 <table>
-  {% for b in r.borderline %}<tr><td class="muted">{{ "%.2f"|format(b.similarity) }}</td><td><a href="{{ b.url }}" target="_blank" rel="noopener">{{ b.title }}</a></td></tr>{% endfor %}
+  {% for b in r.borderline %}<tr><td class="muted">{% if b.similarity is not none %}{{ "%.2f"|format(b.similarity) }}{% else %}по имени{% endif %}</td><td><a href="{{ b.url }}" target="_blank" rel="noopener">{{ b.title }}</a></td></tr>{% endfor %}
 </table>
 {% endif %}
 

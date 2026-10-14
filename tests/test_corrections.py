@@ -235,3 +235,15 @@ async def test_ironic_correction_far_by_embedding_is_found_by_name(
 
     assert analysis["status"] == "disputed"
     assert [c["source"] for c in analysis["corrections"]] == ["Оперативная линия"]
+
+
+async def test_name_match_without_embedding_does_not_break_report(session: AsyncSession) -> None:
+    seed, sources = await _story(session, with_correction=False)
+    # Свежая публикация: эмбеддинга ещё нет, найдена только по имени; LLM нет — в «пограничные».
+    await _doc(session, "https://t.me/op/1", None, 600, sources[5], "Minerva Zen ушла из порта")
+
+    check = await run_check(session, f"doc:{seed.id}", FakeEmbedder())
+    report = json.loads(check.summary)
+
+    [found] = [b for b in report["borderline"] if b["url"] == "https://t.me/op/1"]
+    assert found["similarity"] is None and found["by_name"] == "minerva"
