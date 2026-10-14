@@ -4,7 +4,7 @@
   .\deploy\deploy.ps1 setup -Server 1.2.3.4   # один раз: настройка чистого VPS (от root)
   .\deploy\deploy.ps1 env                      # загрузить .env.prod → ~/sverka/.env
   .\deploy\deploy.ps1 push                     # выложить текущий коммит и пересобрать
-  .\deploy\deploy.ps1 db                       # перенести базу с локальной машины
+  .\deploy\deploy.ps1 db --overwrite-production  # ЗАМЕНИТЬ рабочую базу локальной (только первый перенос!)
   .\deploy\deploy.ps1 model                    # перенести модель эмбеддингов (если HF недоступен)
   .\deploy\deploy.ps1 images                   # перенести базовые образы (если Docker Hub недоступен)
   .\deploy\deploy.ps1 ps | logs [сервис] | backup | ssh
@@ -85,6 +85,13 @@ switch ($Command) {
         Write-Host "Готово. Не забудьте остановить локального бота: wsl ... docker compose stop bot"
     }
     "db" {
+        # 14.10.2026 эта команда по ошибке затёрла рабочую базу локальной копией.
+        # Только для первого переноса на пустой сервер — и только с явным флагом.
+        if ($Arg -ne "--overwrite-production") {
+            Write-Error ("db ЗАМЕНЯЕТ рабочую базу на сервере локальной копией. " +
+                         "Если это действительно нужно: .\deploy\deploy.ps1 db --overwrite-production")
+            exit 1
+        }
         Write-Host "Снимаю дамп локальной базы…"
         LocalShell "docker compose exec -T db pg_dump -U sverka -Fc sverka > sverka.dump"
         Upload "sverka" (Join-Path $Root "sverka.dump") "/tmp/sverka.dump"
