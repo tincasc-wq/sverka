@@ -14,3 +14,4 @@ __pycache__/
 *.dump
 *.tar
 .tmp/
+backups/
