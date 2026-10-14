@@ -339,6 +339,7 @@ sources:
      rss: "https://news.mail.ru/rss/", aliases: [Новости Mail, Новости Mail.ru, «Новости Mail»]}
   - {name: Москвач, type: aggregator, handle_or_domain: "@moscowach", aliases: [Москвач]}
   - {name: ТОПОР, type: aggregator, handle_or_domain: "@topor", aliases: [ТОПОР, Топор]}
+  - {name: Караульный, type: aggregator, handle_or_domain: "@karaulny", aliases: [Караульный, «Караульный»]}
   - {name: Yahoo News, type: aggregator, handle_or_domain: news.yahoo.com, owner: Yahoo,
      rss: "https://news.yahoo.com/rss/", lang: en, aliases: [Yahoo News, Yahoo]}
   - {name: The Week, type: aggregator, handle_or_domain: theweek.com, owner: Future plc,
