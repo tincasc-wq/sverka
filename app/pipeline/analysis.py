@@ -24,6 +24,7 @@ STATUS_RU = {
     "not_confirmed": "не подтверждено",
     "refuted": "есть опровержения",
     "disputed": "оспорено: позднее вышла поправка",
+    "questioned": "под вопросом: есть сообщение о поправке, нужен второй источник",
     "too_early": "слишком рано: независимых сообщений ещё нет",
     "no_checkable_claims": "нет проверяемых утверждений",
     "no_independent": "не подтверждено: независимых сообщений в архиве нет",
@@ -279,6 +280,7 @@ async def analyze(
                     {
                         "claim": texts[idx],
                         "source": node.source.display_name if node.source else node.group,
+                        "source_type": node.source.type if node.source else None,
                         "url": node.url,
                         "time": (doc.published_at or doc.first_seen_at).isoformat(),
                         "quote": r.quote,

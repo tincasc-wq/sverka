@@ -11,12 +11,18 @@ b₀ = (R₀ − 50)/25 — смещение по рейтингу первои�
 Поправка (corrects) — публикация прямо исправляет прежние сообщения. Если она есть от
 независимой группы, утверждение «оспорено» и индекс ограничен сверху: ошибка, которую
 повторили многие, не перевешивает одну поправку от знающего источника.
+
+Сильная поправка — от СМИ, агентства, ведомства со своим источником или от двух групп.
+Одна поправка из Telegram/VK (бывает и шуточной, как у Minerva Zen) — «под вопросом»:
+ждём второго источника.
 """
 
 import math
 from dataclasses import dataclass, field
 
 from app.core.scoring import IndexConfig
+
+WEAK_CORRECTION_TYPES = {"tg", "vk"}
 
 STANCE_PRIORITY = {"corrects": 4, "contradicts": 3, "supports": 2, "refines": 1, "unrelated": 0}
 
@@ -75,10 +81,16 @@ def score_claim(
         for e in by_group.values()
     )
     index = round(100 * sigmoid(total), 1)
-    if any(e.stance == "corrects" for e in by_group.values()):
-        return ClaimScore(
-            min(index, cfg.correction_cap), "disputed", {g: e.stance for g, e in by_group.items()}
+    groups = {g: e.stance for g, e in by_group.items()}
+    corrections = [e for e in by_group.values() if e.stance == "corrects"]
+    if corrections:
+        strong = len(corrections) >= 2 or any(
+            e.source_type not in WEAK_CORRECTION_TYPES and e.sourcing != "retelling"
+            for e in corrections
         )
+        if strong:
+            return ClaimScore(min(index, cfg.correction_cap), "disputed", groups)
+        return ClaimScore(min(index, cfg.weak_correction_cap), "questioned", groups)
     # Без независимых сообщений число отражает только репутацию первоисточника —
     # называть это «подтверждено» нельзя.
     status = status_for(index, cfg) if by_group else "not_confirmed"
@@ -116,6 +128,9 @@ def score_news(
         # Число здесь отражало бы только репутацию первоисточника — не показываем его.
         return NewsScore(None, "no_independent", scores)
     index = round(sum(i * w for i, w in weighted) / sum(w for _, w in weighted), 1)
-    if any(s.status == "disputed" for s, ok in zip(scores, checkable, strict=True) if ok):
+    statuses = {s.status for s, ok in zip(scores, checkable, strict=True) if ok}
+    if "disputed" in statuses:
         return NewsScore(min(index, cfg.correction_cap), "disputed", scores)
+    if "questioned" in statuses:
+        return NewsScore(min(index, cfg.weak_correction_cap), "questioned", scores)
     return NewsScore(index, status_for(index, cfg), scores)

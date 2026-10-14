@@ -128,6 +128,14 @@ def test_correction_outweighs_any_number_of_repeats() -> None:
     assert confirmed.status == "widely_confirmed"
     assert corrected.status == "disputed" and corrected.index <= CFG.correction_cap
 
+    # Одна поправка из Telegram — «под вопросом»; вторая независимая — уже «оспорено».
+    def tg(group: str) -> Evidence:
+        return Evidence(group, "tg", 50, "corrects", True, "own")
+
+    weak = score_claim([*repeats, tg("channel")], 50, CFG)
+    assert weak.status == "questioned" and weak.index <= CFG.weak_correction_cap
+    assert score_claim([*repeats, tg("channel"), tg("other")], 50, CFG).status == "disputed"
+
     # Пересказы без своего источника подтверждением не считаются.
     retold = score_claim([ev(f"r{i}", "supports", "retelling") for i in range(10)], 50, CFG)
     assert retold.independent_groups == {} and retold.status == "not_confirmed"
@@ -233,7 +241,8 @@ async def test_ironic_correction_far_by_embedding_is_found_by_name(
     check = await run_check(session, f"doc:{seed.id}", FakeEmbedder(), llm=client(model))
     analysis = json.loads(check.summary)["analysis"]
 
-    assert analysis["status"] == "disputed"
+    # Одна поправка из Telegram без второго источника — «под вопросом», а не «оспорено».
+    assert analysis["status"] == "questioned" and analysis["index"] <= CFG.weak_correction_cap
     assert [c["source"] for c in analysis["corrections"]] == ["Оперативная линия"]
 
 
@@ -273,5 +282,6 @@ async def test_correction_in_next_episode_is_still_found(session: AsyncSession) 
     analysis = report["analysis"]
 
     assert report["publications"] == 4  # в историю не вошёл — это другой эпизод
-    assert analysis["status"] == "disputed"
+    # Одна поправка из Telegram без второго источника — «под вопросом», а не «оспорено».
+    assert analysis["status"] == "questioned" and analysis["index"] <= CFG.weak_correction_cap
     assert [c["source"] for c in analysis["corrections"]] == ["Оперативная линия"]

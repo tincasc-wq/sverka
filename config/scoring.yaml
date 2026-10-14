@@ -17,6 +17,7 @@ confirmation_index:
     refines: 0.5
     unrelated: 0.0
   correction_cap: 35   # при поправке от независимого источника индекс не выше — «оспорено»
+  weak_correction_cap: 50  # одна поправка из Telegram/VK без второго источника — «под вопросом»
   main_claim_weight: 2.0
   too_early_hours: 6
   statuses:            # нижняя граница включительно

@@ -445,3 +445,26 @@ sources:
      aliases: [PrimaMedia, ПримаМедиа]}
   - {name: ЯСИА (Якутия), type: media, handle_or_domain: ysia.ru, owner: ЯСИА,
      rss: "https://ysia.ru/feed/", aliases: [ЯСИА, «ЯСИА»]}
+
+  # Морская отраслевая пресса и издания, давшие поправку о Minerva Zen (15.10.2026).
+  # Ленты проверены с сервера. Без RSS: The Defense News; за платной подпиской: Lloyd's List,
+  # TradeWinds. TankerTrackers пишет в X — X пока не собираем (нужен платный API).
+  - {name: gCaptain, type: media, handle_or_domain: gcaptain.com, owner: gCaptain, lang: en,
+     rss: "https://gcaptain.com/feed/", aliases: [gCaptain]}
+  - {name: Splash247, type: media, handle_or_domain: splash247.com, owner: Asia Shipping Media, lang: en,
+     rss: "https://splash247.com/feed/", aliases: [Splash247, Splash]}
+  - {name: The Maritime Executive, type: media, handle_or_domain: maritime-executive.com,
+     owner: The Maritime Executive, lang: en, rss: "https://maritime-executive.com/articles.rss",
+     aliases: [The Maritime Executive, Maritime Executive]}
+  - {name: Offshore Energy, type: media, handle_or_domain: offshore-energy.biz, owner: Navingo, lang: en,
+     rss: "https://www.offshore-energy.biz/feed", aliases: [Offshore Energy]}
+  - {name: WWAY (Уилмингтон, США), type: media, handle_or_domain: wwaytv3.com, owner: WWAY, lang: en,
+     via_gateway: true, legal_flags: {geo_blocks_ru: "не отвечает российским адресам, 15.10.2026"},
+     rss: "https://www.wwaytv3.com/feed/", aliases: [WWAY, WWAY TV3]}
+  - {name: Censor.net (English), type: media, handle_or_domain: censor.net, owner: Цензор.нет, lang: en,
+     via_gateway: true,
+     legal_flags: {blocked_in_ru: "таймаут из РФ, 15.10.2026", needs_legal_review: "сверить с перечнями Минюста"},
+     rss: "https://assets.censor.net/rss/censor.net/rss_en_news.xml", aliases: [Censor.net, Цензор.нет]}
+  - {name: NV (English), type: media, handle_or_domain: english.nv.ua, owner: Новое время, lang: en,
+     legal_flags: {needs_legal_review: "сверить с перечнями Минюста"},
+     rss: "https://english.nv.ua/rss/all_english.xml", aliases: [NV, The New Voice of Ukraine, Новое время]}

@@ -166,6 +166,7 @@ def format_check(
 
 CLAIM_MARK = {
     "disputed": "⚠️",
+    "questioned": "❓",
     "widely_confirmed": "✅",
     "partially_confirmed": "☑️",
     "not_confirmed": "❔",
@@ -210,10 +211,11 @@ def _analysis_lines(analysis: dict | None) -> list[str]:
         return [f"Индекс подтверждённости: {escape(analysis['status_text'])}.", ""]
     status = escape(analysis["status_text"])
     lines = []
+    weak = analysis.get("status") == "questioned"
     for c in analysis.get("corrections") or []:
+        head = "Сообщают о поправке (один источник)" if weak else "Позднее вышла поправка"
         lines.append(
-            f"⚠️ <b>Позднее вышла поправка:</b> {_link(c)}, {_time(c['time'])} — "
-            f"«{escape(c['quote'] or '')}»"
+            f"⚠️ <b>{head}:</b> {_link(c)}, {_time(c['time'])} — «{escape(c['quote'] or '')}»"
         )
     lines.append(f"<b>Индекс подтверждённости: {analysis['index']:g} из 100</b> — {status}")
     checkable = [c for c in analysis["claims"] if c["checkable"]][:3]

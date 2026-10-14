@@ -34,13 +34,18 @@
 {% set a = r.analysis %}
 {% if a and a.corrections %}
 <div class="card" style="border-color:#B3261E;background:#fbe7e5">
-  <b style="color:#B3261E">⚠️ Позднее вышла поправка</b>
+  <b style="color:#B3261E">⚠️ {% if a.status == 'questioned' %}Есть сообщение о поправке{% else %}Позднее вышла поправка{% endif %}</b>
   {% for c in a.corrections %}
   <p style="margin:6px 0 0"><a href="{{ c.url }}" target="_blank" rel="noopener">{{ c.source }}</a>, {{ c.time | msk }}:
     «{{ c.quote }}»{% if c.discrepancy %}<br><span class="muted">{{ c.discrepancy }}</span>{% endif %}</p>
   {% endfor %}
+  {% if a.status == 'questioned' %}
+  <p class="muted" style="margin:6px 0 0">Пока это одно сообщение из Telegram — подтверждения из второго источника нет.
+    Новость не считается подтверждённой, но и окончательно оспоренной тоже.</p>
+  {% else %}
   <p class="muted" style="margin:6px 0 0">Утверждение оспорено: источник, у которого есть свои данные, прямо исправляет прежние сообщения.
     Число изданий, повторивших первую версию, этого не перевешивает.</p>
+  {% endif %}
 </div>
 {% endif %}
 {% if a and a.error %}
@@ -49,7 +54,7 @@
 <div class="card row">
   <div><div class="muted">Индекс подтверждённости</div>
     <span class="big">{{ "%g"|format(a.index) if a.index is not none else "—" }}</span> <span class="muted">из 100</span>
-    <br><span class="tag {{ 'good' if a.status == 'widely_confirmed' else 'bad' if a.status in ('refuted', 'disputed') else 'probable' }}">{{ a.status_text }}</span></div>
+    <br><span class="tag {{ 'good' if a.status == 'widely_confirmed' else 'bad' if a.status in ('refuted', 'disputed', 'questioned') else 'probable' }}">{{ a.status_text }}</span></div>
   <div><div class="muted">Сверено публикаций</div><span class="big">{{ a.verified_documents }}</span></div>
   <div class="muted" style="max-width:340px">Цитат отброшено проверкой: {{ a.rejected_quotes }}<br>
     Противоречий с низкой уверенностью: {{ a.low_confidence }}</div>
@@ -63,6 +68,7 @@
   {% if not c.checkable %}<span class="tag">мнение — не проверяется</span>
   {% elif c.independent_groups == 0 %}<span class="tag">нет независимых подтверждений</span>
   {% elif c.status == 'disputed' %}<span class="tag bad">оспорено поправкой · {{ "%g"|format(c.index) }}</span>
+  {% elif c.status == 'questioned' %}<span class="tag probable">под вопросом: сообщение о поправке · {{ "%g"|format(c.index) }}</span>
   {% else %}<span class="tag {{ 'good' if c.status == 'widely_confirmed' else 'bad' if c.status == 'refuted' else 'probable' }}">{{ "%g"|format(c.index) }} · независимых групп: {{ c.independent_groups }}</span>{% endif %}
   {% if c.evidence %}
   <table style="margin-top:8px">

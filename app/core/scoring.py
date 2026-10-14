@@ -81,6 +81,9 @@ class IndexConfig(BaseModel):
     # Поправка от независимого источника: утверждение «оспорено», индекс не выше этого —
     # сколько бы изданий ни повторили ошибку раньше (случай Minerva Zen, 14.10.2026).
     correction_cap: float = 35
+    # Одна поправка из Telegram/VK без второго источника (шуточный пост, слух): новость уже
+    # не «подтверждена», но и не «оспорена» — «под вопросом», индекс не выше этого.
+    weak_correction_cap: float = 50
     main_claim_weight: float = 2.0
     too_early_hours: float = 6
     statuses: dict[str, float] = {

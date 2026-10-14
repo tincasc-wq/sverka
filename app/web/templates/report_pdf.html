@@ -74,7 +74,7 @@
 
 {% set a = r.analysis %}
 {% if a and a.corrections %}
-<div class="box warn" style="border-color:#B3261E"><b>Позднее вышла поправка.</b>
+<div class="box warn" style="border-color:#B3261E"><b>{% if a.status == 'questioned' %}Есть сообщение о поправке (пока из одного источника).{% else %}Позднее вышла поправка.{% endif %}</b>
   {% for c in a.corrections %}<br>{{ c.source }}, {{ c.time | msk }}: «{{ c.quote }}»{% if c.discrepancy %} — {{ c.discrepancy }}{% endif %}{% endfor %}
   <div class="small muted">Утверждение оспорено: источник со своими данными прямо исправляет прежние сообщения.</div></div>
 {% endif %}
@@ -82,7 +82,7 @@
   {% if a and not a.error %}
   <div class="fact"><div class="label">Индекс подтверждённости</div>
     <div class="value">{{ "%g"|format(a.index) if a.index is not none else "—" }}<span class="small muted"> из 100</span></div>
-    <span class="tag {{ 'good' if a.status == 'widely_confirmed' else 'bad' if a.status in ('refuted', 'disputed') else 'probable' }}">{{ a.status_text }}</span></div>
+    <span class="tag {{ 'good' if a.status == 'widely_confirmed' else 'bad' if a.status in ('refuted', 'disputed', 'questioned') else 'probable' }}">{{ a.status_text }}</span></div>
   {% endif %}
   <div class="fact"><div class="label">Публикаций о событии</div><div class="value">{{ r.publications }}</div></div>
   <div class="fact"><div class="label">Независимых групп</div><div class="value">{{ r.independent_reports }}</div></div>
@@ -106,6 +106,7 @@
   {% if not c.checkable %}<span class="tag">мнение — не проверяется</span>
   {% elif c.independent_groups == 0 %}<span class="tag">нет независимых подтверждений</span>
   {% elif c.status == 'disputed' %}<span class="tag bad">оспорено поправкой · {{ "%g"|format(c.index) }}</span>
+  {% elif c.status == 'questioned' %}<span class="tag probable">под вопросом · {{ "%g"|format(c.index) }}</span>
   {% else %}<span class="tag {{ 'good' if c.status == 'widely_confirmed' else 'bad' if c.status == 'refuted' else 'probable' }}">{{ "%g"|format(c.index) }} · независимых групп: {{ c.independent_groups }}</span>{% endif %}
   {% if c.evidence %}
   <table style="margin-top:4px">

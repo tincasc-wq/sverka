@@ -32,7 +32,7 @@ log = logging.getLogger("sverka.followups")
 AUTO_HOURS = 72  # сколько следим после проверки
 AUTO_EVERY = timedelta(hours=6)  # не чаще
 AUTO_MAX_RUNS = 6  # не больше перепроверок на одну проверку
-WORSE = {"disputed", "refuted"}
+WORSE = {"disputed", "refuted", "questioned"}
 
 
 def _analysis(check: Check) -> dict:
@@ -107,15 +107,16 @@ def notice_text(origin: Check, fresh: list[dict], new: Check):
         else:
             lines_html.append(f"• теперь: {escape(c.get('status_text') or '')}")
             lines_text.append(f"— теперь: {c.get('status_text') or ''}")
+    status = _analysis(new).get("status_text") or ""
     html = "\n".join(
         [f"⚠️ <b>Поправка к новости, которую вы проверяли:</b> {escape(title)}", ""]
         + lines_html
-        + ["", f"Обновлённый отчёт: {escape(url)}"]
+        + ["", f"Сейчас: {escape(status)}", f"Обновлённый отчёт: {escape(url)}"]
     )
     text = "\n".join(
         [f"Поправка к новости, которую вы проверяли: «{title}»", ""]
         + lines_text
-        + ["", f"Обновлённый отчёт: {url}"]
+        + ["", f"Сейчас: {status}", f"Обновлённый отчёт: {url}"]
     )
     return Notice(html, text, f"Сверка: поправка — {title}")
 
