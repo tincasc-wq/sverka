@@ -136,12 +136,12 @@ sources:
   - {name: Военная хроника, type: tg, handle_or_domain: "@Warhronika", aliases: [«Военная хроника»]}
   - {name: СОЛОВЬЁВ, type: tg, handle_or_domain: "@SolovievLive"}
   - {name: Baza, type: tg, handle_or_domain: "@bazabazon", aliases: [Baza]}
-  - {name: Осторожно, новости, type: aggregator, handle_or_domain: "@ostorozhno_novosti", aliases: [«Осторожно, новости»]}
+  - {name: "Осторожно, новости", type: aggregator, handle_or_domain: "@ostorozhno_novosti", aliases: ["«Осторожно, новости»", "Осторожно, новости"]}
   - {name: Лентач, type: tg, handle_or_domain: "@lentachold", aliases: [Лентач]}
   - {name: Новости Москвы, type: tg, handle_or_domain: "@moscowmap"}
   - {name: Полит.Ру, type: tg, handle_or_domain: "@polit_ru", aliases: [Полит.ру, Полит.Ру]}
   - {name: Банкста, type: tg, handle_or_domain: "@banksta", aliases: [Банкста]}
-  - {name: Банки, деньги, два офшора, type: tg, handle_or_domain: "@bankrollo"}
+  - {name: "Банки, деньги, два офшора", type: tg, handle_or_domain: "@bankrollo"}
   - {name: Сигналы РЦБ, type: tg, handle_or_domain: "@cbrstocks", aliases: [Сигналы РЦБ]}
   - {name: Фонтанка (TG), type: tg, handle_or_domain: "@fontankaspb", aliases: [Фонтанка, «Фонтанка»]}
   - {name: E1.RU (TG), type: tg, handle_or_domain: "@e1_news", aliases: [E1.RU, E1.ru]}
