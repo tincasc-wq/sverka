@@ -247,3 +247,31 @@ async def test_name_match_without_embedding_does_not_break_report(session: Async
 
     [found] = [b for b in report["borderline"] if b["url"] == "https://t.me/op/1"]
     assert found["similarity"] is None and found["by_name"] == "minerva"
+
+
+async def test_correction_in_next_episode_is_still_found(session: AsyncSession) -> None:
+    """Как в жизни 14.10.2026: модель сочла пост о прибытии танкера «другим эпизодом»."""
+    seed, sources = await _story(session, with_correction=False)
+    await _doc(session, "https://t.me/op/47128", 0.5, 3000, sources[5], JOKE)
+
+    def other_episode(request: httpx.Request) -> httpx.Response:
+        user = json.loads(request.content)["messages"][1]["content"]
+        if "Кандидаты:" in user:
+            docs = user.split("Кандидаты:")[1].split("<document id=")[1:]
+            return answer(
+                {
+                    "decisions": [
+                        {"id": i, "same_event": False, "reason": "другой эпизод: прибытие"}
+                        for i, _ in enumerate(docs, 1)
+                    ]
+                }
+            )
+        return model(request)
+
+    check = await run_check(session, f"doc:{seed.id}", FakeEmbedder(), llm=client(other_episode))
+    report = json.loads(check.summary)
+    analysis = report["analysis"]
+
+    assert report["publications"] == 4  # в историю не вошёл — это другой эпизод
+    assert analysis["status"] == "disputed"
+    assert [c["source"] for c in analysis["corrections"]] == ["Оперативная линия"]

@@ -14,7 +14,7 @@ from app.models import Claim, ClaimEvidence, Document, LlmCall, SourceScore
 from app.pipeline.graph import Node
 from app.pipeline.index import Evidence, score_news
 from app.pipeline.llm_steps import extract_claims, judge_same_event, verify_many
-from app.pipeline.story import EventJudge, StoryResult
+from app.pipeline.story import EventJudge, StoryResult, to_node
 
 USD_RUB = 90  # для отображения расходов в отчёте; тарифы провайдеров — в долларах
 
@@ -150,6 +150,22 @@ async def analyze(
     )
     rejected = sum(r for _, r in verified.values())
 
+    # Соседние эпизоды по тому же редкому имени: поправка часто приходит как «следующая
+    # новость» («танкер прибыл — а там удобрения»). Ищем в них только поправки и противоречия.
+    related_docs = [
+        c.document for c in result.borderline if c.by_name is not None and c.document.id not in docs
+    ][: cfg.confirmation_index.max_related_documents]
+    related = (
+        await verify_many(client, session, texts, related_docs, check_id=check_id, claims_from=seed)
+        if texts and related_docs
+        else {}
+    )
+    for doc_id, (results, rej) in related.items():
+        kept = [r for r in results if r.stance in ("contradicts", "corrects")]
+        if kept:
+            verified[doc_id] = (kept, rej)
+            docs[doc_id] = next(d for d in related_docs if d.id == doc_id)
+
     # Второй контур (раздел 13): противоречия перепроверяет другая, более сильная модель со
     # своим промптом (prompts/dispute.md) — «могут ли оба быть верны одновременно».
     disputed_docs = [
@@ -171,7 +187,11 @@ async def analyze(
         else {}
     )
 
-    ratings = await latest_ratings(session, {n.source.id for n, _ in targets if n.source})
+    ratings = await latest_ratings(
+        session,
+        {n.source.id for n, _ in targets if n.source}
+        | {d.source_id for d in related_docs if d.source_id},
+    )
     primary = nodes.get(result.graph.primary_id) if result.graph.primary_id else None
     rating_node = primary if primary and primary.source else nodes[seed.id]
     primary_rating = ratings.get(rating_node.source.id) if rating_node.source else None
@@ -181,6 +201,12 @@ async def analyze(
         )
 
     independent = {n.id: ind for n, ind in targets}
+    # Узлы соседних эпизодов: в граф истории не входят, своя группа — независимы от новости.
+    seed_group = nodes[seed.id].group
+    for doc_id, doc in docs.items():
+        if doc_id not in nodes:
+            nodes[doc_id] = to_node(doc, result.sources)
+            independent[doc_id] = nodes[doc_id].group != seed_group
     evidence: list[list[Evidence]] = [[] for _ in texts]
     report_claims = [
         {"text": c.text, "attributed_to": c.attributed_to, "checkable": c.checkable, "evidence": []}
