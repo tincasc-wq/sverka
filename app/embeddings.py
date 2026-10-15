@@ -28,10 +28,10 @@ class SentenceTransformerEmbedder:
             import torch
             from sentence_transformers import SentenceTransformer
 
-            # Оставляем ядра сборщикам и БД; длиннее 512 токенов для поиска похожих не нужно.
+            # Оставляем ядро сборщикам и БД; длина — embedding_max_tokens (см. настройки).
             torch.set_num_threads(get_settings().embedding_threads)
             self._model = SentenceTransformer(self.model_name, device="cpu")
-            self._model.max_seq_length = 512
+            self._model.max_seq_length = get_settings().embedding_max_tokens
         vectors = self._model.encode(texts, normalize_embeddings=True, batch_size=len(texts))
         return [v.tolist() for v in vectors]
 

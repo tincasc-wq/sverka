@@ -26,7 +26,10 @@ class Settings(BaseSettings):
     # Эмбеддинги
     embedding_model: str = "BAAI/bge-m3"
     embedding_batch_size: int = 32
-    embedding_max_chars: int = 2000
+    # 256 токенов (заголовок и начало текста): в 1,75 раза быстрее 512, близость сдвигается
+    # в среднем на 0,014 — замер на 30 парах публикаций, 15.10.2026. 128 — уже до 0,22.
+    embedding_max_chars: int = 1200
+    embedding_max_tokens: int = 256
     # Из 4 ядер сервера. Днём приходит до 1 300 публикаций в час — на 2 ядрах модель шла
     # вровень с притоком и при любой задержке отставала навсегда (15.10.2026).
     embedding_threads: int = 3
