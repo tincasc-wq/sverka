@@ -153,7 +153,8 @@ async def collect_telegram(ctx: dict) -> str:
 @single_flight
 async def embed_documents(ctx: dict) -> int:
     async with SessionLocal() as session:
-        count = await embed_pending(session, ctx["embedder"])
+        # Бюджет заметно меньше таймаута задачи (900 с): останавливаемся сами, между пачками.
+        count = await embed_pending(session, ctx["embedder"], limit=1024, budget_seconds=600)
     if count:
         log.info("embedded %d documents", count)
     return count

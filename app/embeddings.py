@@ -1,6 +1,7 @@
 """Эмбеддинги публикаций для смыслового поиска (bge-m3, 1024 измерения, локально)."""
 
 import asyncio
+import time
 from typing import Protocol
 
 from sqlalchemy import select
@@ -38,23 +39,65 @@ def document_text(doc: Document, max_chars: int) -> str:
     return "\n".join(p for p in (doc.title, doc.text) if p)[:max_chars]
 
 
-async def embed_pending(session: AsyncSession, embedder: Embedder, limit: int = 256) -> int:
-    """Считает эмбеддинги для документов без них. Возвращает число обработанных."""
+async def _copy_from_twins(session: AsyncSession, docs: list[Document]) -> list[Document]:
+    """Одинаковые тексты (городские порталы одной сети публикуют одно и то же по 16 раз)
+    получают уже посчитанный вектор двойника. Возвращает тех, кому считать всё же нужно."""
+    rest = []
+    for doc in docs:
+        twin = None
+        if doc.simhash is not None:
+            twin = await session.scalar(
+                select(Document.embedding)
+                .where(
+                    Document.simhash == doc.simhash,
+                    Document.title.is_not_distinct_from(doc.title),
+                    Document.embedding.is_not(None),
+                    Document.id != doc.id,
+                )
+                .limit(1)
+            )
+        if twin is not None:
+            doc.embedding = twin
+        else:
+            rest.append(doc)
+    return rest
+
+
+async def embed_pending(
+    session: AsyncSession,
+    embedder: Embedder,
+    limit: int = 256,
+    budget_seconds: float | None = None,
+) -> int:
+    """Считает эмбеддинги для документов без них. Возвращает число обработанных.
+
+    Сначала свежие: проверяют обычно новости последних часов, а хвост подождёт.
+    budget_seconds — остановиться между пачками, не дожидаясь таймаута задачи: отменённый
+    по таймауту расчёт продолжал крутиться в потоке, следующие запуски множили такие потоки,
+    и 15.10.2026 они задушили процессор — 9 тыс. публикаций за день остались без векторов.
+    """
     settings = get_settings()
     docs = list(
         await session.scalars(
             select(Document)
             .where(Document.embedding.is_(None), Document.text.is_not(None))
-            .order_by(Document.first_seen_at)
+            .order_by(Document.first_seen_at.desc())
             .limit(limit)
         )
     )
+    started = time.monotonic()
+    done = 0
     batch = settings.embedding_batch_size
     for i in range(0, len(docs), batch):
+        if budget_seconds is not None and time.monotonic() - started > budget_seconds:
+            break
         chunk = docs[i : i + batch]
-        texts = [document_text(d, settings.embedding_max_chars) for d in chunk]
-        vectors = await asyncio.to_thread(embedder.embed, texts)
-        for doc, vector in zip(chunk, vectors, strict=True):
-            doc.embedding = vector
+        todo = await _copy_from_twins(session, chunk)
+        if todo:
+            texts = [document_text(d, settings.embedding_max_chars) for d in todo]
+            vectors = await asyncio.to_thread(embedder.embed, texts)
+            for doc, vector in zip(todo, vectors, strict=True):
+                doc.embedding = vector
         await session.commit()
-    return len(docs)
+        done += len(chunk)
+    return done

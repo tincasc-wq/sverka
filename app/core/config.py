@@ -27,7 +27,9 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     embedding_batch_size: int = 32
     embedding_max_chars: int = 2000
-    embedding_threads: int = 2  # из 4 ядер сервера: остальное — проверкам, БД и самому воркеру
+    # Из 4 ядер сервера. Днём приходит до 1 300 публикаций в час — на 2 ядрах модель шла
+    # вровень с притоком и при любой задержке отставала навсегда (15.10.2026).
+    embedding_threads: int = 3
 
     # Вход в админку (временная схема до Telegram Login). Пусто — вход закрыт.
     admin_token: str = ""
