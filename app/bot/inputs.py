@@ -10,8 +10,12 @@ MIN_TEXT_CHARS = 40
 MAX_TEXT_CHARS = 5000
 
 
-# Ссылки, которые не ведут на публикацию: приглашения в каналы и подписка.
-_NOT_A_PUBLICATION = re.compile(r"t\.me/(?:\+|joinchat/)|max\.ru/(?!.*/\d)", re.IGNORECASE)
+# Ссылки, которые не ведут на публикацию: приглашения в каналы и подписка. У Max пост —
+# это max.ru/<канал>/<id>, и id буквенно-цифровой (AaFBz1MBFGw), а не числовой, как у
+# Telegram; ссылка только на канал (max.ru/RT) — призыв подписаться из хвоста поста.
+_NOT_A_PUBLICATION = re.compile(
+    r"t\.me/(?:\+|joinchat/)|max\.ru/(?:join/|[^/?#\s]+/?(?:[?#]|$))", re.IGNORECASE
+)
 # Хвосты постов вида «Подписаться на RT: ТГ | Зеркало | MAX» — не часть новости.
 _PROMO_LINE = re.compile(r"подпис(?:аться|ывайтесь)|наш канал|^[\W_]*$", re.IGNORECASE)
 

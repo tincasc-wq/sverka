@@ -333,6 +333,15 @@ def test_invite_links_are_not_checked() -> None:
     assert extract_input(text).value == "https://ria.ru/2026/1.html"
 
 
+def test_max_post_links_are_checked_but_channel_links_are_not() -> None:
+    # Пост Max: id буквенно-цифровой — это публикация (15.10.2026 сайт отвечал «Не понял»).
+    assert extract_input("https://max.ru/RT/AaFBz1MBFGw").value == "https://max.ru/RT/AaFBz1MBFGw"
+    # Ссылки на канал и приглашения — призыв подписаться, их пропускаем.
+    promo = "Подписаться: https://max.ru/RT https://max.ru/join/abc а новость https://tass.ru/1"
+    assert extract_input(promo).value == "https://tass.ru/1"
+    assert extract_input("https://max.ru/RT/") is None
+
+
 async def test_blocked_post_is_checked_by_forwarded_text(session: AsyncSession) -> None:
     reply = await check_for_chat(
         session,
