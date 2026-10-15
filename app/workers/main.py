@@ -150,11 +150,33 @@ async def collect_telegram(ctx: dict) -> str:
     return result
 
 
+async def alert_on_backlog(ctx: dict, session) -> None:
+    """Очередь на эмбеддинги растёт — сообщить владельцу, не чаще раза в 6 часов."""
+    from app.embeddings import BACKLOG_ALERT, embedding_backlog
+
+    waiting, oldest = await embedding_backlog(session)
+    if waiting <= BACKLOG_ALERT:
+        return
+    redis = ctx.get("redis")
+    if redis is not None and not await redis.set(
+        "sverka:alert:embed_backlog", 1, ex=6 * 3600, nx=True
+    ):
+        return  # уже сообщали
+    from app.bot.texts import msk
+    from app.web.notify import notify_admin
+
+    await notify_admin(
+        f"⚠️ <b>Сверка: эмбеддинги отстают.</b> Без векторов {waiting} публикаций, "
+        f"самая старая — {msk(oldest)}. Проверки не видят свежие публикации."
+    )
+
+
 @single_flight
 async def embed_documents(ctx: dict) -> int:
     async with SessionLocal() as session:
         # Бюджет заметно меньше таймаута задачи (900 с): останавливаемся сами, между пачками.
         count = await embed_pending(session, ctx["embedder"], limit=1024, budget_seconds=600)
+        await alert_on_backlog(ctx, session)
     if count:
         log.info("embedded %d documents", count)
     return count

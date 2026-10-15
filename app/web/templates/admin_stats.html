@@ -7,13 +7,17 @@
 <a href="/admin/stats?days=7">7 дней</a> · <a href="/admin/stats?days=14">14</a> · <a href="/admin/stats?days=30">30</a></p>
 
 {% set t = totals %}
+{% if backlog.alert %}
+<div class="error"><b>Расчёт эмбеддингов не успевает:</b> без векторов {{ backlog.waiting }} публикаций,
+  самая старая — {{ backlog.oldest | msk }}. Проверки не видят эти публикации при поиске похожих.</div>
+{% endif %}
 <div class="card row">
   <div><div class="muted">Пользователей всего</div><span class="big">{{ t.users }}</span>
     <div class="muted">Telegram {{ t.tg }} · почта {{ t.email }} · оба {{ t.both_ }} · без входа {{ t.anonymous }}</div></div>
   <div><div class="muted">Проверок всего</div><span class="big">{{ t.checks }}</span></div>
   <div><div class="muted">Организаций</div><span class="big">{{ t.orgs }}</span></div>
   <div><div class="muted">Архив</div><span class="big">{{ "{:,}".format(t.documents).replace(",", " ") }}</span>
-    <div class="muted">публикаций · источников {{ t.sources }}</div></div>
+    <div class="muted">публикаций · источников {{ t.sources }} · ждут вектора {{ backlog.waiting }}</div></div>
 </div>
 
 <h2>По дням</h2>

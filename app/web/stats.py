@@ -103,4 +103,15 @@ async def collect(session: AsyncSession, days: int = 14) -> dict:
             reason = None
         failed.append({**dict(r._mapping), "reason": reason})
     broken = [dict(r._mapping) for r in await session.execute(BROKEN_SOURCES)]
-    return {"daily": daily, "totals": totals, "failed": failed, "broken": broken, "days": days}
+    from app.embeddings import BACKLOG_ALERT, embedding_backlog
+
+    waiting, oldest = await embedding_backlog(session)
+    backlog = {"waiting": waiting, "oldest": oldest, "alert": waiting > BACKLOG_ALERT}
+    return {
+        "daily": daily,
+        "totals": totals,
+        "failed": failed,
+        "broken": broken,
+        "days": days,
+        "backlog": backlog,
+    }

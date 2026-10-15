@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from datetime import datetime
 from typing import Protocol
 
 from sqlalchemy import select
@@ -101,3 +102,22 @@ async def embed_pending(
         await session.commit()
         done += len(chunk)
     return done
+
+
+# Очередь больше этого — расчёт не успевает за притоком: проверки начинают «не видеть»
+# свежие публикации (15.10.2026 так пропала история про АЭС на Луне).
+BACKLOG_ALERT = 1500
+
+
+async def embedding_backlog(session: AsyncSession) -> tuple[int, datetime | None]:
+    """(сколько публикаций ждут вектора, когда появилась самая старая из них)."""
+    from sqlalchemy import func
+
+    count, oldest = (
+        await session.execute(
+            select(func.count(), func.min(Document.first_seen_at)).where(
+                Document.embedding.is_(None), Document.text.is_not(None)
+            )
+        )
+    ).one()
+    return int(count or 0), oldest
