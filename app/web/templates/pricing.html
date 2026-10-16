@@ -63,8 +63,8 @@
           <label>Проверок в месяц: <b data-out="checks">{{ c.base_checks }}</b>
             <input type="range" name="checks" min="{{ c.base_checks }}" max="{{ c.max_checks }}" step="{{ c.checks_step }}" value="{{ c.base_checks }}"></label>
           {% for o in c.options %}
-          <label class="option" title="{{ o.description }}"><input type="checkbox" name="options" value="{{ o.code }}" data-per-check="{{ o.per_check }}">
-            {{ o.name }} <span class="muted">+{{ '%g'|format(o.per_check) }} ₽ за проверку объёма</span></label>
+          <label class="option" title="{{ o.description }}"><input type="checkbox" name="options" value="{{ o.code }}" data-per-check="{{ o.per_check or 0 }}">
+            {{ o.name }} <span class="muted">{% if o.per_check %}+{{ '%g'|format(o.per_check) }} ₽ за проверку объёма{% else %}доплата по запросу — назовём в ответе на заявку{% endif %}</span></label>
           {% if o.description %}<div class="muted small">{{ o.description }}</div>{% endif %}
           {% endfor %}
           <div class="total">Итого: <b data-out="price">{{ '{:,}'.format(c.base_price).replace(',', ' ') }}</b> ₽/мес</div>

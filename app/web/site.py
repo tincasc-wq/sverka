@@ -339,7 +339,11 @@ async def pricing_request(
     if chosen.constructor:
         # Цену считает сервер: значения из браузера только как пожелание состава.
         price, seats, checks = quote(chosen, seats, checks, set(options))
-        names = [o.name.lower() for o in chosen.constructor.options if o.code in options]
+        names = [
+            o.name.lower() + ("" if o.per_check else " (доплата по запросу)")
+            for o in chosen.constructor.options
+            if o.code in options
+        ]
 
         def num(n: int) -> str:
             return f"{n:,}".replace(",", " ")

@@ -25,7 +25,9 @@ MSK = ZoneInfo("Europe/Moscow")
 class Option(BaseModel):
     code: str
     name: str
-    per_check: float = 0  # ₽ за каждую проверку месячного объёма
+    # ₽ за каждую проверку месячного объёма; None — доплата по запросу (цену называем в ответе
+    # на заявку, в калькуляторе не считаем: российский контур, 16.10.2026, до замера стоимости).
+    per_check: float | None = 0
     description: str = ""
 
 
@@ -137,7 +139,9 @@ def quote(plan: Plan, seats: int, checks: int, options: set[str]) -> tuple[int, 
     steps = -(-(checks - c.base_checks) // c.checks_step)  # вверх до целого шага
     checks = c.base_checks + steps * c.checks_step
     price = c.base_price + (seats - c.base_seats) * c.seat_price + steps * c.checks_step_price
-    price += sum(round(o.per_check * checks) for o in c.options if o.code in options)
+    price += sum(
+        round(o.per_check * checks) for o in c.options if o.code in options and o.per_check
+    )
     return price, seats, checks
 
 
