@@ -296,3 +296,22 @@ async def test_other_language_publication_gets_crosslingual_offset(session: Asyn
 
     assert english.id in {c.document.id for c in result.members}
     assert russian.id not in {c.document.id for c in result.members}
+
+
+async def test_same_headline_joins_story_despite_low_similarity(session: AsyncSession) -> None:
+    from app.pipeline.story import same_headline
+
+    tass = Source(type="agency", name="ТАСС", handle_or_domain="tass.ru")
+    rambler = Source(type="aggregator", name="Рамблер", handle_or_domain="news.rambler.test")
+    session.add_all([tass, rambler])
+    await session.flush()
+    headline = "Лихачев: РФ создаст АЭС на Луне к середине следующего 10-летия"
+    seed = await _doc(session, "https://t.me/x/1", 1.0, 120, None, "Россия построит АЭС на Луне")
+    await _doc(session, "https://news.rambler.test/1", 0.9, 14, rambler, "Текст", title=headline)
+    # «Молния» ТАСС: один заголовок, вектор далёк от длинного поста.
+    flash = await _doc(session, "https://tass.ru/1", 0.6, 0, tass, None, title=headline)
+
+    result = await build_story(session, seed)
+
+    assert flash.id in {c.document.id for c in result.members}
+    assert same_headline(headline, headline + "!") and not same_headline("Взрыв в Киеве", "Взрыв")

@@ -292,6 +292,45 @@ def to_node(doc: Document, sources: dict[int, SourceInfo]) -> Node:
     )
 
 
+_TITLE_WORD = re.compile(r"[0-9A-Za-zА-Яа-яЁё]+")
+SAME_HEADLINE = 0.8  # доля общих слов в заголовках (Жаккар)
+
+
+def _headline_words(title: str | None) -> set[str]:
+    return {w.lower() for w in _TITLE_WORD.findall(title or "")}
+
+
+def same_headline(a: str | None, b: str | None) -> bool:
+    """Заголовки практически совпадают — перепечатка взяла заголовок источника слово в слово."""
+    wa, wb = _headline_words(a), _headline_words(b)
+    if len(wa) < 4 or len(wb) < 4:
+        return False  # «Взрыв в Киеве» совпадёт с чем угодно
+    return len(wa & wb) / len(wa | wb) >= SAME_HEADLINE
+
+
+def _add_same_headline(
+    seed: Document, members: list[Candidate], candidates: list[Candidate]
+) -> list[Candidate]:
+    """Кандидат с тем же заголовком, что у публикации ядра, — то же событие.
+
+    Срочное сообщение агентства часто приходит одним заголовком, и его вектор далёк от
+    длинного пересказа (ТАСС 15.10.2026, АЭС на Луне: 0.705 при пороге 0.75), а перепечатка
+    с тем же заголовком и текстом проходит (Рамблер: 0.862). Без этого правила первоисточник
+    выпадал из истории, а первым оказывался агрегатор.
+    """
+    member_ids = {c.document.id for c in members}
+    titles = [seed.title] + [c.document.title for c in members if c.membership == "core"]
+    added = []
+    for c in candidates:
+        if c.document.id in member_ids or not c.document.title:
+            continue
+        if any(same_headline(c.document.title, t) for t in titles):
+            c.membership = "core"
+            c.llm_reason = c.llm_reason or "тот же заголовок, что у публикации из истории"
+            added.append(c)
+    return members + added
+
+
 def is_same_event(
     seed: Document, candidate: Candidate, cfg: ScoringConfig, official: bool = False
 ) -> bool:
@@ -353,6 +392,9 @@ async def build_story(
     ]
     if judge is not None:
         members, borderline = await _apply_judge(judge, seed, members, borderline, cfg)
+    members = _add_same_headline(seed, members, candidates)
+    member_ids = {c.document.id for c in members}
+    borderline = [c for c in borderline if c.document.id not in member_ids]
 
     docs = [seed, *(c.document for c in members)]
     nodes = [to_node(d, all_sources) for d in docs]
