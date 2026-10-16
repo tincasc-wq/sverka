@@ -58,6 +58,10 @@ async def page(request: Request, session: AsyncSession, name: str, **context):
     """Страница сайта: пользователь и его организация нужны шапке (ссылка на кабинет)."""
     user = context.pop("user") if "user" in context else await current_user(request, session)
     membership = await membership_of(session, user)
+    if "usage" not in context:
+        from app.plans import usage_of
+
+        context["usage"] = await usage_of(session, user)  # плашка тарифа в шапке
     return templates.TemplateResponse(
         request, name, {"site": True, "user": user, "membership": membership, **context}
     )

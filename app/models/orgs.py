@@ -19,8 +19,10 @@ class Organization(CreatedAtMixin, Base):
     monthly_quota: Mapped[int] = mapped_column(Integer, server_default="3000")
     # Госконтур: запросы только в российские модели (раздел 12.5, аппараты депутатов).
     ru_only: Mapped[bool] = mapped_column(Boolean, server_default="false", default=False)
-    # Оплата у юрлиц — по счёту вручную (ФТ-9.5): в системе только статус.
+    # Оплата у юрлиц — по счёту вручную (ФТ-9.5): в системе только статус и срок.
     active: Mapped[bool] = mapped_column(Boolean, server_default="true", default=True)
+    # До какого дня оплачено (вносит администратор); владелец видит срок в кабинете.
+    paid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class OrgMember(CreatedAtMixin, Base):

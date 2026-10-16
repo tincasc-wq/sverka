@@ -52,6 +52,10 @@
   @keyframes spin { to { transform:rotate(360deg); } }
   .table-wrap { overflow-x:auto; }
   footer { max-width:1180px; margin:30px auto; padding:0 16px; color:var(--muted); font-size:13px; }
+  .plan-badge { border:1px solid var(--line); border-radius:999px; padding:2px 10px; font-size:13px;
+                white-space:nowrap; text-decoration:none; font-variant-numeric:tabular-nums; }
+  .plan-badge.low { border-color:#C96A33; color:#C96A33; }
+  @media (max-width: 700px) { .plan-badge .period { display:none; } }
   @media (max-width: 700px) { th:nth-child(n+4), td:nth-child(n+4) { display:none; } main { margin-top:12px; } }
 </style>
 </head>
@@ -75,6 +79,7 @@
   <a href="/pricing" class="{{ 'on' if page == 'pricing' }}">Тарифы</a>
   {% if membership is defined and membership %}<a href="/org" class="{{ 'on' if page == 'org' }}">{{ membership.org.name }}</a>{% endif %}
   <span class="right">
+    {% if usage is defined and usage %}{% include "_plan_badge.html" %}{% endif %}
     {% if user is defined and user and user.role in ('admin', 'analyst') %}<a href="/admin/stats">Админка</a>{% endif %}
     {% if user is defined and user and (user.tg_id or user.email) %}
     <a href="/account" class="{{ 'on' if page == 'account' }}">{{ user.email or 'Telegram' }}</a>

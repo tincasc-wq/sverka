@@ -18,7 +18,7 @@ from app.core.db import get_session
 from app.models import Check, Feedback
 from app.models.enums import CheckStatus, FeedbackStatus
 from app.orgs.service import can_view_check, membership_of
-from app.plans import can_export_pdf, can_schedule
+from app.plans import can_export_pdf, can_schedule, usage_of
 from app.watches import WatchRefused, active_watch, start_watch, stop_watch
 from app.web.session import current_user
 
@@ -36,7 +36,12 @@ def msk(value: str | datetime | None) -> str:
     return moment.astimezone(MSK).strftime("%d.%m.%Y %H:%M")
 
 
+def msk_date(value: datetime | None) -> str:
+    return value.astimezone(MSK).strftime("%d.%m.%Y") if value else ""
+
+
 templates.env.filters["msk"] = msk
+templates.env.filters["msk_date"] = msk_date
 
 
 async def check_by_token(session: AsyncSession, token: str) -> Check:
@@ -62,6 +67,7 @@ async def report_page(request: Request, token: str, session: Session):
         "report": report,
         "user": user,
         "membership": membership,
+        "usage": await usage_of(session, user),
         "pdf": can_export_pdf(user, membership),
         "schedule": can_schedule(user, membership),
         "watch": await active_watch(session, user, check) if user else None,

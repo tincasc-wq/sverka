@@ -3,9 +3,13 @@
 {% block title %}Сверка — {{ org.name }}{% endblock %}
 {% block content %}
 <h1>{{ org.name }}</h1>
-<p class="muted">Тариф: {{ org.plan }}{% if org.ru_only %} · <span class="tag good">российский контур</span>{% endif %}
+<p class="muted">Тариф «{{ plan.name if plan else org.plan }}»{% if org.ru_only %} · <span class="tag good">российский контур</span>{% endif %}
   {% if not org.active %} · <span class="tag bad">доступ приостановлен</span>{% endif %}
+  {% if org.paid_until %} · оплачено до {{ org.paid_until | msk_date }}{% endif %}
   · вы — {{ 'владелец' if is_owner else 'сотрудник' }}</p>
+{% if is_owner and paid_state == 'expired' %}<div class="error">Срок оплаты истёк {{ org.paid_until | msk_date }}. Чтобы доступ не приостановился, свяжитесь с нами.</div>
+{% elif is_owner and paid_state == 'soon' %}<div class="note">Оплата заканчивается {{ org.paid_until | msk_date }} — пришлём счёт на продление.</div>{% endif %}
+{% if requested %}<div class="note">Запрос на изменение тарифа отправлен — свяжемся с вами.</div>{% endif %}
 
 <div class="card row">
   <div><div class="muted">Проверок в этом месяце</div><span class="big">{{ used }}</span> <span class="muted">из {{ org.monthly_quota }}</span></div>
@@ -14,6 +18,23 @@
 </div>
 {% if org.ru_only %}<p class="note">Российский контур: все шаги анализа идут только через российские модели. Если они недоступны,
 отчёт выходит без сверки утверждений — в зарубежные модели запросы организации не отправляются.</p>{% endif %}
+
+{% if is_owner %}
+<details id="plan" class="card" style="margin-top:12px">
+  <summary><b>Изменить тариф</b> <span class="muted">— добавить места, проверки, российский контур</span></summary>
+  <form method="post" action="/org/change-plan" class="row" style="gap:10px;align-items:end;margin-top:10px">
+    <label>Тариф<br><select name="plan" id="org-change-plan">
+      {% for code, p in org_plans.items() %}<option value="{{ code }}" {{ 'selected' if code == org.plan }}>{{ p.name }} — {{ p.price }}</option>{% endfor %}
+    </select></label>
+    <label>Мест<br><input type="number" name="seats" value="{{ org.seats }}" min="1" max="15" style="width:80px"></label>
+    <label>Проверок в месяц<br><input type="number" name="checks" value="{{ org.monthly_quota }}" min="0" step="500" style="width:110px"></label>
+    <label class="muted"><input type="checkbox" name="ru_only" {{ 'checked' if org.ru_only }}> российский контур</label>
+    <label style="flex-basis:100%">Комментарий<br><textarea name="comment" rows="2" maxlength="2000" placeholder="например: с 1 ноября, нужно ещё 5 мест"></textarea></label>
+    <button>Отправить запрос</button>
+  </form>
+  <p class="muted" style="margin:6px 0 0">Тариф меняем вручную после согласования: ответим на почту или в Telegram владельца.</p>
+</details>
+{% endif %}
 
 <h2>Сотрудники</h2>
 {% if removed == '1' %}<div class="note">Сотрудник удалён. Его прошлые проверки остались в истории организации.</div>{% endif %}

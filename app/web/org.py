@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,6 +42,21 @@ async def cabinet(request: Request, session: Session):
     org = membership.org
     members = await members_with_usage(session, org)
     new_invite = request.query_params.get("invite")
+    from datetime import UTC, datetime, timedelta
+
+    from app.plans import get_plans
+
+    plans = get_plans()
+    now = datetime.now(UTC)
+    paid_state = None
+    if org.paid_until is not None:
+        paid_state = (
+            "expired"
+            if org.paid_until < now
+            else "soon"
+            if org.paid_until - now < timedelta(days=7)
+            else "ok"
+        )
     return await page(
         request,
         session,
@@ -57,7 +72,77 @@ async def cabinet(request: Request, session: Session):
         cost=await month_cost_rub(session, org) if membership.is_owner else None,
         invite=invite_url(new_invite) if new_invite and membership.is_owner else None,
         removed=request.query_params.get("removed"),
+        plan=plans.get(org.plan),
+        org_plans={code: p for code, p in plans.items() if p.org and p.public},
+        paid_state=paid_state,
+        requested=request.query_params.get("requested"),
     )
+
+
+@router.post("/org/change-plan")
+async def change_plan(
+    request: Request,
+    session: Session,
+    plan: Annotated[str, Form()],
+    seats: Annotated[int, Form()] = 0,
+    checks: Annotated[int, Form()] = 0,
+    ru_only: Annotated[str, Form()] = "",
+    comment: Annotated[str, Form()] = "",
+):
+    """Владелец просит изменить тариф: заявка в базу и сообщение администратору в Telegram."""
+    from html import escape
+
+    from app.models import PlanRequest
+    from app.plans import get_plans, quote
+    from app.web.notify import notify_admin
+
+    membership = await _owner_membership(request, session)
+    if membership is None:
+        return RedirectResponse("/org", status_code=303)
+    org, user = membership.org, await current_user(request, session)
+    plans = get_plans()
+    target = plans.get(plan)
+    if target is None or not target.org:
+        return RedirectResponse("/org", status_code=303)
+    want_ru = ru_only == "on"
+    parts = [f"{seats or org.seats} мест", f"{checks or org.monthly_quota} проверок в месяц"]
+    if want_ru:
+        parts.append("российский контур")
+    price = None
+    if target.constructor:
+        price, q_seats, q_checks = quote(target, seats, checks, {"ru_only"} if want_ru else set())
+        parts[:2] = [f"{q_seats} мест", f"{q_checks} проверок в месяц"]
+    wish = ", ".join(parts) + (f" — {price:,} ₽/мес".replace(",", " ") if price else "")
+    current = f"сейчас «{org.plan}»: {org.seats} мест, {org.monthly_quota} проверок"
+    contact = (user.email if user and user.email else "") or (
+        f"Telegram ID {user.tg_id}" if user and user.tg_id else "владелец кабинета"
+    )
+    session.add(
+        PlanRequest(
+            user_id=user.id if user else None,
+            plan=plan,
+            contact=contact[:255],
+            org_name=org.name[:255],
+            comment="\n".join(
+                x
+                for x in (f"Смена тарифа организации: {wish} ({current})", comment.strip()[:2000])
+                if x
+            ),
+            ip=request.client.host if request.client else None,
+        )
+    )
+    await session.commit()
+    lines = [
+        f"🦊 <b>Организация «{escape(org.name)}» просит изменить тариф</b>",
+        f"Хочет: «{escape(target.name)}» — {escape(wish)}",
+        f"Сейчас: {escape(current)}",
+        f"Контакт: {escape(contact)}",
+    ]
+    if comment.strip():
+        lines.append(f"Комментарий: {escape(comment.strip()[:2000])}")
+    lines.append(f"Изменить: {get_settings().public_base_url.rstrip('/')}/admin/orgs")
+    await notify_admin("\n".join(lines))
+    return RedirectResponse("/org?requested=1#plan", status_code=303)
 
 
 async def _owner_membership(request: Request, session: AsyncSession) -> Membership | None:

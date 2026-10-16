@@ -36,6 +36,7 @@
         <label class="muted">квота <input type="number" name="monthly_quota" value="{{ o.monthly_quota }}" min="0" style="width:84px"></label>
         <label class="muted"><input type="checkbox" name="ru_only" value="true" {{ 'checked' if o.ru_only }}> рос. контур</label>
         <label class="muted"><input type="checkbox" name="active" value="true" {{ 'checked' if o.active }}> доступ</label>
+        <label class="muted">оплачено до <input type="date" name="paid_until" value="{{ o.paid_until.astimezone(msk_tz).date().isoformat() if o.paid_until else '' }}"></label>
         <button>Сохранить</button>
       </form>
       <form method="post" action="/admin/orgs/{{ o.id }}/owner-invite" style="margin-top:4px"><button>Новая ссылка владельцу</button></form>

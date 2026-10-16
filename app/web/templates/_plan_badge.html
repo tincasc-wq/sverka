@@ -1,0 +1,10 @@
+{# Текущий тариф и остаток проверок — в шапке каждой страницы. #}
+{%- if usage.org_name -%}
+  {%- set lim = usage.org_limit or 0 -%}{%- set left = lim - (usage.org_used or 0) -%}
+  <a href="/org" class="plan-badge {{ 'low' if lim and left <= lim * 0.1 }}"
+     title="Организация «{{ usage.org_name }}»: проверок в этом месяце {{ usage.org_used }} из {{ lim }}">{{ usage.plan.name }} · {{ usage.org_used }} / {{ lim }}</a>
+{%- else -%}
+  {%- set lim = usage.limit or 0 -%}
+  <a href="/pricing" class="plan-badge {{ 'low' if lim and usage.left <= lim * 0.1 }}"
+     title="Тариф «{{ usage.plan.name }}»: {{ usage.period_text }} {{ usage.used }} из {{ lim }} проверок">{{ usage.plan.name }} · {{ usage.used }} / {{ lim }}<span class="period">{{ ' сегодня' if usage.period == 'day' else ' в месяц' }}</span></a>
+{%- endif -%}

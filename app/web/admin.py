@@ -263,6 +263,7 @@ async def orgs(request: Request, session: Session):
             "nav": "orgs",
             "rows": rows,
             "org_plans": {code: p for code, p in get_plans().items() if p.org},
+            "msk_tz": __import__("zoneinfo").ZoneInfo("Europe/Moscow"),
             "invite": f"{get_settings().public_base_url.rstrip('/')}/join/{invite}"
             if invite
             else None,
@@ -294,6 +295,18 @@ async def create_org(
     return RedirectResponse(f"/admin/orgs?invite={invite.token}", status_code=303)
 
 
+def _end_of_day(value: str):
+    """«2026-11-30» → конец этого дня по Москве; пусто — срок не задан."""
+    from datetime import datetime, time
+    from zoneinfo import ZoneInfo
+
+    value = value.strip()
+    if not value:
+        return None
+    day = datetime.fromisoformat(value).date()
+    return datetime.combine(day, time(23, 59), tzinfo=ZoneInfo("Europe/Moscow"))
+
+
 @protected.post("/orgs/{org_id}")
 async def update_org(
     org_id: int,
@@ -302,6 +315,7 @@ async def update_org(
     monthly_quota: Annotated[int, Form()],
     ru_only: Annotated[bool, Form()] = False,
     active: Annotated[bool, Form()] = False,
+    paid_until: Annotated[str, Form()] = "",
 ):
     org = await session.get(Organization, org_id)
     if org is None:
@@ -310,6 +324,7 @@ async def update_org(
     org.monthly_quota = max(0, monthly_quota)
     org.ru_only = ru_only
     org.active = active
+    org.paid_until = _end_of_day(paid_until)
     await session.commit()
     return RedirectResponse("/admin/orgs", status_code=303)
 

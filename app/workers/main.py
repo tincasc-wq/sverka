@@ -205,6 +205,14 @@ async def follow_up_checks(ctx: dict) -> str:
 
 
 @single_flight
+async def org_quota_alerts(ctx: dict) -> int:
+    """Владельцам организаций: израсходовано 80% и 100% месячной квоты (app/orgs/alerts.py)."""
+    from app.orgs.alerts import run_quota_alerts
+
+    return await run_quota_alerts(SessionLocal, ctx.get("redis"), ctx.get("bot"))
+
+
+@single_flight
 async def purge_personal_data(ctx: dict) -> str:
     """Сроки хранения из политики обработки ПДн (/privacy): что обещано — то и удаляется."""
     from sqlalchemy import text
@@ -246,6 +254,7 @@ class WorkerSettings:
         purge_personal_data,
         run_watches,
         follow_up_checks,
+        org_quota_alerts,
     ]
     cron_jobs = [
         # Таймаут с запасом: полные тексты после простоя качаются долго; single_flight не даёт
@@ -259,6 +268,7 @@ class WorkerSettings:
         cron(purge_personal_data, hour=0, minute=30, unique=True, timeout=600),
         cron(run_watches, minute=set(range(4, 60, 10)), unique=True, timeout=3000),
         cron(follow_up_checks, minute={17, 47}, unique=True, timeout=1500),
+        cron(org_quota_alerts, minute=25, unique=True, timeout=300),
     ]
     on_startup = startup
     on_shutdown = shutdown
