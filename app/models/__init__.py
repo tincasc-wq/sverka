@@ -5,10 +5,11 @@ from app.models.archive import Derivation, Document, DocumentVersion, Story, Sto
 from app.models.base import Base
 from app.models.checks import Check, Claim, ClaimEvidence, Watch, WatchSubscriber
 from app.models.llm import LlmCall
-from app.models.orgs import Organization, OrgInvite, OrgMember
+from app.models.orgs import ApiKey, Organization, OrgInvite, OrgMember
 from app.models.registry import Outcome, Source, SourceScore
 
 __all__ = [
+    "ApiKey",
     "Base",
     "Check",
     "Claim",

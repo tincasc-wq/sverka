@@ -36,6 +36,12 @@ def invite_url(token: str) -> str:
 
 @router.get("/org", response_class=HTMLResponse)
 async def cabinet(request: Request, session: Session):
+    return await _cabinet(request, session)
+
+
+async def _cabinet(request: Request, session: AsyncSession, **extra):
+    from app.orgs.apikeys import active_keys
+
     user = await current_user(request, session)
     membership = await membership_of(session, user)
     if membership is None:
@@ -83,6 +89,9 @@ async def cabinet(request: Request, session: Session):
         org_plans={code: p for code, p in plans.items() if p.org and p.public},
         paid_state=paid_state,
         requested=request.query_params.get("requested"),
+        api_keys=await active_keys(session, org) if membership.is_owner else [],
+        api_docs=f"{get_settings().public_base_url.rstrip('/')}/api/docs",
+        **extra,
     )
 
 
@@ -323,3 +332,31 @@ MONTHS_RU = (
 def _month_ru(month: str) -> str:
     year, num = month.split("-")
     return f"{MONTHS_RU[int(num) - 1]} {year}"
+
+
+@router.post("/org/api-keys", response_class=HTMLResponse)
+async def api_key_new(request: Request, session: Session, name: Annotated[str, Form()] = ""):
+    """Новый ключ показываем прямо в ответе, без редиректа: в адресной строке ему не место."""
+    from app.orgs.apikeys import KeyRefused, issue_key
+
+    membership = await _owner_membership(request, session)
+    if membership is None:
+        return RedirectResponse("/org", status_code=303)
+    user = await current_user(request, session)
+    try:
+        _, raw = await issue_key(session, membership.org, user, name)
+        response = await _cabinet(request, session, new_key=raw)
+    except KeyRefused as exc:
+        response = await _cabinet(request, session, key_error=str(exc))
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@router.post("/org/api-keys/{key_id}/revoke")
+async def api_key_revoke(request: Request, key_id: int, session: Session):
+    from app.orgs.apikeys import revoke_key
+
+    membership = await _owner_membership(request, session)
+    if membership is not None:
+        await revoke_key(session, membership.org, key_id)
+    return RedirectResponse("/org#api", status_code=303)

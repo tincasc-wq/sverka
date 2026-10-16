@@ -59,6 +59,29 @@
 </div>
 {% endif %}
 
+{% if is_owner %}
+<h2 id="api">Ключи API</h2>
+<p class="muted">Чтобы отправлять новости на проверку из своих систем. Проверки по ключу идут в квоту организации.
+  Документация: <a href="{{ api_docs }}">{{ api_docs }}</a></p>
+{% if new_key %}<div class="note"><b>Новый ключ — скопируйте его сейчас, больше он показан не будет:</b>
+  <input type="text" readonly value="{{ new_key }}" onclick="this.select()" style="margin-top:6px;font-family:monospace"></div>{% endif %}
+{% if key_error %}<div class="error">{{ key_error }}</div>{% endif %}
+{% if api_keys %}
+<div class="table-wrap"><table>
+  <tr><th>Название</th><th>Ключ</th><th>Выпущен</th><th>Последний запрос</th><th></th></tr>
+  {% for k in api_keys %}
+  <tr><td>{{ k.name }}</td><td class="muted" style="font-family:monospace">{{ k.prefix }}…</td>
+      <td class="muted">{{ k.created_at | msk }}</td><td class="muted">{{ k.last_used_at | msk if k.last_used_at else '—' }}</td>
+      <td><form method="post" action="/org/api-keys/{{ k.id }}/revoke" onsubmit="return confirm('Отозвать ключ? Запросы с ним перестанут работать сразу.')"><button>Отозвать</button></form></td></tr>
+  {% endfor %}
+</table></div>
+{% endif %}
+<form method="post" action="/org/api-keys" class="row" style="gap:8px;align-items:end;margin-top:8px">
+  <label>Название ключа<br><input type="text" name="name" maxlength="64" placeholder="например: CMS редакции"></label>
+  <button>Выпустить ключ</button>
+</form>
+{% endif %}
+
 <h2 id="watches">Слежения команды</h2>
 <p class="muted">Новости, которые сотрудники поставили на повторную проверку. Оповещения получает автор и все, кто подписался.</p>
 {% if watches %}

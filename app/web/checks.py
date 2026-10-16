@@ -36,7 +36,9 @@ class CheckRefused(Exception):
     """Проверку не запускаем: непонятный ввод или исчерпан лимит."""
 
 
-async def create_web_check(session: AsyncSession, user: User, value: str) -> Check:
+async def create_web_check(
+    session: AsyncSession, user: User, value: str, channel: str = "web"
+) -> Check:
     user_input = extract_input(value)
     if user_input is None:
         raise CheckRefused(NOT_UNDERSTOOD)
@@ -46,7 +48,7 @@ async def create_web_check(session: AsyncSession, user: User, value: str) -> Che
         raise CheckRefused(refusal)
     membership = await membership_of(session, user)
     check = Check(
-        channel="web",
+        channel=channel,
         user_id=user.id,
         org_id=membership.org.id if membership else None,
         input_type=user_input.type,

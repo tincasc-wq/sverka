@@ -21,6 +21,9 @@ from tests.test_embeddings import FakeEmbedder
 from tests.test_story import vec
 
 CLEANUP = (
+    "api_keys",
+    "watch_subscribers",
+    "watches",
     "plan_requests",
     "login_tokens",
     "org_invites",

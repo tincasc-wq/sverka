@@ -49,3 +49,21 @@ class OrgInvite(CreatedAtMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ApiKey(CreatedAtMixin, Base):
+    """Ключ API организации. Храним только SHA-256: сам ключ показываем один раз при выпуске.
+
+    Проверки по ключу идут от имени сотрудника, который его выпустил, и в квоту организации.
+    """
+
+    __tablename__ = "api_keys"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(64))
+    prefix: Mapped[str] = mapped_column(String(16))  # начало ключа — чтобы узнать его в списке
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
