@@ -126,7 +126,7 @@
   <tr><th style="width:14%">Время (МСК)</th><th style="width:18%">Источник</th><th>Публикация</th><th style="width:13%">Роль</th><th style="width:17%">Откуда взято</th></tr>
   {% for t in r.timeline %}
   <tr>
-    <td>{{ t.time | msk }}{% if t.date_unreliable %}<br><span class="tag bad">дата ненадёжна</span>{% endif %}</td>
+    <td>{{ t.time | msk }}{% if t.date_unreliable %}<br><span class="tag bad">дата ненадёжна</span>{% endif %}{% if t.date_unknown %}<br><span class="tag probable">дата в Max неизвестна: время проверки</span>{% endif %}</td>
     <td>{{ t.source }}{% if t.membership == "probable" %}<br><span class="tag probable">вероятно то же событие</span>{% endif %}</td>
     <td>{{ t.title or "" }}<div class="url">{{ t.url }}</div></td>
     <td>{{ roles.get(t.role, t.role) }}</td>

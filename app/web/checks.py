@@ -12,6 +12,7 @@ from app.bot.inputs import extract_input
 from app.bot.service import check_refusal
 from app.check import run_check, text_seed
 from app.collectors.http import UnsafeUrl
+from app.collectors.maxru import MaxStub
 from app.core.config import get_settings
 from app.embeddings import Embedder
 from app.llm import LlmClient
@@ -22,6 +23,12 @@ from app.orgs.service import membership_of
 NOT_UNDERSTOOD = (
     "Не понял, что проверять. Вставьте ссылку на публикацию или текст новости "
     "(от нескольких предложений)."
+)
+
+
+MAX_STUB_REASON = (
+    "Max не отдал пост: ссылка неверна, пост удалён или Max временно ограничил доступ. "
+    "Попробуйте через несколько минут или пришлите текст поста."
 )
 
 
@@ -53,6 +60,8 @@ async def create_web_check(session: AsyncSession, user: User, value: str) -> Che
 
 
 def _failure_reason(exc: Exception) -> str:
+    if isinstance(exc, MaxStub):
+        return MAX_STUB_REASON
     if isinstance(exc, UnsafeUrl):
         return "ссылка ведёт на недоступный адрес."
     if isinstance(exc, httpx.HTTPStatusError):

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bot import texts
 from app.check import run_check, text_seed
 from app.collectors.http import UnsafeUrl
+from app.collectors.maxru import MaxStub
 from app.collectors.store import DocumentIn
 from app.core.config import get_settings
 from app.embeddings import Embedder
@@ -151,6 +152,13 @@ async def check_for_chat(
     except UnsafeUrl:
         await session.rollback()
         return ChatReply(texts.FAILED.format(reason="ссылка ведёт на недоступный адрес."))
+    except MaxStub:
+        from app.web.checks import MAX_STUB_REASON
+
+        await session.rollback()
+        return ChatReply(
+            texts.FAILED.format(reason=MAX_STUB_REASON[0].lower() + MAX_STUB_REASON[1:])
+        )
     except (httpx.HTTPError, ValueError) as exc:
         await session.rollback()
         reason = "страница не открылась или на ней нет текста."

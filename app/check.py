@@ -20,7 +20,7 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.collectors import rss, telegram
+from app.collectors import maxru, rss, telegram
 from app.collectors.fingerprint import content_hash
 from app.collectors.http import fetch, make_client
 from app.collectors.store import DocumentIn, SaveResult, save_document
@@ -47,6 +47,8 @@ SATIRE_STATUS = {
 async def _source_for(session: AsyncSession, url: str) -> int | None:
     if domain_of(url) == "t.me":
         handle = "@" + url.split("/")[3]
+    elif domain_of(url) == maxru.MAX_HOST:
+        handle = maxru.channel_handle(url)
     else:
         handle = domain_of(url)
     return await session.scalar(select(Source.id).where(Source.handle_or_domain == handle))
@@ -65,6 +67,9 @@ async def _download(url: str, source_id: int | None) -> DocumentIn:
         docs[0].url = url
         return docs[0]
 
+    if maxru.is_max_post(url):
+        return await _download_max(url, source_id)
+
     async with make_client(public_only=True) as client:
         raw, _ = await fetch(client, url)
     meta = trafilatura.extract_metadata(raw)
@@ -76,6 +81,21 @@ async def _download(url: str, source_id: int | None) -> DocumentIn:
         published_at=published_time(raw),
         links=rss.extract_article_links(raw, url),
     )
+
+
+async def _download_max(url: str, source_id: int | None) -> DocumentIn:
+    """Пост Max: напрямую, а если Max ограничил наш адрес и отдал заглушку — через шлюз."""
+    async with make_client(public_only=True) as client:
+        raw, _ = await fetch(client, url)
+    try:
+        return maxru.parse_post(raw, url, source_id)
+    except maxru.MaxStub:
+        proxy = get_settings().collector_proxy
+        if not proxy:
+            raise
+    async with make_client(proxy=proxy) as client:
+        raw, _ = await fetch(client, url)
+    return maxru.parse_post(raw, url, source_id)
 
 
 _TIME_META = (

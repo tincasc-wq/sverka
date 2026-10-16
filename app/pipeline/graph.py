@@ -66,7 +66,14 @@ class Node:
         if domain == "t.me":
             # Канал вне реестра: «@Warhronika», а не просто «t.me» — каналы разные.
             return "@" + self.url.split("/")[3]
+        if domain == "max.ru":
+            return f"max.ru/{self.url.split('/')[3].lower()}"  # канал вне реестра — тоже по каналу
         return domain
+
+    @property
+    def date_unknown(self) -> bool:
+        """Пост Max: даты на странице нет, в хронологии — время, когда мы его увидели."""
+        return self.claimed_at is None and domain_of(self.url) == "max.ru"
 
     @property
     def word_count(self) -> int:

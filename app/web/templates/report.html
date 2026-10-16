@@ -92,7 +92,7 @@
   <tr><th>Время</th><th>Источник</th><th>Публикация</th><th>Роль</th><th>Откуда взято</th></tr>
   {% for t in r.timeline %}
   <tr>
-    <td class="muted">{{ t.time | msk }}{% if t.date_unreliable %}<br><span class="tag bad">дата ненадёжна</span>{% endif %}</td>
+    <td class="muted">{{ t.time | msk }}{% if t.date_unreliable %}<br><span class="tag bad">дата ненадёжна</span>{% endif %}{% if t.date_unknown %}<br><span class="tag probable">дата в Max неизвестна: время проверки</span>{% endif %}</td>
     <td>{{ t.source }}{% if t.membership == "probable" %}<br><span class="tag probable">вероятно то же событие</span>{% endif %}</td>
     <td><a href="{{ t.url }}" target="_blank" rel="noopener">{{ t.title or t.url }}</a></td>
     <td>{{ {"primary": "первоисточник", "derived": "перепечатка", "independent": "независимо"}[t.role] }}</td>

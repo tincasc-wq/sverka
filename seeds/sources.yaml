@@ -7,7 +7,7 @@
 # одно подтверждение, 6.3) и решить по зарубежным русскоязычным изданиям и ресурсам
 # со статусом иноагента/блокировки.
 #
-# type: media | tg | vk | official | agency | satire | aggregator
+# type: media | tg | vk | official | agency | satire | aggregator | max
 # rss — для media/official/agency; для tg — handle_or_domain вида @канал.
 # aliases — как источник называют в чужих текстах («по данным ТАСС», «сообщают „Известия“»),
 #   включая падежные формы. Используются для рёбер attribution в графе заимствований.
@@ -468,3 +468,21 @@ sources:
   - {name: NV (English), type: media, handle_or_domain: english.nv.ua, owner: Новое время, lang: en,
      legal_flags: {needs_legal_review: "сверить с перечнями Минюста"},
      rss: "https://english.nv.ua/rss/all_english.xml", aliases: [NV, The New Voice of Ukraine, Новое время]}
+
+  # Каналы редакций в мессенджере Max (16.10.2026; адреса проверены — у несуществующих Max
+  # отдаёт общую заглушку). Ленты без входа у Max нет: каналы не собираются, посты попадают
+  # в архив только по ссылке из проверки. Владелец тот же, что у сайта и Telegram-канала,
+  # поэтому повторы одной редакции в разных местах — одна группа владения.
+  - {name: RT на русском (Max), type: max, handle_or_domain: max.ru/rt, owner: RT}
+  - {name: ТАСС (Max), type: max, handle_or_domain: max.ru/tass_agency, owner: ТАСС}
+  - {name: РИА Новости (Max), type: max, handle_or_domain: max.ru/ria, owner: МИА «Россия сегодня»}
+  - {name: Известия (Max), type: max, handle_or_domain: max.ru/izvestia, owner: Известия}
+  - {name: РБК (Max), type: max, handle_or_domain: max.ru/rbc, owner: РБК}
+  - {name: Коммерсантъ (Max), type: max, handle_or_domain: max.ru/kommersant, owner: Коммерсантъ}
+  - {name: Лента.ру (Max), type: max, handle_or_domain: max.ru/lentaru, owner: Лента.ру}
+  - {name: Российская газета (Max), type: max, handle_or_domain: max.ru/rgru, owner: Российская газета}
+  - {name: Аргументы и факты (Max), type: max, handle_or_domain: max.ru/aif, owner: Аргументы и факты}
+  - {name: Московский комсомолец (Max), type: max, handle_or_domain: max.ru/mk, owner: Московский комсомолец}
+  - {name: Ведомости (Max), type: max, handle_or_domain: max.ru/vedomosti, owner: Ведомости}
+  - {name: Интерфакс (Max), type: max, handle_or_domain: max.ru/interfax, owner: Интерфакс}
+  - {name: Mash (Max), type: max, handle_or_domain: max.ru/mash, owner: Mash}

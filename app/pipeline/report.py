@@ -46,6 +46,7 @@ def build_report(result: StoryResult, cfg: GraphConfig) -> dict:
                 "membership": membership[n.id],
                 "llm_reason": llm_reason.get(n.id),
                 "date_unreliable": n.date_unreliable(cfg),
+                "date_unknown": n.date_unknown,
                 "took_from": [
                     {
                         "url": nodes[e.from_id].url,

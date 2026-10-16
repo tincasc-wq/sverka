@@ -50,6 +50,7 @@ SOURCE_TYPES = {
     "vk": "VK",
     "satire": "сатира",
     "aggregator": "агрегатор",
+    "max": "Max",
 }
 
 
