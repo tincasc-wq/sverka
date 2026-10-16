@@ -486,3 +486,21 @@ sources:
   - {name: Ведомости (Max), type: max, handle_or_domain: max.ru/vedomosti, owner: Ведомости}
   - {name: Интерфакс (Max), type: max, handle_or_domain: max.ru/interfax, owner: Интерфакс}
   - {name: Mash (Max), type: max, handle_or_domain: max.ru/mash, owner: Mash}
+
+  # США: штаты и погода (16.10.2026). Наводнение в Техасе 15.10 освещали CNN, местные
+  # телекомпании и газеты — в реестре были только общенациональные издания, и проверка
+  # поста RT про ливни в Техасе не нашла ни одной публикации. Ленты проверены с сервера.
+  # Не взяты: CNN (RSS не обновляется с 2023 г.), USA Today (платная лента, 402),
+  # Houston Chronicle, Dallas Morning News, KHOU, KENS 5 (пустые ленты), AP (нет своей ленты).
+  - {name: Texas Tribune, type: media, handle_or_domain: texastribune.org, owner: The Texas Tribune,
+     lang: en, rss: "https://feeds.texastribune.org/feeds/main/", aliases: [Texas Tribune, The Texas Tribune]}
+  - {name: Texas Standard, type: media, handle_or_domain: texasstandard.org, owner: KUT (Техасский университет),
+     lang: en, rss: "https://www.texasstandard.org/feed/", aliases: [Texas Standard]}
+  - {name: KXAN (Остин), type: media, handle_or_domain: kxan.com, owner: Nexstar Media Group,
+     lang: en, rss: "https://www.kxan.com/feed/", aliases: [KXAN]}
+  - {name: Fox 4 (Даллас), type: media, handle_or_domain: fox4news.com, owner: Fox Corporation,
+     lang: en, rss: "https://www.fox4news.com/rss/category/news", aliases: [Fox 4, FOX 4, KDFW]}
+  - {name: ABC13 (Хьюстон), type: media, handle_or_domain: abc13.com, owner: Disney,
+     lang: en, rss: "https://abc13.com/feed/", aliases: [ABC13, KTRK]}
+  - {name: Los Angeles Times, type: media, handle_or_domain: latimes.com, owner: Los Angeles Times,
+     lang: en, rss: "https://www.latimes.com/world-nation/rss2.0.xml", aliases: [Los Angeles Times, LA Times]}
