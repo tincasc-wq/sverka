@@ -311,7 +311,13 @@ async def test_same_headline_joins_story_despite_low_similarity(session: AsyncSe
     # «Молния» ТАСС: один заголовок, вектор далёк от длинного поста.
     flash = await _doc(session, "https://tass.ru/1", 0.6, 0, tass, None, title=headline)
 
-    result = await build_story(session, seed)
+    # Векторный поиск видит лишь одного ближайшего (как ТАСС вне 50 ближайших на громкой теме):
+    # «молния» должна найтись поиском заголовка прямо в базе.
+    from app.core.scoring import get_scoring
+
+    cfg = get_scoring().model_copy(deep=True)
+    cfg.clustering.candidates_top_k = 1
+    result = await build_story(session, seed, cfg)
 
     assert flash.id in {c.document.id for c in result.members}
     assert same_headline(headline, headline + "!") and not same_headline("Взрыв в Киеве", "Взрыв")

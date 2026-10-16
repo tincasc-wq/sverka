@@ -294,6 +294,8 @@ def to_node(doc: Document, sources: dict[int, SourceInfo]) -> Node:
 
 _TITLE_WORD = re.compile(r"[0-9A-Za-zА-Яа-яЁё]+")
 SAME_HEADLINE = 0.8  # доля общих слов в заголовках (Жаккар)
+HEADLINE_TRGM = 0.6  # грубый отбор в базе по триграммам, точное решение — same_headline
+MAX_HEADLINE_LOOKUPS = 10
 
 
 def _headline_words(title: str | None) -> set[str]:
@@ -308,8 +310,12 @@ def same_headline(a: str | None, b: str | None) -> bool:
     return len(wa & wb) / len(wa | wb) >= SAME_HEADLINE
 
 
-def _add_same_headline(
-    seed: Document, members: list[Candidate], candidates: list[Candidate]
+async def _add_same_headline(
+    session: AsyncSession,
+    seed: Document,
+    members: list[Candidate],
+    candidates: list[Candidate],
+    cfg: ScoringConfig,
 ) -> list[Candidate]:
     """Кандидат с тем же заголовком, что у публикации ядра, — то же событие.
 
@@ -319,14 +325,38 @@ def _add_same_headline(
     выпадал из истории, а первым оказывался агрегатор.
     """
     member_ids = {c.document.id for c in members}
-    titles = [seed.title] + [c.document.title for c in members if c.membership == "core"]
+    member_ids.add(seed.id)
+    titles = list(
+        dict.fromkeys(
+            t
+            for t in [seed.title] + [c.document.title for c in members if c.membership == "core"]
+            if t and len(_headline_words(t)) >= 4
+        )
+    )[:MAX_HEADLINE_LOOKUPS]
+    pool = {c.document.id: c for c in candidates}
+    # Ищем и вне кандидатов: на громкую тему заголовок-«молния» не попадает в 50 ближайших
+    # по вектору (АЭС на Луне: десятки публикаций ближе, чем 0.705 у ТАСС).
+    center = seed.published_at or seed.first_seen_at
+    window = timedelta(hours=cfg.clustering.window_hours)
+    for title in titles:
+        rows = await session.scalars(
+            select(Document).where(
+                Document.id.not_in(member_ids),
+                _event_time(Document).between(center - window, center + window),
+                func.similarity(Document.title, title) >= HEADLINE_TRGM,
+                ~Document.url.startswith(USER_TEXT_PREFIX),
+            )
+        )
+        for doc in rows:
+            pool.setdefault(doc.id, Candidate(doc, None))
     added = []
-    for c in candidates:
+    for c in pool.values():
         if c.document.id in member_ids or not c.document.title:
             continue
         if any(same_headline(c.document.title, t) for t in titles):
             c.membership = "core"
             c.llm_reason = c.llm_reason or "тот же заголовок, что у публикации из истории"
+            member_ids.add(c.document.id)
             added.append(c)
     return members + added
 
@@ -392,7 +422,7 @@ async def build_story(
     ]
     if judge is not None:
         members, borderline = await _apply_judge(judge, seed, members, borderline, cfg)
-    members = _add_same_headline(seed, members, candidates)
+    members = await _add_same_headline(session, seed, members, candidates, cfg)
     member_ids = {c.document.id for c in members}
     borderline = [c for c in borderline if c.document.id not in member_ids]
 
