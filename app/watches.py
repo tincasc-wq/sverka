@@ -16,7 +16,7 @@ from html import escape
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Check, User, Watch
+from app.models import Check, User, Watch, WatchSubscriber
 from app.models.enums import CheckStatus
 
 log = logging.getLogger("sverka.watches")
@@ -88,7 +88,8 @@ async def start_watch(
     from app.orgs.service import can_view_check, membership_of
     from app.plans import can_schedule
 
-    if not can_schedule(user, await membership_of(session, user)):
+    membership = await membership_of(session, user)
+    if not can_schedule(user, membership):
         raise WatchRefused(
             "Повторная проверка по расписанию — в тарифах Pro, «Команда», «Редакция»."
         )
@@ -116,6 +117,7 @@ async def start_watch(
             last_state=state,
             runs=0,
             active=True,
+            org_id=membership.org.id if membership and check.org_id == membership.org.id else None,
         )
         session.add(watch)
     watch.every_hours = every_hours
@@ -126,13 +128,89 @@ async def start_watch(
 
 
 async def stop_watch(session: AsyncSession, user: User, watch_id: int) -> bool:
+    """Остановить может автор, а слежение организации — ещё и её владелец."""
+    from app.orgs.service import membership_of
+
     watch = await session.get(Watch, watch_id)
-    if watch is None or watch.user_id != user.id or not watch.active:
+    if watch is None or not watch.active:
         return False
+    if watch.user_id != user.id:
+        membership = await membership_of(session, user)
+        if not (membership and membership.is_owner and watch.org_id == membership.org.id):
+            return False
     watch.active = False
     watch.stopped_reason = "остановлено пользователем"
     await session.commit()
     return True
+
+
+async def org_watches(session: AsyncSession, org_id: int) -> list[Watch]:
+    return list(
+        await session.scalars(
+            select(Watch)
+            .where(Watch.org_id == org_id, Watch.active.is_(True))
+            .order_by(Watch.until)
+        )
+    )
+
+
+async def subscribed_ids(session: AsyncSession, user: User, watches: list[Watch]) -> set[int]:
+    if not watches:
+        return set()
+    return set(
+        await session.scalars(
+            select(WatchSubscriber.watch_id).where(
+                WatchSubscriber.user_id == user.id,
+                WatchSubscriber.watch_id.in_([w.id for w in watches]),
+            )
+        )
+    )
+
+
+async def subscribe(session: AsyncSession, user: User, watch_id: int, on: bool) -> bool:
+    """Сотрудник подписывается на оповещения по слежению коллеги (или отписывается)."""
+    from app.orgs.service import membership_of
+
+    watch = await session.get(Watch, watch_id)
+    membership = await membership_of(session, user)
+    if (
+        watch is None
+        or watch.org_id is None
+        or membership is None
+        or membership.org.id != watch.org_id
+        or watch.user_id == user.id
+    ):
+        return False
+    current = await session.scalar(
+        select(WatchSubscriber).where(
+            WatchSubscriber.watch_id == watch.id, WatchSubscriber.user_id == user.id
+        )
+    )
+    if on and current is None:
+        session.add(WatchSubscriber(watch_id=watch.id, user_id=user.id))
+    elif not on and current is not None:
+        await session.delete(current)
+    await session.commit()
+    return True
+
+
+async def recipients(session: AsyncSession, watch: Watch) -> list[User]:
+    """Автор и подписавшиеся сотрудники той же организации (ушедшие из неё — не получают)."""
+    from app.models import OrgMember
+
+    users = [await session.get(User, watch.user_id)]
+    if watch.org_id is not None:
+        users += list(
+            await session.scalars(
+                select(User)
+                .join(WatchSubscriber, WatchSubscriber.user_id == User.id)
+                .join(OrgMember, OrgMember.user_id == User.id)
+                .where(WatchSubscriber.watch_id == watch.id, OrgMember.org_id == watch.org_id)
+                .order_by(WatchSubscriber.id)
+            )
+        )
+    seen: set[int] = set()
+    return [u for u in users if u is not None and not (u.id in seen or seen.add(u.id))]
 
 
 @dataclass
@@ -204,7 +282,14 @@ async def _finish(session: AsyncSession, watch: Watch, user: User, reason: str, 
     watch.stopped_reason = reason
     await session.commit()
     last = await session.get(Check, watch.last_check_id) if watch.last_check_id else None
-    await notify(user, final_notice(watch, last), bot)
+    await notify_all(session, watch, final_notice(watch, last), bot)
+
+
+async def notify_all(session: AsyncSession, watch: Watch, notice: Notice, bot=None) -> int:
+    sent = 0
+    for user in await recipients(session, watch):
+        sent += bool(await notify(user, notice, bot))
+    return sent
 
 
 async def run_watch(session: AsyncSession, watch: Watch, embedder, llm, bot=None) -> str:
@@ -253,7 +338,7 @@ async def run_watch(session: AsyncSession, watch: Watch, embedder, llm, bot=None
     watch.last_check_id = check.id
     await session.commit()
     if lines:
-        await notify(user, update_notice(new, lines, check), bot)
+        await notify_all(session, watch, update_notice(new, lines, check), bot)
         return "changed"
     return "same"
 

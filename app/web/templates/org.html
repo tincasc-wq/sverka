@@ -59,20 +59,57 @@
 </div>
 {% endif %}
 
-<h2>Проверки организации</h2>
-<p class="muted">Отчёты организации видны только её сотрудникам и не попадают в общий кэш.</p>
-{% if checks %}
+<h2 id="watches">Слежения команды</h2>
+<p class="muted">Новости, которые сотрудники поставили на повторную проверку. Оповещения получает автор и все, кто подписался.</p>
+{% if watches %}
 <div class="table-wrap"><table>
-  <tr><th>Когда</th><th>Кто</th><th>Что проверяли</th><th>Результат</th></tr>
-  {% for c in checks %}{% set s = summary_of(c) %}
+  <tr><th>Новость</th><th>Кто следит</th><th>Расписание</th><th></th></tr>
+  {% for w in watches %}
   <tr>
-    <td class="muted" style="white-space:nowrap">{{ c.created_at | msk }}</td>
-    <td class="muted">{{ authors.get(c.user_id, 'бывший сотрудник') }}</td>
-    <td><a href="/r/{{ c.public_token }}">{{ (s.title or c.input_raw)[:100] }}</a></td>
-    <td>{% if c.status == 'done' %}{% if s.index is defined and s.index is not none %}<b>{{ "%g"|format(s.index) }}</b> · {% endif %}{{ s.status_text or s.text or 'готово' }}
-        {% elif c.status == 'failed' %}<span class="tag bad">не удалось</span>{% else %}<span class="tag probable">проверяется</span>{% endif %}</td>
+    <td>{% if w.token %}<a href="/r/{{ w.token }}">{{ w.title[:100] }}</a>{% else %}{{ w.title[:100] }}{% endif %}</td>
+    <td class="muted">{{ w.author }}{% if w.own %} <span class="tag">это вы</span>{% endif %}</td>
+    <td class="muted" style="white-space:nowrap">каждые {{ w.watch.every_hours }} ч · до {{ w.watch.until | msk }} · прогонов: {{ w.watch.runs }}</td>
+    <td style="white-space:nowrap">
+      {% if not w.own %}{% if w.subscribed %}<form method="post" action="/watches/{{ w.watch.id }}/unsubscribe" style="display:inline"><button>Отписаться</button></form>
+      {% else %}<form method="post" action="/watches/{{ w.watch.id }}/subscribe" style="display:inline"><button>Подписаться</button></form>{% endif %}{% endif %}
+      {% if w.own or is_owner %}<form method="post" action="/watches/{{ w.watch.id }}/stop" style="display:inline" onsubmit="return confirm('Остановить слежение?')"><button>Остановить</button></form>{% endif %}
+    </td>
   </tr>
   {% endfor %}
 </table></div>
+{% else %}<p class="muted">Сейчас ни за чем не следим. Поставить новость на слежение можно со страницы отчёта.</p>{% endif %}
+
+<h2 id="history">Проверки организации</h2>
+<p class="muted">Отчёты организации видны только её сотрудникам и не попадают в общий кэш.</p>
+<form method="get" action="/org#history" class="row" style="gap:8px;align-items:end;margin-bottom:10px">
+  <label style="flex:1 1 220px">Поиск<br><input type="search" name="q" value="{{ filters.q }}" placeholder="слово из заголовка или ссылки"></label>
+  <label>Сотрудник<br><select name="member"><option value="">все</option>
+    {% for m in members %}<option value="{{ m.user.id }}" {{ 'selected' if filters.member == m.user.id }}>{{ m.label }}</option>{% endfor %}</select></label>
+  <label>Итог<br><select name="category"><option value="">любой</option>
+    {% for code, name in categories.items() %}<option value="{{ code }}" {{ 'selected' if filters.category == code }}>{{ name }}</option>{% endfor %}</select></label>
+  <label>Месяц<br><select name="month"><option value="">все</option>
+    {% for m in months %}<option value="{{ m }}" {{ 'selected' if filters.month == m }}>{{ m }}</option>{% endfor %}</select></label>
+  <button>Найти</button>
+  {% if filters.active %}<a href="/org#history" class="muted">сбросить</a>{% endif %}
+</form>
+<p class="muted" style="margin-top:0">
+  <a href="/org/export.csv{% if filters.query() %}?{{ filters.query() }}{% endif %}">Выгрузить в CSV</a>{% if filters.active %} (с этими фильтрами){% endif %}
+  · Отчёт за месяц в PDF: {% for m in months[:3] %}<a href="/org/report.pdf?month={{ m }}">{{ m }}</a>{{ ', ' if not loop.last }}{% endfor %}
+</p>
+{% if checks %}
+<div class="table-wrap"><table>
+  <tr><th>Когда</th><th>Кто</th><th>Что проверяли</th><th>Результат</th></tr>
+  {% for c in checks %}
+  <tr>
+    <td class="muted" style="white-space:nowrap">{{ c.created_at | msk }}</td>
+    <td class="muted">{{ authors.get(c.user_id, 'бывший сотрудник') }}</td>
+    <td>{% if c.token %}<a href="/r/{{ c.token }}">{{ c.label[:100] }}</a>{% else %}{{ c.label[:100] }}{% endif %}</td>
+    <td>{% if c.check_status == 'done' %}{% if c.index is not none %}<b>{{ "%g"|format(c.index) }}</b> · {% endif %}{{ c.status_text or 'готово' }}
+        {% elif c.check_status == 'failed' %}<span class="tag bad">не удалось</span>{% else %}<span class="tag probable">проверяется</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% if checks|length >= 100 %}<p class="muted">Показаны последние 100. Уточните фильтры или выгрузите всё в CSV.</p>{% endif %}
+{% elif filters.active %}<p class="muted">По этим условиям проверок нет.</p>
 {% else %}<p class="muted">Проверок пока нет. <a href="/">Проверить новость →</a></p>{% endif %}
 {% endblock %}

@@ -1,6 +1,16 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -76,6 +86,8 @@ class Watch(CreatedAtMixin, Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # Слежение организации: видно всей команде, оповещения — автору и подписавшимся.
+    org_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"), index=True)
     check_id: Mapped[int] = mapped_column(ForeignKey("checks.id"))  # с чего началось
     last_check_id: Mapped[int | None] = mapped_column(ForeignKey("checks.id"))
     every_hours: Mapped[int] = mapped_column(Integer)
@@ -87,3 +99,14 @@ class Watch(CreatedAtMixin, Base):
     first_state: Mapped[dict] = mapped_column(JSONB, server_default="{}", default=dict)
     last_state: Mapped[dict] = mapped_column(JSONB, server_default="{}", default=dict)
     stopped_reason: Mapped[str | None] = mapped_column(Text)
+
+
+class WatchSubscriber(CreatedAtMixin, Base):
+    """Сотрудник организации подписался на оповещения по слежению коллеги."""
+
+    __tablename__ = "watch_subscribers"
+    __table_args__ = (UniqueConstraint("watch_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    watch_id: Mapped[int] = mapped_column(ForeignKey("watches.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

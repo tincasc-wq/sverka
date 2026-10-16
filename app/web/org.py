@@ -1,13 +1,15 @@
-"""Кабинет организации (ФТ-9.2): квота, сотрудники, приглашения, общая история, расходы."""
+"""Кабинет организации (ФТ-9.2): квота, сотрудники, приглашения, общая история, слежения,
+расходы, выгрузка истории в CSV и месячный PDF-отчёт."""
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.db import get_session
+from app.orgs.history import CATEGORY_RU, HistoryFilter, csv_bytes, history, recent_months
 from app.orgs.service import (
     InviteError,
     Membership,
@@ -18,7 +20,6 @@ from app.orgs.service import (
     members_with_usage,
     membership_of,
     month_cost_rub,
-    org_checks,
     remove_member,
     seats_used,
 )
@@ -41,6 +42,8 @@ async def cabinet(request: Request, session: Session):
         return await page(request, session, "org_none.html", user=user)
     org = membership.org
     members = await members_with_usage(session, org)
+    authors = {m["user"].id: m["label"] for m in members}
+    filters = HistoryFilter.from_params(request.query_params)
     new_invite = request.query_params.get("invite")
     from datetime import UTC, datetime, timedelta
 
@@ -67,8 +70,12 @@ async def cabinet(request: Request, session: Session):
         used=await checks_this_month(session, org),
         seats=await seats_used(session, org),
         members=members,
-        checks=await org_checks(session, org),
-        authors={m["user"].id: m["label"] for m in members},
+        checks=await history(session, org, filters),
+        filters=filters,
+        categories=CATEGORY_RU,
+        months=recent_months(),
+        authors=authors,
+        watches=await _watches(session, org, user, authors),
         cost=await month_cost_rub(session, org) if membership.is_owner else None,
         invite=invite_url(new_invite) if new_invite and membership.is_owner else None,
         removed=request.query_params.get("removed"),
@@ -196,3 +203,123 @@ async def join(request: Request, token: str, session: Session):
     if new_user:
         set_user_cookie(response, user.id)
     return response
+
+
+async def _watches(session: AsyncSession, org, user, authors: dict[int, str]) -> list[dict]:
+    from app.models import Check
+    from app.watches import org_watches, subscribed_ids
+
+    watches = await org_watches(session, org.id)
+    mine = await subscribed_ids(session, user, watches)
+    items = []
+    for w in watches:
+        last = await session.get(Check, w.last_check_id) if w.last_check_id else None
+        items.append(
+            {
+                "watch": w,
+                "title": (w.last_state or {}).get("title") or "новость",
+                "author": authors.get(w.user_id, "бывший сотрудник"),
+                "own": w.user_id == user.id,
+                "subscribed": w.id in mine,
+                "token": last.public_token if last else None,
+            }
+        )
+    return items
+
+
+@router.post("/watches/{watch_id}/subscribe")
+async def watch_subscribe(request: Request, watch_id: int, session: Session):
+    from app.watches import subscribe
+
+    user = await current_user(request, session)
+    if user is not None:
+        await subscribe(session, user, watch_id, on=True)
+    return RedirectResponse("/org#watches", status_code=303)
+
+
+@router.post("/watches/{watch_id}/unsubscribe")
+async def watch_unsubscribe(request: Request, watch_id: int, session: Session):
+    from app.watches import subscribe
+
+    user = await current_user(request, session)
+    if user is not None:
+        await subscribe(session, user, watch_id, on=False)
+    return RedirectResponse("/org#watches", status_code=303)
+
+
+@router.get("/org/export.csv")
+async def export_csv(request: Request, session: Session):
+    """Выгрузка истории (с теми же фильтрами, что на странице) — для Excel."""
+    from app.orgs.history import EXPORT_LIMIT
+
+    membership = await membership_of(session, await current_user(request, session))
+    if membership is None:
+        return RedirectResponse("/org", status_code=303)
+    org = membership.org
+    authors = {m["user"].id: m["label"] for m in await members_with_usage(session, org)}
+    rows = await history(
+        session, org, HistoryFilter.from_params(request.query_params), limit=EXPORT_LIMIT
+    )
+    body = csv_bytes(rows, authors, get_settings().public_base_url.rstrip("/"))
+    return Response(
+        body,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="sverka-history.csv"'},
+    )
+
+
+@router.get("/org/report.pdf")
+async def month_report(request: Request, session: Session):
+    """Месячный отчёт организации: итоги, сотрудники, категории, спорные новости."""
+    from datetime import datetime
+
+    from fastapi.concurrency import run_in_threadpool
+
+    from app.orgs.history import month_summary
+    from app.orgs.service import MSK
+    from app.web.report import msk, render_pdf, templates
+
+    membership = await membership_of(session, await current_user(request, session))
+    if membership is None:
+        return RedirectResponse("/org", status_code=303)
+    org = membership.org
+    month = HistoryFilter.from_params(request.query_params).month or recent_months(1)[0]
+    authors = {m["user"].id: m["label"] for m in await members_with_usage(session, org)}
+    summary = await month_summary(session, org, month, authors)
+    base = get_settings().public_base_url.rstrip("/")
+    html = templates.get_template("org_report_pdf.html").render(
+        org=org,
+        s=summary,
+        categories=CATEGORY_RU,
+        month_ru=_month_ru(month),
+        site=base.removeprefix("https://").removeprefix("http://"),
+        base=base,
+        now=msk(datetime.now(MSK)),
+    )
+    pdf = await run_in_threadpool(render_pdf, html)
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="sverka-{month}.pdf"'},
+    )
+
+
+MONTHS_RU = (
+    "январь",
+    "февраль",
+    "март",
+    "апрель",
+    "май",
+    "июнь",
+    "июль",
+    "август",
+    "сентябрь",
+    "октябрь",
+    "ноябрь",
+    "декабрь",
+)
+
+
+def _month_ru(month: str) -> str:
+    year, num = month.split("-")
+    return f"{MONTHS_RU[int(num) - 1]} {year}"

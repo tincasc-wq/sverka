@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Сверка — {{ org.name }}, {{ month_ru }}</title>
+<style>
+  @page {
+    size: A4; margin: 18mm 16mm 20mm;
+    @bottom-left { content: "Сверка · {{ site }} · {{ org.name }} · {{ s.month }}"; font-family: "DejaVu Sans", sans-serif; font-size: 7.5pt; color: #6b7280; }
+    @bottom-right { content: "стр. " counter(page) " из " counter(pages); font-family: "DejaVu Sans", sans-serif; font-size: 7.5pt; color: #6b7280; }
+  }
+  body { font-family: "DejaVu Sans", sans-serif; font-size: 9.5pt; line-height: 1.4; color: #12203A; }
+  a { color: #12203A; }
+  .head { display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #C96A33; padding-bottom: 8px; margin-bottom: 12px; }
+  .head img { width: 36px; height: 36px; }
+  .head .brand { font-size: 15pt; font-weight: bold; }
+  .head .meta { margin-left: auto; text-align: right; font-size: 7.5pt; color: #6b7280; }
+  h1 { font-size: 14pt; margin: 0 0 4px; }
+  h2 { font-size: 11pt; margin: 16px 0 6px; color: #C96A33; page-break-after: avoid; }
+  .muted { color: #6b7280; }
+  .small { font-size: 8pt; }
+  .facts { display: flex; gap: 8px; margin: 10px 0; }
+  .fact { flex: 1; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; }
+  .fact .label { font-size: 7.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: .3px; }
+  .fact .value { font-size: 13pt; font-weight: bold; }
+  table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  th { text-align: left; font-weight: bold; color: #6b7280; font-size: 7.5pt; border-bottom: 1px solid #d1d5db; padding: 3px 4px; }
+  td { border-bottom: 1px solid #eef0f3; padding: 3px 4px; vertical-align: top; }
+  tr { page-break-inside: avoid; }
+  .url { font-size: 7pt; color: #6b7280; word-break: break-all; }
+  .num { text-align: right; white-space: nowrap; }
+  .disclaimer { margin-top: 18px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 7.5pt; color: #6b7280; }
+</style>
+</head>
+<body>
+<div class="head">
+  <img src="fox-256.png" alt="">
+  <div><div class="brand">Сверка</div><div class="small muted">проверка происхождения новостей</div></div>
+  <div class="meta">{{ org.name }}<br>Выгружено {{ now }}</div>
+</div>
+
+<h1>Отчёт организации за {{ month_ru }}</h1>
+<div class="facts">
+  <div class="fact"><div class="label">Проверок</div><div class="value">{{ s.total }}</div></div>
+  <div class="fact"><div class="label">Завершено</div><div class="value">{{ s.done }}</div></div>
+  <div class="fact"><div class="label">Квота в месяц</div><div class="value">{{ org.monthly_quota }}</div></div>
+  <div class="fact"><div class="label">Средний индекс</div><div class="value">{{ "%g"|format(s.avg_index) if s.avg_index is not none else "—" }}</div></div>
+</div>
+
+{% if s.total %}
+<h2>Итоги проверок</h2>
+<table>
+  <tr><th>Категория</th><th class="num">Проверок</th></tr>
+  {% for code, name in categories.items() %}
+  <tr><td>{{ name }}</td><td class="num">{{ s.by_category[code] }}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>По сотрудникам</h2>
+<table>
+  <tr><th>Сотрудник</th><th class="num">Проверок</th></tr>
+  {% for name, n in s.by_member %}<tr><td>{{ name }}</td><td class="num">{{ n }}</td></tr>{% endfor %}
+</table>
+
+{% if s.bad %}
+<h2>Оспорено, опровергнуто или под вопросом</h2>
+<table>
+  <tr><th style="width:16%">Дата (МСК)</th><th>Новость</th><th style="width:22%">Итог</th></tr>
+  {% for r in s.bad %}
+  <tr><td>{{ r.created_at | msk }}</td><td>{{ r.label[:200] }}{% if r.token %}<div class="url">{{ base }}/r/{{ r.token }}</div>{% endif %}</td>
+      <td>{% if r.index is not none %}<b>{{ "%g"|format(r.index) }}</b> · {% endif %}{{ r.status_text or "" }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+{% if s.top %}
+<h2>Самые широко освещённые новости</h2>
+<table>
+  <tr><th>Новость</th><th class="num" style="width:14%">Публикаций</th><th style="width:22%">Итог</th></tr>
+  {% for r in s.top %}
+  <tr><td>{{ r.label[:200] }}{% if r.token %}<div class="url">{{ base }}/r/{{ r.token }}</div>{% endif %}</td>
+      <td class="num">{{ r.publications if r.publications is not none else "—" }}</td>
+      <td>{% if r.index is not none %}<b>{{ "%g"|format(r.index) }}</b> · {% endif %}{{ r.status_text or "" }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% else %}
+<p class="muted">В этом месяце проверок не было.</p>
+{% endif %}
+
+<div class="disclaimer">Автоматические повторные проверки (через 72 часа) в отчёт не входят и квоту не расходуют.
+Индекс подтверждённости показывает, насколько широко и независимо событие подтверждено источниками из реестра «Сверки»,
+а не истинность новости.</div>
+</body>
+</html>
