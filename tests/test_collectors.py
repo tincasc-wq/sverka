@@ -172,3 +172,18 @@ async def test_poll_telegram_reads_channel_preview(committed) -> None:
         assert post.url == "https://t.me/testchan/101"
         closed = await s.scalar(select(Source).where(Source.handle_or_domain == "@nopreview"))
         assert "web preview disabled" in closed.last_error
+
+
+def test_full_text_must_match_title() -> None:
+    from app.collectors.rss import text_matches_title
+
+    title = "Росатом построит первую атомную электростанцию на Луне к середине 2030-х годов"
+    own = (
+        "Россия должна создать первую атомную электростанцию на Луне к середине 2030-х годов, "
+        "заявил глава Росатома."
+    )
+    other = "Владимир Зеленский в телеинтервью в Лондоне рассказал, что после четырёх лет войны"
+    assert text_matches_title(title, own)
+    assert not text_matches_title(title, other)  # ВЗГЛЯД 15.10.2026: соседняя статья со страницы
+    assert text_matches_title("Молния", other)  # слишком короткий заголовок не проверяем
+    assert text_matches_title(None, other) and text_matches_title(title, None)

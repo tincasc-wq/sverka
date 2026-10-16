@@ -2,6 +2,7 @@
 
 import asyncio
 import calendar
+import logging
 import re
 from datetime import UTC, datetime
 from html import unescape
@@ -14,6 +15,8 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 from app.collectors.http import fetch_bytes
 from app.collectors.store import DocumentIn
 from app.core.config import get_settings
+
+log = logging.getLogger("sverka.rss")
 
 
 def _entry_time(entry: dict) -> datetime | None:
@@ -48,6 +51,31 @@ def parse_feed(raw: bytes, source_id: int | None) -> list[DocumentIn]:
     return docs
 
 
+_WORD = re.compile(r"[0-9A-Za-zА-Яа-яЁё]{4,}")
+TITLE_MATCH_MIN = 0.3  # доля значимых слов заголовка, которые должны встретиться в начале текста
+
+
+def _stems(text: str) -> set[str]:
+    # Основа слова — первые 5 букв: «электростанцию» и «электростанция» совпадут.
+    return {w.lower()[:5] for w in _WORD.findall(text)}
+
+
+def text_matches_title(title: str | None, text: str | None) -> bool:
+    """Текст со страницы про то же, что заголовок? Защита от чужой статьи на странице.
+
+    ВЗГЛЯД 15.10.2026: заголовок «Росатом построит первую АЭС на Луне», а извлекатель взял
+    со страницы соседний материал про интервью Зеленского — и публикация выпала из истории.
+    Слишком короткий заголовок (меньше трёх значимых слов) не проверяем.
+    """
+    if not title or not text:
+        return True
+    wanted = _stems(title)
+    if len(wanted) < 3:
+        return True
+    found = wanted & _stems(text[:2000])
+    return len(found) / len(wanted) >= TITLE_MATCH_MIN
+
+
 def extract_article_text(html: bytes | str, url: str) -> str | None:
     return trafilatura.extract(html, url=url, include_comments=False, include_tables=False)
 
@@ -74,6 +102,9 @@ async def enrich_full_text(client: httpx.AsyncClient, docs: list[DocumentIn]) ->
             except (httpx.HTTPError, ValueError):
                 return  # остаётся аннотация из ленты
             text = await asyncio.to_thread(extract_article_text, html, doc.url)
+            if not text_matches_title(doc.title, text):
+                log.info("чужой текст на странице %s — оставляем аннотацию из ленты", doc.url)
+                return
             if text and len(text) > len(doc.text or ""):
                 doc.text = text
                 doc.links = await asyncio.to_thread(extract_article_links, html, doc.url)

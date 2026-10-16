@@ -73,11 +73,16 @@ async def _download(url: str, source_id: int | None) -> DocumentIn:
     async with make_client(public_only=True) as client:
         raw, _ = await fetch(client, url)
     meta = trafilatura.extract_metadata(raw)
+    title = meta.title if meta else None
+    text = rss.extract_article_text(raw, url)
+    if not rss.text_matches_title(title, text):
+        # Со страницы извлеклась соседняя статья — берём описание страницы, а не чужой текст.
+        text = (meta.description if meta else None) or None
     return DocumentIn(
         url=url,
         source_id=source_id,
-        title=meta.title if meta else None,
-        text=rss.extract_article_text(raw, url),
+        title=title,
+        text=text,
         published_at=published_time(raw),
         links=rss.extract_article_links(raw, url),
     )

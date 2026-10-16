@@ -98,3 +98,15 @@ async def test_budget_stops_between_batches(session: AsyncSession, monkeypatch) 
     # Бюджет 0: первая пачка идёт (проверка — до неё), дальше — стоп, без ожидания таймаута.
     assert await embed_pending(session, FakeEmbedder(), budget_seconds=-1) == 0
     assert await embed_pending(session, FakeEmbedder(), budget_seconds=60) == 3
+
+
+async def test_title_only_flash_news_gets_vector(session: AsyncSession) -> None:
+    # «Молния» ТАСС: в ленте только заголовок — без вектора она невидима для поиска похожих.
+    session.add(
+        Document(url="https://tass.test/1", title="Лихачев: РФ создаст АЭС на Луне", text=None)
+    )
+    await session.flush()
+    embedder = FakeEmbedder()
+
+    assert await embed_pending(session, embedder) == 1
+    assert embedder.calls == [["Лихачев: РФ создаст АЭС на Луне"]]

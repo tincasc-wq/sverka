@@ -36,6 +36,12 @@ class SentenceTransformerEmbedder:
         return [v.tolist() for v in vectors]
 
 
+# Срочные сообщения агентств («молнии» ТАСС) приходят одним заголовком: это тоже новость,
+# и без вектора она невидима для поиска похожих (АЭС на Луне, 15.10.2026: ТАСС, первым
+# сообщивший новость, не вошёл в историю). Вектор считаем по заголовку или тексту.
+HAS_CONTENT = Document.text.is_not(None) | Document.title.is_not(None)
+
+
 def document_text(doc: Document, max_chars: int) -> str:
     return "\n".join(p for p in (doc.title, doc.text) if p)[:max_chars]
 
@@ -81,7 +87,7 @@ async def embed_pending(
     docs = list(
         await session.scalars(
             select(Document)
-            .where(Document.embedding.is_(None), Document.text.is_not(None))
+            .where(Document.embedding.is_(None), HAS_CONTENT)
             .order_by(Document.first_seen_at.desc())
             .limit(limit)
         )
@@ -116,7 +122,7 @@ async def embedding_backlog(session: AsyncSession) -> tuple[int, datetime | None
     count, oldest = (
         await session.execute(
             select(func.count(), func.min(Document.first_seen_at)).where(
-                Document.embedding.is_(None), Document.text.is_not(None)
+                Document.embedding.is_(None), HAS_CONTENT
             )
         )
     ).one()
