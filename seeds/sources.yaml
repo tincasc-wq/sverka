@@ -563,7 +563,5 @@ sources:
      rss: "https://3dnews.ru/news/rss/", aliases: [3DNews]}
   - {name: iXBT, type: media, handle_or_domain: ixbt.com, owner: iXBT,
      rss: "https://www.ixbt.com/export/news.rss", aliases: [iXBT]}
-  - {name: CNews, type: media, handle_or_domain: cnews.ru, owner: CNews,
-     rss: "https://www.cnews.ru/inc/rss/news.xml", aliases: [CNews]}
   - {name: Сноб, type: media, handle_or_domain: snob.ru, owner: Сноб,
      rss: "https://snob.ru/rss/", aliases: [Сноб, «Сноб»]}
