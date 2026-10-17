@@ -565,3 +565,24 @@ sources:
      rss: "https://www.ixbt.com/export/news.rss", aliases: [iXBT]}
   - {name: Сноб, type: media, handle_or_domain: snob.ru, owner: Сноб,
      rss: "https://snob.ru/rss/", aliases: [Сноб, «Сноб»]}
+
+  # ---- Франция на французском (18.10.2026): ленты проверены с сервера ----
+  # Le Monde и France 24 уже есть англоязычными версиями на тех же доменах (один домен —
+  # один источник). Региональные France 3 и ICI — по регионам; общая лента есть только у ICI.
+  - {name: Franceinfo, type: media, handle_or_domain: francetvinfo.fr, owner: France Télévisions,
+     lang: fr, rss: "https://www.francetvinfo.fr/titres.rss", aliases: [Franceinfo, France Info, France 3]}
+  - {name: ICI (France Bleu), type: media, handle_or_domain: ici.fr, owner: Radio France,
+     lang: fr, rss: "https://www.ici.fr/rss/infos.xml", aliases: [France Bleu]}
+  - {name: Le Figaro, type: media, handle_or_domain: lefigaro.fr, owner: Groupe Dassault,
+     lang: fr, rss: "https://www.lefigaro.fr/rss/figaro_flash-actu.xml", aliases: [Le Figaro, Figaro]}
+  - {name: Le Parisien, type: media, handle_or_domain: leparisien.fr, owner: LVMH,
+     lang: fr, rss: "https://feeds.leparisien.fr/leparisien/rss", aliases: [Le Parisien]}
+  - {name: BFMTV, type: media, handle_or_domain: bfmtv.com, owner: CMA Media,
+     lang: fr, rss: "https://www.bfmtv.com/rss/news-24-7/", aliases: [BFMTV, BFM]}
+  - {name: Libération, type: media, handle_or_domain: liberation.fr, owner: Libération,
+     lang: fr, rss: "https://www.liberation.fr/arc/outboundfeeds/rss-all/collection/accueil-une/?outputType=xml",
+     aliases: [Libération, Liberation]}
+  - {name: 20 Minutes, type: media, handle_or_domain: 20minutes.fr, owner: 20 Minutes,
+     lang: fr, rss: "https://www.20minutes.fr/feeds/rss-une.xml", aliases: [20 Minutes]}
+  - {name: RFI, type: media, handle_or_domain: rfi.fr, owner: France Medias Monde,
+     lang: fr, rss: "https://www.rfi.fr/fr/rss", aliases: [RFI]}

@@ -35,6 +35,8 @@ class User(CreatedAtMixin, Base):
     pd_consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Пометка администратора («тестовый журналист», «партнёр»…) — видна только в админке.
     admin_note: Mapped[str | None] = mapped_column(String(255))
+    # Тариф изменили — плашка на сайте, пока пользователь её не закроет (app/plan_notices.py).
+    plan_notice: Mapped[str | None] = mapped_column(Text)
 
 
 class LoginToken(CreatedAtMixin, Base):

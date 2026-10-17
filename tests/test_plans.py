@@ -351,3 +351,72 @@ async def test_admin_note_marks_and_finds_user(db) -> None:  # noqa: F811
         account = await c.get("/account")
     assert "Тестовый журналист" in found.text and "990073" in found.text
     assert "Тестовый журналист" not in account.text
+
+
+async def test_plan_change_notifies_user_and_shows_banner(db, monkeypatch) -> None:  # noqa: F811
+    from app.web import notify
+
+    sent: list[tuple[int, str]] = []
+
+    async def fake_send(chat_id: int, text: str) -> bool:
+        sent.append((chat_id, text))
+        return True
+
+    monkeypatch.setattr(notify, "send_telegram", fake_send)
+    async with db() as s:
+        user = User(tg_id=880777)
+        s.add(user)
+        await s.commit()
+    async with client() as admin:
+        admin.cookies.set("sverka_admin", "test-admin-token")
+        await admin.post(
+            f"/admin/users/{user.id}/plan", data={"plan": "pro", "until": "2099-12-31"}
+        )
+        # то же самое ещё раз — не уведомляем повторно
+        await admin.post(
+            f"/admin/users/{user.id}/plan", data={"plan": "pro", "until": "2099-12-31"}
+        )
+    async with client() as c:
+        c.cookies.set(COOKIE, sign(user.id))
+        page = await c.get("/")
+        await c.post("/plan-notice/dismiss")
+        later = await c.get("/")
+
+    assert len(sent) == 1 and sent[0][0] == 880777
+    assert "Тариф изменён" in sent[0][1] and "«Pro» до 31.12.2099" in sent[0][1]
+    assert "(был «Стандарт»)" in sent[0][1] and "PDF-отчёты" in sent[0][1]
+    assert "Тариф изменён." in page.text and "1000 проверок в месяц" in page.text
+    assert "Тариф изменён." not in later.text
+
+
+async def test_org_change_notifies_owner(db, monkeypatch) -> None:  # noqa: F811
+    from app.models import Organization, OrgMember
+    from app.web import notify
+
+    sent: list[str] = []
+
+    async def fake_send(chat_id: int, text: str) -> bool:
+        sent.append(text)
+        return True
+
+    monkeypatch.setattr(notify, "send_telegram", fake_send)
+    async with db() as s:
+        owner = User(tg_id=880778)
+        org = Organization(name="Тройка", plan="team", seats=3, monthly_quota=3500)
+        s.add_all([owner, org])
+        await s.flush()
+        s.add(OrgMember(org_id=org.id, user_id=owner.id, role="owner"))
+        await s.commit()
+    async with client() as admin:
+        admin.cookies.set("sverka_admin", "test-admin-token")
+        await admin.post(
+            f"/admin/orgs/{org.id}",
+            data={
+                "seats": "5",
+                "monthly_quota": "6000",
+                "active": "on",
+                "paid_until": "2099-01-31",
+            },
+        )
+    assert len(sent) == 1
+    assert "«Тройка» — «Команда»: 5 мест, 6000 проверок в месяц, оплачено до 31.01.2099" in sent[0]

@@ -62,6 +62,8 @@ async def page(request: Request, session: AsyncSession, name: str, **context):
         from app.plans import usage_of
 
         context["usage"] = await usage_of(session, user)  # плашка тарифа в шапке
+    if user is not None and user.plan_notice:
+        context.setdefault("plan_notice", user.plan_notice)
     if "archive" not in context:
         from app.web.archive_info import archive_info
 
@@ -85,6 +87,17 @@ async def home(request: Request, session: Session):
             )
         )
     return await page(request, session, "home.html", user=user, recent=recent, value="", error=None)
+
+
+@router.post("/plan-notice/dismiss")
+async def plan_notice_dismiss(request: Request, session: Session):
+    """«Понятно» на плашке о смене тарифа."""
+    user = await current_user(request, session)
+    if user is not None and user.plan_notice:
+        user.plan_notice = None
+        await session.commit()
+    back = request.headers.get("referer") or "/"
+    return RedirectResponse(back if back.startswith(str(request.base_url)) else "/", 303)
 
 
 @router.post("/check")

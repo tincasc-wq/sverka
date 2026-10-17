@@ -317,14 +317,19 @@ async def update_org(
     active: Annotated[bool, Form()] = False,
     paid_until: Annotated[str, Form()] = "",
 ):
+    from app.plan_notices import announce_org
+
     org = await session.get(Organization, org_id)
     if org is None:
         raise HTTPException(404)
+    before = (org.seats, org.monthly_quota, org.ru_only, org.active, org.paid_until)
     org.seats = max(1, seats)
     org.monthly_quota = max(0, monthly_quota)
     org.ru_only = ru_only
     org.active = active
     org.paid_until = _end_of_day(paid_until)
+    if (org.seats, org.monthly_quota, org.ru_only, org.active, org.paid_until) != before:
+        await announce_org(session, org)
     await session.commit()
     return RedirectResponse("/admin/orgs", status_code=303)
 
@@ -420,11 +425,14 @@ async def set_user_plan(
     from zoneinfo import ZoneInfo
 
     from app.models import User
-    from app.plans import get_plans
+    from app.plan_notices import announce_personal
+    from app.plans import get_plans, plan_for
 
     user = await session.get(User, user_id)
     if user is None or plan not in get_plans():
         raise HTTPException(404)
+    before = (plan_for(user).code, user.plan_until, user.daily_quota)
+    old_name = plan_for(user).name
     user.plan = plan
     user.plan_until = (
         datetime.strptime(until, "%Y-%m-%d")
@@ -434,6 +442,8 @@ async def set_user_plan(
         else None
     )
     user.daily_quota = int(daily_quota) if daily_quota.strip().isdigit() else None
+    if (plan_for(user).code, user.plan_until, user.daily_quota) != before:
+        await announce_personal(user, old_name)
     await session.commit()
     return RedirectResponse(f"/admin/users?q={user_id}&saved=1", status_code=303)
 
