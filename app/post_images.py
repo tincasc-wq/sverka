@@ -33,6 +33,23 @@ def with_image_text(text: str | None, recognized: list[str]) -> str:
     return "\n\n".join(x for x in (text or "", MARK, "\n\n".join(parts)) if x)
 
 
+async def _download_image(url: str) -> bytes:
+    """Картинки лежат на CDN Telegram (telesco.pe): у него нет IPv6, а страница поста — только
+    по IPv6 (с сервера в РФ). Поэтому картинку — по IPv4, а не вышло — через шлюз сборщика."""
+    proxies = [None]
+    if get_settings().collector_proxy:
+        proxies.append(get_settings().collector_proxy)
+    error: Exception | None = None
+    for proxy in proxies:
+        try:
+            async with make_client(proxy=proxy, public_only=True) as client:
+                image, _ = await fetch(client, url)
+                return image
+        except Exception as exc:  # noqa: BLE001 — пробуем следующий путь
+            error = exc
+    raise error
+
+
 async def add_image_text(doc: Document) -> bool:
     """True — к посту добавлен текст с картинок (вектор надо пересчитать)."""
     from app import ocr
@@ -45,15 +62,15 @@ async def add_image_text(doc: Document) -> bool:
             proxy=settings.telegram_proxy, public_only=True, ipv6=settings.telegram_ipv6
         ) as client:
             page, _ = await fetch(client, f"{doc.url}?embed=1")
-            recognized = []
-            for url in telegram_image_urls(page.decode("utf-8", errors="replace")):
-                image, _ = await fetch(client, url)
-                try:
-                    text = await ocr.recognize_async(image)
-                except ocr.OcrError:
-                    continue
-                if len(text) >= ocr.MIN_CHARS:
-                    recognized.append(text)
+        recognized = []
+        for url in telegram_image_urls(page.decode("utf-8", errors="replace")):
+            image = await _download_image(url)
+            try:
+                text = await ocr.recognize_async(image)
+            except ocr.OcrError:
+                continue
+            if len(text) >= ocr.MIN_CHARS:
+                recognized.append(text)
     except Exception:  # noqa: BLE001 — без картинок проверка всё равно идёт по тексту поста
         log.warning("картинки поста %s не распознаны", doc.url, exc_info=True)
         return False
