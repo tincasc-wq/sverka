@@ -33,6 +33,8 @@ class User(CreatedAtMixin, Base):
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Когда пользователь дал согласие на обработку ПДн (галочка на сайте / вход через Telegram).
     pd_consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Пометка администратора («тестовый журналист», «партнёр»…) — видна только в админке.
+    admin_note: Mapped[str | None] = mapped_column(String(255))
 
 
 class LoginToken(CreatedAtMixin, Base):

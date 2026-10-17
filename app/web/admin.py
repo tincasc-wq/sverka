@@ -362,7 +362,8 @@ async def users(request: Request, session: Session, q: str = ""):
         if q.isdigit():
             query = query.where((User.id == int(q)) | (User.tg_id == int(q)))
         else:
-            query = query.where(User.email.ilike(f"%{q.lower()}%"))
+            like = f"%{q.lower()}%"
+            query = query.where(User.email.ilike(like) | User.admin_note.ilike(f"%{q}%"))
     else:
         query = query.where((User.tg_id.is_not(None)) | (User.email.is_not(None)))
     rows = []
@@ -433,6 +434,18 @@ async def set_user_plan(
         else None
     )
     user.daily_quota = int(daily_quota) if daily_quota.strip().isdigit() else None
+    await session.commit()
+    return RedirectResponse(f"/admin/users?q={user_id}&saved=1", status_code=303)
+
+
+@protected.post("/users/{user_id}/note")
+async def set_user_note(user_id: int, session: Session, note: Annotated[str, Form()] = ""):
+    from app.models import User
+
+    user = await session.get(User, user_id)
+    if user is None:
+        raise HTTPException(404)
+    user.admin_note = note.strip()[:255] or None
     await session.commit()
     return RedirectResponse(f"/admin/users?q={user_id}&saved=1", status_code=303)
 

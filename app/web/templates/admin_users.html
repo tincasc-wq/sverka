@@ -26,7 +26,7 @@
 
 <h2>Пользователи</h2>
 <form method="get" action="/admin/users" class="row" style="gap:8px;margin-bottom:12px">
-  <input type="text" name="q" value="{{ q }}" placeholder="почта, Telegram ID или № пользователя" style="flex:1;min-width:240px">
+  <input type="text" name="q" value="{{ q }}" placeholder="почта, Telegram ID, № пользователя или пометка" style="flex:1;min-width:240px">
   <button>Найти</button>
 </form>
 {% if saved %}<div class="note">Сохранено.</div>{% endif %}
@@ -35,10 +35,14 @@
   <tr><th>№</th><th>Вход</th><th>Тариф сейчас</th><th>Проверок</th><th>Назначить</th></tr>
   {% for r in rows %}{% set u = r.user %}
   <tr>
-    <td>{{ u.id }}</td>
+    <td>{{ u.id }}{% if u.admin_note %}<br><span class="tag probable">{{ u.admin_note }}</span>{% endif %}</td>
     <td>{% if u.email %}{{ u.email }}<br>{% endif %}{% if u.tg_id %}<span class="muted">Telegram {{ u.tg_id }}</span>{% endif %}
         {% if not u.email and not u.tg_id %}<span class="muted">без входа</span>{% endif %}
         {% if r.org %}<br><span class="tag">{{ r.org }}</span>{% endif %}
+        <form method="post" action="/admin/users/{{ u.id }}/note" class="row" style="gap:4px;margin-top:4px">
+          <input type="text" name="note" maxlength="255" value="{{ u.admin_note or '' }}" placeholder="пометка для себя" style="min-width:160px">
+          <button>Пометка</button>
+        </form>
         {% if u.role != 'user' %}<br><span class="tag good">{{ {'admin': 'администратор', 'analyst': 'аналитик'}.get(u.role, u.role) }}</span>{% endif %}
         <form method="post" action="/admin/users/{{ u.id }}/role" class="row" style="gap:4px;margin-top:4px">
           <select name="role">{% for code, label in [('user', 'пользователь'), ('analyst', 'аналитик'), ('admin', 'администратор')] %}

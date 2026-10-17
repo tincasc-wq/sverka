@@ -335,3 +335,19 @@ async def test_paid_checks_jump_the_queue(db, monkeypatch) -> None:  # noqa: F81
 
     assert buttons(check_keyboard(7, pdf=True))[0] == "pdf:7"
     assert "pdf:7" not in buttons(check_keyboard(7))
+
+
+async def test_admin_note_marks_and_finds_user(db) -> None:  # noqa: F811
+    async with db() as s:
+        user = User(tg_id=990073)
+        s.add(user)
+        await s.commit()
+    async with client() as admin:
+        admin.cookies.set("sverka_admin", "test-admin-token")
+        await admin.post(f"/admin/users/{user.id}/note", data={"note": "Тестовый журналист"})
+        found = await admin.get("/admin/users", params={"q": "журналист"})
+    async with client() as c:
+        c.cookies.set(COOKIE, sign(user.id))
+        account = await c.get("/account")
+    assert "Тестовый журналист" in found.text and "990073" in found.text
+    assert "Тестовый журналист" not in account.text
