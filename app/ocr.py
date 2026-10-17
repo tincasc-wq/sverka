@@ -6,6 +6,7 @@
 """
 
 import asyncio
+import os
 import re
 import shutil
 import subprocess
@@ -67,6 +68,8 @@ def recognize(data: bytes) -> str:
             capture_output=True,
             timeout=TIMEOUT_SECONDS,
             check=False,
+            # Не больше двух ядер: на том же сервере считаются эмбеддинги (4 ядра на всё).
+            env={**os.environ, "OMP_THREAD_LIMIT": "2"},
         )
     except subprocess.TimeoutExpired as exc:
         raise OcrError("распознавание заняло слишком много времени") from exc
