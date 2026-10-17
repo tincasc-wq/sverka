@@ -90,7 +90,8 @@
 </header>
 <main>{% block content %}{% endblock %}</main>
 {% if nav is not defined %}
-<footer>Автоматический анализ открытых источников, не является утверждением об истинности или ложности. · <a href="/methodology">Как это работает</a> · <a href="/privacy">Политика обработки персональных данных</a></footer>
+<footer>{% if archive and archive.since %}Архив новостей собирается с {{ archive.since | ru_date }}: {{ archive.documents_text }} публикаций, {{ archive.sources }} активных источников. ·
+  {% endif %}Автоматический анализ открытых источников, не является утверждением об истинности или ложности. · <a href="/methodology">Как это работает</a> · <a href="/privacy">Политика обработки персональных данных</a></footer>
 {% endif %}
 </body>
 </html>

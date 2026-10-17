@@ -43,6 +43,29 @@ def msk_date(value: datetime | None) -> str:
 templates.env.filters["msk"] = msk
 templates.env.filters["msk_date"] = msk_date
 
+MONTHS_GENITIVE = (
+    "января",
+    "февраля",
+    "марта",
+    "апреля",
+    "мая",
+    "июня",
+    "июля",
+    "августа",
+    "сентября",
+    "октября",
+    "ноября",
+    "декабря",
+)
+
+
+def ru_date(value) -> str:
+    """12 октября 2026."""
+    return f"{value.day} {MONTHS_GENITIVE[value.month - 1]} {value.year}" if value else ""
+
+
+templates.env.filters["ru_date"] = ru_date
+
 
 async def check_by_token(session: AsyncSession, token: str) -> Check:
     check = await session.scalar(select(Check).where(Check.public_token == token))

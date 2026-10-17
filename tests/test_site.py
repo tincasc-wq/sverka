@@ -264,3 +264,32 @@ async def test_branding_static_and_login_page(db) -> None:
     assert icon.status_code == 200
     assert "/static/fox-256.png" in login.text and "«Ангрист»" in login.text
     assert 'rel="icon"' in login.text
+
+
+async def test_archive_depth_shown_on_site(db) -> None:  # noqa: F811
+    from datetime import UTC, datetime
+
+    from app.web.archive_info import reset_cache
+
+    async with db() as s:
+        source = Source(type="media", name="Архивный", handle_or_domain="arch.test")
+        s.add(source)
+        await s.flush()
+        s.add(
+            Document(
+                url="https://arch.test/1",
+                title="Новость",
+                source_id=source.id,
+                published_at=datetime.now(UTC),
+            )
+        )
+        await s.commit()
+    reset_cache()
+    async with client() as c:
+        home = await c.get("/")
+        method = await c.get("/methodology")
+    reset_cache()
+    today = datetime.now(UTC)
+    assert "Архив новостей собирается с" in home.text and "Сверяем по своему архиву" in home.text
+    assert f"{today.year}" in home.text and "1 публикаций, 1 активных источников" in home.text
+    assert "Новости до этой даты подтвердить по архиву нельзя" in method.text

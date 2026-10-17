@@ -62,6 +62,10 @@ async def page(request: Request, session: AsyncSession, name: str, **context):
         from app.plans import usage_of
 
         context["usage"] = await usage_of(session, user)  # плашка тарифа в шапке
+    if "archive" not in context:
+        from app.web.archive_info import archive_info
+
+        context["archive"] = await archive_info(session)  # глубина архива — в подвале
     return templates.TemplateResponse(
         request, name, {"site": True, "user": user, "membership": membership, **context}
     )
