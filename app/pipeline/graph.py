@@ -164,9 +164,24 @@ _NAMED_ATTRIBUTION = re.compile(
 )
 
 
+# «Китай представил робота, — Futurism»: источник через тире в конце заголовка (УНИАН, РБК-Украина).
+# Только в начале текста и только в конце строки — иначе тире в тексте давали бы ложные ссылки.
+_DASH_ATTRIBUTION = re.compile(
+    r"\S,?[ \t]+[-–—][ \t]+([A-ZА-ЯЁ][\w.\-]*(?:[ \t]+[A-ZА-ЯЁ][\w.\-]*){0,3})[ \t]*$",
+    re.MULTILINE,
+)
+DASH_ATTRIBUTION_CHARS = 400
+
+
+def dash_attributed_names(text: str) -> list[str]:
+    return [
+        m.group(1).rstrip(".-,") for m in _DASH_ATTRIBUTION.finditer(text[:DASH_ATTRIBUTION_CHARS])
+    ]
+
+
 def attributed_names(text: str) -> list[str]:
     """Имена источников после формулы атрибуции — в том числе тех, кого нет в реестре."""
-    names: list[str] = []
+    names: list[str] = [n for n in dash_attributed_names(text or "") if n]
     for match in _NAMED_ATTRIBUTION.finditer(text or ""):
         name = match.group(1).rstrip(".-,")
         if name and name not in names:
@@ -188,10 +203,14 @@ def attributed_sources(text: str, sources: list[SourceInfo], window: int) -> set
     spans = [
         (max(0, m.start() - window // 2), m.end() + window) for m in _ATTRIBUTION.finditer(text)
     ]
-    if not spans:
+    dashed = {n.lower() for n in dash_attributed_names(text)}
+    if not spans and not dashed:
         return set()
     found = set()
     for source in sources:
+        if dashed & {a.lower() for a in (*source.aliases, source.name)}:
+            found.add(source.id)
+            continue
         for alias in source.aliases:
             pattern = _alias_pattern(alias)
             if any(pattern.search(text, lo, hi) for lo, hi in spans):

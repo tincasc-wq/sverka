@@ -400,6 +400,7 @@ async def run_check(
     elif use_llm:
         try:
             report["analysis"] = await analyze(session, llm, result, check.id, scoring)
+            retelling_outside_archive(report)
             report["note"] = None
             check.confirmation_index = report["analysis"]["index"]
         except LlmUnavailable as exc:
@@ -411,6 +412,27 @@ async def run_check(
     check.finished_at = datetime.now(UTC)
     await session.commit()
     return check
+
+
+def retelling_outside_archive(report: dict) -> None:
+    """«Рано судить» неверно, если публикация сама пересказывает чужую, которой у нас нет.
+
+    Пост УНИАН «…, — Futurism» вышел полчаса назад, но история старше: её первоисточник
+    просто не в архиве. Так и пишем, вместо «слишком рано: независимых сообщений ещё нет».
+    """
+    analysis = report.get("analysis") or {}
+    seed = next((t for t in report.get("timeline", []) if t.get("is_seed")), None)
+    cites = (seed or {}).get("attributes_outside_archive") or []
+    alone = report.get("core_publications", report.get("publications", 0)) <= 1
+    if not cites or analysis.get("status") not in ("too_early", "no_independent", "not_confirmed"):
+        return
+    if analysis["status"] != "too_early" and not alone:
+        return
+    analysis["status"] = "retelling_outside"
+    analysis["status_text"] = (
+        f"пересказ публикации {', '.join(cites)}: её нет в архиве «Сверки», "
+        "подтвердить по архиву нельзя"
+    )
 
 
 def _embedder() -> Embedder | None:

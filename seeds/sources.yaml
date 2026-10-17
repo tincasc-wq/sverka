@@ -541,3 +541,29 @@ sources:
      rss: "https://www.nkj.ru/rss/", aliases: [Наука и жизнь, «Наука и жизнь»]}
   - {name: Научная Россия, type: media, handle_or_domain: scientificrussia.ru, owner: Научная Россия,
      rss: "https://scientificrussia.ru/rss", aliases: [Научная Россия]}
+
+  # ---- Технологии (18.10.2026): ленты проверены с сервера ----
+  - {name: Futurism, type: media, handle_or_domain: futurism.com, owner: Futurism,
+     lang: en, rss: "https://futurism.com/feed", aliases: [Futurism]}
+  - {name: Interesting Engineering, type: media, handle_or_domain: interestingengineering.com,
+     owner: Interesting Engineering, lang: en, rss: "https://interestingengineering.com/feed",
+     aliases: [Interesting Engineering]}
+  - {name: The Verge, type: media, handle_or_domain: theverge.com, owner: Vox Media,
+     lang: en, via_gateway: true, legal_flags: {blocked_in_ru: "таймаут из РФ, 18.10.2026"},
+     rss: "https://www.theverge.com/rss/index.xml", aliases: [The Verge]}
+  - {name: TechCrunch, type: media, handle_or_domain: techcrunch.com, owner: Yahoo,
+     lang: en, rss: "https://techcrunch.com/feed/", aliases: [TechCrunch]}
+  - {name: Ars Technica, type: media, handle_or_domain: arstechnica.com, owner: Condé Nast,
+     lang: en, rss: "https://feeds.arstechnica.com/arstechnica/index", aliases: [Ars Technica]}
+  - {name: Wired, type: media, handle_or_domain: wired.com, owner: Condé Nast,
+     lang: en, rss: "https://www.wired.com/feed/rss", aliases: [Wired]}
+  - {name: Хабр, type: media, handle_or_domain: habr.com, owner: Хабр,
+     rss: "https://habr.com/ru/rss/news/?fl=ru", aliases: [Хабр, Habr]}
+  - {name: 3DNews, type: media, handle_or_domain: 3dnews.ru, owner: 3DNews,
+     rss: "https://3dnews.ru/news/rss/", aliases: [3DNews]}
+  - {name: iXBT, type: media, handle_or_domain: ixbt.com, owner: iXBT,
+     rss: "https://www.ixbt.com/export/news.rss", aliases: [iXBT]}
+  - {name: CNews, type: media, handle_or_domain: cnews.ru, owner: CNews,
+     rss: "https://www.cnews.ru/inc/rss/news.xml", aliases: [CNews]}
+  - {name: Сноб, type: media, handle_or_domain: snob.ru, owner: Сноб,
+     rss: "https://snob.ru/rss/", aliases: [Сноб, «Сноб»]}

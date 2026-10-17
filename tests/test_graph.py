@@ -250,3 +250,42 @@ def test_blocked_source_is_labelled_in_report() -> None:
     bbc = SourceInfo(9, "BBC News", "bbc.com", "media", legal_note="заблокировано в РФ")
     assert bbc.display_name == "BBC News (заблокировано в РФ)"
     assert TASS.display_name == "ТАСС"
+
+
+def test_dash_attribution_in_headline() -> None:
+    from app.pipeline.graph import attributed_names, attributed_sources
+
+    futurism = SourceInfo(9, "Futurism", "futurism.com", "media", aliases=("Futurism",))
+    unian = (
+        "Китай представил гигантского четырёхметрового робота весом 1,2 тонны\n, - Futurism\n\n"
+        "Компания NeodraDynamics показала Neo1 - человекоподобного робота."
+    )
+    plain = "Лидеры встретились — Путин\nи Си обсудили торговлю. Итоги — позже"
+    assert attributed_sources(unian, [futurism, TASS], 300) == {9}
+    assert attributed_names(unian)[0] == "Futurism"
+    assert "Futurism" in attributed_names("Робот поднял 500 кг — Futurism")
+    # тире внутри предложения и не в конце строки — не атрибуция
+    assert attributed_names("Робот Neo1 - человекоподобный, сообщили в компании") == []
+    assert attributed_sources(plain, [futurism, TASS], 300) == set()
+
+
+def test_retelling_outside_archive_replaces_too_early() -> None:
+    from app.check import retelling_outside_archive
+
+    def report(status: str, core: int) -> dict:
+        return {
+            "core_publications": core,
+            "timeline": [{"is_seed": True, "attributes_outside_archive": ["Futurism"]}],
+            "analysis": {"status": status, "status_text": "x", "index": None},
+        }
+
+    fresh = report("too_early", 1)
+    retelling_outside_archive(fresh)
+    many = report("no_independent", 4)
+    retelling_outside_archive(many)
+    confirmed = report("widely_confirmed", 1)
+    retelling_outside_archive(confirmed)
+    assert fresh["analysis"]["status"] == "retelling_outside"
+    assert "пересказ публикации Futurism: её нет в архиве" in fresh["analysis"]["status_text"]
+    assert many["analysis"]["status"] == "no_independent"
+    assert confirmed["analysis"]["status"] == "widely_confirmed"
