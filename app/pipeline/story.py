@@ -89,7 +89,8 @@ async def find_candidates(
         return {doc.id: doc for doc in rows}
 
     offset = cfg.clustering.crosslingual_offset
-    seed_lang = await _lang_of(session, seed.source_id)
+    # Сайт не из реестра — язык из разметки страницы, а не «ru» по умолчанию.
+    seed_lang = await _lang_of(session, seed.source_id) if seed.source_id else (seed.lang or "ru")
 
     async def shifted(docs: dict[int, Document], raw: dict[int, float]) -> dict[int, float]:
         # Разные языки — близость ниже при том же событии; выравниваем по калибровке.

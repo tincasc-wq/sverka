@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -47,6 +48,9 @@ class Document(Base):
     lang: Mapped[str | None] = mapped_column(String(8))
     # Дата, которую заявляет сам источник.
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Дата без времени со страницы («March 23, 2023»): для первоисточника не годится
+    # (полночь сделала бы статью ложно самой ранней), но показывает, что статья старая.
+    stated_date: Mapped[date | None] = mapped_column(Date)
     # Наше доверенное время: когда сборщик впервые увидел публикацию. Не меняется (триггер).
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True

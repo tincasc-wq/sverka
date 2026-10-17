@@ -48,3 +48,24 @@ def test_published_time_requires_time_not_just_date() -> None:
     assert published_time(naive) == datetime(2026, 10, 12, 12, 20, tzinfo=UTC)
     assert published_time(date_only) is None
     assert published_time("<html></html>") is None
+
+
+def test_stated_date_and_page_lang() -> None:
+    from datetime import date
+
+    from app.check import page_lang, stated_date
+
+    llnl = (
+        '<html lang="en"><body><p>On Dec. 5, 2022 and December 5, 2022 the team...</p>'
+        '<span class="text-muted">March 23, 2023</span></body></html>'
+    )
+    meta = '<meta property="article:published_time" content="2025-01-31">'
+    ru = "<html><body><p>Опубликовано 5 октября 2026, обновлено 7 октября 2026</p></body></html>"
+    future = "<body>Конференция пройдёт 1 декабря 2099 года</body>"
+
+    assert stated_date(llnl) == date(2023, 3, 23)  # самая поздняя из дат на странице
+    assert stated_date(meta) == date(2025, 1, 31)
+    assert stated_date(ru) == date(2026, 10, 7)
+    assert stated_date(future) is None and stated_date("<html></html>") is None
+    assert page_lang(llnl) == "en" and page_lang(ru) == "ru"
+    assert page_lang('<html lang="de-DE">') == "de"

@@ -378,3 +378,26 @@ def test_deepseek_cost_counts_cache_and_offpeak() -> None:
     # 900 тыс. из миллиона — из кэша: платим за 100 тыс. полных и 900 тыс. кэшированных
     cached = config.cost_usd("deepseek-flash", 1_000_000, 0, cached_in=900_000, at=peak)
     assert abs(cached - (0.03 + 0.9 * 0.006)) < 1e-9
+
+
+async def test_dated_page_older_than_archive_says_so(session: AsyncSession) -> None:
+    from datetime import date
+
+    sources = [Source(type="media", name=f"o{i}", handle_or_domain=f"o{i}.ru") for i in range(3)]
+    session.add_all(sources)
+    await session.flush()
+    seed = await _doc(session, "https://www.llnl.gov/article/1", 1.0, text="Fusion ignition")
+    seed.published_at, seed.stated_date = None, date(2023, 3, 23)  # только дата на странице
+    for s in sources:
+        await _doc(session, f"https://{s.handle_or_domain}/new", 0.0, 0, s, "Другое")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "<claims>" in json.loads(request.content)["messages"][1]["content"]:
+            return answer({"results": [{"claim": 1, "stance": "unrelated"}]})
+        return fake_model(request)
+
+    check = await run_check(session, f"doc:{seed.id}", FakeEmbedder(), llm=client(handler))
+    analysis = json.loads(check.summary)["analysis"]
+
+    assert analysis["status"] == "before_archive" and analysis["index"] is None
+    assert "от 23.03.2023 старше архива" in analysis["status_text"]

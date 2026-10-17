@@ -19,7 +19,14 @@ from app.orgs.service import MSK, month_start
 
 CATEGORIES = {
     "ok": ("widely_confirmed", "partially_confirmed"),
-    "open": ("not_confirmed", "no_independent", "too_early", "archive_gap", "no_checkable_claims"),
+    "open": (
+        "not_confirmed",
+        "no_independent",
+        "too_early",
+        "archive_gap",
+        "before_archive",
+        "no_checkable_claims",
+    ),
     "bad": ("disputed", "refuted", "questioned", "satire_origin", "satire_seed"),
 }
 CATEGORY_RU = {

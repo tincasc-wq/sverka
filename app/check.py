@@ -9,9 +9,10 @@
 import asyncio
 import hashlib
 import json
+import re
 import secrets
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -84,6 +85,8 @@ async def _download(url: str, source_id: int | None) -> DocumentIn:
         title=title,
         text=text,
         published_at=published_time(raw),
+        stated_date=stated_date(raw),
+        lang=page_lang(raw),
         links=rss.extract_article_links(raw, url),
     )
 
@@ -128,6 +131,90 @@ def published_time(html: bytes | str) -> datetime | None:
             continue
         return parsed if parsed.tzinfo else parsed.replace(tzinfo=MSK)
     return None
+
+
+_MONTHS_EN = {
+    m: i
+    for i, m in enumerate(
+        (
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+        ),
+        1,
+    )
+}
+_MONTHS_RU = {
+    m: i
+    for i, m in enumerate(
+        (
+            "января",
+            "февраля",
+            "марта",
+            "апреля",
+            "мая",
+            "июня",
+            "июля",
+            "августа",
+            "сентября",
+            "октября",
+            "ноября",
+            "декабря",
+        ),
+        1,
+    )
+}
+_ISO_DATE = re.compile(r"(20\d{2})-(\d{2})-(\d{2})")
+_EN_DATE = re.compile(r"\b(" + "|".join(_MONTHS_EN) + r")\s+(\d{1,2}),\s+(20\d{2})\b", re.I)
+_RU_DATE = re.compile(r"\b(\d{1,2})\s+(" + "|".join(_MONTHS_RU) + r")\s+(20\d{2})\b", re.I)
+
+
+def stated_date(html: bytes | str) -> date | None:
+    """Дата публикации без времени: из разметки, а если её нет — из видимого текста.
+
+    Из текста берём самую позднюю дату не в будущем: даты в самой статье обычно раньше
+    публикации, так что ошибиться можно только в сторону «свежее», а не «старее».
+    """
+    tree = HTMLParser(html)
+    today = datetime.now(MSK).date()
+
+    def valid(y: int, m: int, d: int) -> date | None:
+        try:
+            value = date(y, m, d)
+        except ValueError:
+            return None
+        return value if value <= today else None
+
+    for selector in (*_TIME_META, "time[datetime]"):
+        node = tree.css_first(selector)
+        value = (
+            (node.attributes.get("content") or node.attributes.get("datetime") or "")
+            if node
+            else ""
+        )
+        if match := _ISO_DATE.match(value.strip()):
+            if found := valid(*map(int, match.groups())):
+                return found
+    body = tree.body.text(separator=" ") if tree.body else ""
+    found = [valid(int(y), _MONTHS_EN[m.lower()], int(d)) for m, d, y in _EN_DATE.findall(body)]
+    found += [valid(int(y), _MONTHS_RU[m.lower()], int(d)) for d, m, y in _RU_DATE.findall(body)]
+    return max((x for x in found if x), default=None)
+
+
+def page_lang(html: bytes | str) -> str | None:
+    """Язык страницы из <html lang>: для сайтов не из реестра (у тех язык — в реестре)."""
+    node = HTMLParser(html).css_first("html")
+    value = (node.attributes.get("lang") or "").strip().lower() if node else ""
+    return value[:2] if len(value) >= 2 and value[:2].isalpha() else "ru"
 
 
 async def resolve_seed(

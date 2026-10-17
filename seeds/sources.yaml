@@ -504,3 +504,40 @@ sources:
      lang: en, rss: "https://abc13.com/feed/", aliases: [ABC13, KTRK]}
   - {name: Los Angeles Times, type: media, handle_or_domain: latimes.com, owner: Los Angeles Times,
      lang: en, rss: "https://www.latimes.com/world-nation/rss2.0.xml", aliases: [Los Angeles Times, LA Times]}
+
+  # ---- Наука (17.10.2026): научные издания и пресс-службы исследовательских центров ----
+  # Ленты проверены с сервера. Нет открытого RSS: EurekAlert!, LLNL, РАН — их пресс-релизы
+  # перепечатывают ScienceDaily и Phys.org.
+  - {name: ScienceDaily, type: media, handle_or_domain: sciencedaily.com, owner: ScienceDaily,
+     lang: en, rss: "https://www.sciencedaily.com/rss/all.xml", aliases: [ScienceDaily]}
+  - {name: Phys.org, type: media, handle_or_domain: phys.org, owner: Science X,
+     lang: en, rss: "https://phys.org/rss-feed/", aliases: [Phys.org]}
+  - {name: Nature, type: media, handle_or_domain: nature.com, owner: Springer Nature,
+     lang: en, rss: "https://www.nature.com/nature.rss", aliases: [Nature, журнал Nature, журнале Nature]}
+  - {name: Science, type: media, handle_or_domain: science.org, owner: AAAS,
+     lang: en, via_gateway: true, legal_flags: {geo_blocks_ru: "403 для российских адресов, 17.10.2026"},
+     rss: "https://www.science.org/rss/news_current.xml", aliases: [журнал Science, журнале Science]}
+  - {name: New Scientist, type: media, handle_or_domain: newscientist.com, owner: New Scientist,
+     lang: en, rss: "https://www.newscientist.com/feed/home/", aliases: [New Scientist]}
+  - {name: NASA, type: official, handle_or_domain: nasa.gov, owner: NASA,
+     lang: en, rss: "https://www.nasa.gov/news-release/feed/", aliases: [NASA, НАСА]}
+  - {name: ESA, type: official, handle_or_domain: esa.int, owner: ESA,
+     lang: en, rss: "https://www.esa.int/rssfeed/Newsroom",
+     aliases: [ESA, ЕКА, Европейское космическое агентство, Европейского космического агентства]}
+  - {name: CERN, type: official, handle_or_domain: home.cern, owner: CERN,
+     lang: en, rss: "https://home.cern/feed/", aliases: [CERN, ЦЕРН]}
+  - {name: US Department of Energy, type: official, handle_or_domain: energy.gov, owner: Администрация США,
+     lang: en, rss: "https://www.energy.gov/newsroom/rss.xml",
+     aliases: [Department of Energy, Минэнерго США, Министерство энергетики США]}
+  - {name: N + 1, type: media, handle_or_domain: nplus1.ru, owner: N + 1,
+     rss: "https://nplus1.ru/rss", aliases: [N + 1, N+1]}
+  - {name: Элементы, type: media, handle_or_domain: elementy.ru, owner: Элементы,
+     rss: "https://elementy.ru/rss/news", aliases: [Элементы, «Элементы»]}
+  - {name: Naked Science, type: media, handle_or_domain: naked-science.ru, owner: Naked Science,
+     rss: "https://naked-science.ru/feed", aliases: [Naked Science]}
+  - {name: Индикатор, type: media, handle_or_domain: indicator.ru, owner: Индикатор,
+     rss: "https://indicator.ru/exports/rss", aliases: [Индикатор, Indicator.Ru]}
+  - {name: Наука и жизнь, type: media, handle_or_domain: nkj.ru, owner: Наука и жизнь,
+     rss: "https://www.nkj.ru/rss/", aliases: [Наука и жизнь, «Наука и жизнь»]}
+  - {name: Научная Россия, type: media, handle_or_domain: scientificrussia.ru, owner: Научная Россия,
+     rss: "https://scientificrussia.ru/rss", aliases: [Научная Россия]}

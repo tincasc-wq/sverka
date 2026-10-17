@@ -1,7 +1,7 @@
 """Запись собранных публикаций в архив с дедупликацией и учётом правок (ФТ-3.2, ФТ-3.3)."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 
 from sqlalchemy import select
@@ -22,6 +22,7 @@ class DocumentIn:
     text: str | None = None
     published_at: datetime | None = None
     lang: str | None = "ru"
+    stated_date: date | None = None
     links: list[str] = field(default_factory=list)
 
 
@@ -93,6 +94,7 @@ async def save_document(session: AsyncSession, doc: DocumentIn) -> SaveResult:
             text=doc.text,
             lang=doc.lang,
             published_at=doc.published_at,
+            stated_date=doc.stated_date,
             links=external_links(url, doc.links),
             content_hash=chash,
             simhash=simhash(body) if body else None,

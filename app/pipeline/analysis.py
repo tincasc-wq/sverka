@@ -3,7 +3,8 @@
 Результат пишется в claims / claim_evidence и возвращается секцией отчёта.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,8 @@ from app.pipeline.graph import Node
 from app.pipeline.index import Evidence, score_news
 from app.pipeline.llm_steps import extract_claims, judge_same_event, verify_many
 from app.pipeline.story import EventJudge, StoryResult, to_node
+
+MSK = ZoneInfo("Europe/Moscow")
 
 USD_RUB = 90  # для отображения расходов в отчёте; тарифы провайдеров — в долларах
 
@@ -29,6 +32,7 @@ STATUS_RU = {
     "no_checkable_claims": "нет проверяемых утверждений",
     "no_independent": "не подтверждено: независимых сообщений в архиве нет",
     "archive_gap": "мало данных: архив за это время неполный",
+    "before_archive": "публикация старше архива «Сверки»: подтвердить её по архиву нельзя",
     "satire_origin": "похоже на шутку: первоисточник — сатирическое издание",
 }
 
@@ -294,6 +298,10 @@ async def analyze(
                 )
 
     seed_time = seed.published_at or seed.first_seen_at
+    if seed.published_at is None and seed.stated_date is not None:
+        # Есть только дата со страницы: её хватает, чтобы понять, что статья старше архива.
+        stated = datetime.combine(seed.stated_date, time(12), tzinfo=MSK)
+        seed_time = min(seed_time, stated)
     hours = (datetime.now(UTC) - seed_time).total_seconds() / 3600
     news = score_news(
         evidence, [c.checkable for c in claims_out], primary_rating, hours, cfg.confirmation_index
@@ -312,6 +320,12 @@ async def analyze(
         if active and around < active * icfg.coverage_min_share:
             status = "archive_gap"
             status_text = f"{STATUS_RU[status]} ({around} из {active} источников)"
+            if around == 0 and seed.published_at is None and seed.stated_date is not None:
+                status = "before_archive"
+                status_text = (
+                    f"публикация от {seed_time.astimezone(MSK):%d.%m.%Y} старше архива "
+                    "«Сверки»: подтвердить её по архиву нельзя"
+                )
 
     cost = await session.scalar(
         select(func.coalesce(func.sum(LlmCall.cost_usd), 0)).where(LlmCall.check_id == check_id)
