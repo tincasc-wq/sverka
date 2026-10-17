@@ -30,7 +30,7 @@
   <button type="submit">Проверить</button>
   <span class="muted" style="margin-left:10px">обычно 5–20 секунд</span>
   {% if archive and archive.since %}<p class="muted" style="margin:8px 0 0;font-size:13px">Сверяем по своему архиву: новости собираются
-    с {{ archive.since | ru_date }} ({{ archive.documents_text }} публикаций, {{ archive.sources }} источников). Более ранние события
+    с {{ archive.since | ru_date }} ({{ archive.documents_text }}, {{ archive.sources | plural('источник', 'источника', 'источников') }}). Более ранние события
     подтвердить по архиву не получится.</p>{% endif %}
 </form>
 

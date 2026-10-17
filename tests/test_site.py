@@ -291,5 +291,20 @@ async def test_archive_depth_shown_on_site(db) -> None:  # noqa: F811
     reset_cache()
     today = datetime.now(UTC)
     assert "Архив новостей собирается с" in home.text and "Сверяем по своему архиву" in home.text
-    assert f"{today.year}" in home.text and "1 публикаций, 1 активных источников" in home.text
+    assert f"{today.year}" in home.text and "1 публикация, 1 активный источник" in home.text
     assert "Новости до этой даты подтвердить по архиву нельзя" in method.text
+
+
+def test_plural() -> None:
+    from app.web.report import plural
+
+    forms = ("источник", "источника", "источников")
+    assert [plural(n, *forms) for n in (1, 3, 5, 11, 21, 112, 203)] == [
+        "1 источник",
+        "3 источника",
+        "5 источников",
+        "11 источников",
+        "21 источник",
+        "112 источников",
+        "203 источника",
+    ]

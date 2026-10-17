@@ -24,11 +24,14 @@ class ArchiveInfo:
 
     @property
     def documents_text(self) -> str:
+        """«89 тыс. публикаций», «2,1 млн публикаций», «3 публикации»."""
+        from app.web.report import plural
+
         if self.documents >= 1_000_000:
-            return f"{self.documents / 1_000_000:.1f}".replace(".", ",") + " млн"
+            return f"{self.documents / 1_000_000:.1f}".replace(".", ",") + " млн публикаций"
         if self.documents >= 10_000:
-            return f"{self.documents // 1000} тыс."
-        return str(self.documents)
+            return f"{self.documents // 1000} тыс. публикаций"
+        return plural(self.documents, "публикация", "публикации", "публикаций")
 
 
 async def archive_info(session: AsyncSession) -> ArchiveInfo:

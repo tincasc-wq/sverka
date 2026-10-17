@@ -67,6 +67,16 @@ def ru_date(value) -> str:
 templates.env.filters["ru_date"] = ru_date
 
 
+def plural(n: int, one: str, few: str, many: str) -> str:
+    """plural(203, "источник", "источника", "источников") → «203 источника»."""
+    tail = n % 100
+    word = many if 11 <= tail <= 14 else one if n % 10 == 1 else few if 2 <= n % 10 <= 4 else many
+    return f"{n} {word}"
+
+
+templates.env.filters["plural"] = plural
+
+
 async def check_by_token(session: AsyncSession, token: str) -> Check:
     check = await session.scalar(select(Check).where(Check.public_token == token))
     if check is None:
