@@ -15,6 +15,7 @@ from app.models import Claim, ClaimEvidence, Document, LlmCall, SourceScore
 from app.pipeline.graph import Node
 from app.pipeline.index import Evidence, score_news
 from app.pipeline.llm_steps import extract_claims, judge_same_event, verify_many
+from app.pipeline.sourcing import cites_own_source, own_names
 from app.pipeline.story import EventJudge, StoryResult, to_node
 
 MSK = ZoneInfo("Europe/Moscow")
@@ -222,6 +223,9 @@ async def analyze(
     corrections: list[dict] = []
     for doc_id, (results, _) in verified.items():
         node = nodes[doc_id]
+        # «Сообщили РИА Новости в силовых структурах» в тексте самого РИА — свой источник,
+        # даже если модель сочла это пересказом.
+        own = cites_own_source(node.text, own_names(node, result.sources))
         checked = {r.claim: r for r in second.get(doc_id, ([], 0))[0]}
         for r in results:
             stance, flag = r.stance, False
@@ -242,6 +246,7 @@ async def analyze(
                     stance = "corrects"
                     r = r if r.stance == "corrects" else again
             idx = r.claim - 1
+            sourcing = "own" if own and r.sourcing == "retelling" else r.sourcing
             session.add(
                 ClaimEvidence(
                     claim_id=claim_rows[idx].id,
@@ -252,7 +257,7 @@ async def analyze(
                     if r.discrepancy or flag
                     else None,
                     is_independent=independent[doc_id],
-                    sourcing=r.sourcing,
+                    sourcing=sourcing,
                 )
             )
             if stance == "unrelated" and not flag:
@@ -264,7 +269,7 @@ async def analyze(
                     rating=ratings.get(node.source.id) if node.source else None,
                     stance=stance,
                     independent=independent[doc_id],
-                    sourcing=r.sourcing,
+                    sourcing=sourcing,
                 )
             )
             report_claims[idx]["evidence"].append(
@@ -275,7 +280,7 @@ async def analyze(
                     "quote": r.quote,
                     "discrepancy": r.discrepancy,
                     "independent": independent[doc_id],
-                    "sourcing": r.sourcing,
+                    "sourcing": sourcing,
                     "low_confidence": flag,
                 }
             )

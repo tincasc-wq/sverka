@@ -63,8 +63,25 @@ def _event_time(doc: Document):
     return func.coalesce(doc.published_at, doc.first_seen_at)
 
 
+def story_headline(seed: Document) -> str | None:
+    """Заголовок публикации отдельно от текста — если текст заметно длиннее заголовка.
+
+    У поста в Telegram заголовка нет: берём первую строку. Справка, мнение, подробности
+    в длинном тексте размывают его вектор, а заголовок — само событие.
+    """
+    body = (seed.text or "").strip()
+    head = (seed.title or "").strip() or body.split("\n", 1)[0].strip()
+    head = head[:200]
+    if len(_headline_words(head)) < 4:
+        return None
+    return head if len(body) > 1.5 * len(head) else None
+
+
 async def find_candidates(
-    session: AsyncSession, seed: Document, cfg: ScoringConfig
+    session: AsyncSession,
+    seed: Document,
+    cfg: ScoringConfig,
+    headline_vector: list[float] | None = None,
 ) -> list[Candidate]:
     if seed.embedding is None:
         raise SeedNotEmbedded(f"document {seed.id} has no embedding yet")
@@ -101,8 +118,16 @@ async def find_candidates(
         }
 
     seed_vec = _unit(seed.embedding)
+    head_vec = _unit(headline_vector) if headline_vector is not None else None
     found = await nearest(seed.embedding)
-    sims = await shifted(found, {i: _dot(seed_vec, _unit(d.embedding)) for i, d in found.items()})
+    if head_vec is not None:
+        found.update(await nearest(head_vec))
+
+    def closeness(vec: list[float]) -> float:
+        # Близость к тексту или к заголовку — что выше.
+        return max(_dot(seed_vec, vec), _dot(head_vec, vec)) if head_vec else _dot(seed_vec, vec)
+
+    sims = await shifted(found, {i: closeness(_unit(d.embedding)) for i, d in found.items()})
 
     # Второй проход — от центра ядра. Иначе история зависит от формулировки присланного
     # поста: у поста-мнения («скорее всего продлят…») близость к сухим новостям о том же
@@ -117,7 +142,7 @@ async def find_candidates(
         raw = {}
         for i, d in found.items():
             vec = _unit(d.embedding)
-            raw[i] = max(_dot(seed_vec, vec), _dot(centroid, vec))
+            raw[i] = max(closeness(vec), _dot(centroid, vec))
         sims = await shifted(found, raw)
     candidates = {i: Candidate(d, sims[i]) for i, d in found.items()}
 
@@ -213,7 +238,6 @@ def _tight_neighbours(
 
 # Решатель «то же событие?»: (seed, кандидаты) → {id документа: (да/нет, объяснение)}.
 EventJudge = Callable[[Document, list[Document]], Awaitable[dict[int, tuple[bool, str]]]]
-MAX_JUDGED = 24
 
 
 async def _apply_judge(
@@ -232,13 +256,30 @@ async def _apply_judge(
     doubtful = [c for c in members if c.membership == "probable"] + borderline
     # Найденные по редкому имени — первыми: иначе их, далёких по эмбеддингу, отрезал бы лимит.
     doubtful.sort(key=lambda c: (c.by_name is None, -(c.similarity or 0)))
-    doubtful = doubtful[:MAX_JUDGED]
-    if not doubtful:
+    # Перепечатки с одним заголовком (сеть региональных сайтов) — модели один раз.
+    first_of: dict[str, Candidate] = {}
+    copies: dict[int, Candidate] = {}
+    unique: list[Candidate] = []
+    for c in doubtful:
+        key = " ".join(sorted(_headline_words(c.document.title))) if c.document.title else ""
+        if key and key in first_of:
+            copies[c.document.id] = first_of[key]
+            continue
+        if key:
+            first_of[key] = c
+        unique.append(c)
+    unique = unique[: cfg.clustering.max_judged]
+    judged_ids = {c.document.id for c in unique}
+    doubtful = unique + [c for c in doubtful if copies.get(c.document.id) in unique]
+    if not unique:
         return members, borderline
     try:
-        decisions = await judge(seed, [c.document for c in doubtful])
+        decisions = await judge(seed, [c.document for c in unique])
     except Exception:  # noqa: BLE001 — без LLM остаётся детерминированный результат
         return members, borderline
+    for doc_id, original in copies.items():
+        if original.document.id in judged_ids and original.document.id in decisions:
+            decisions[doc_id] = decisions[original.document.id]
     judged = {c.document.id: c for c in doubtful}
     kept = [c for c in members if c.document.id not in judged]
     rest = [c for c in borderline if c.document.id not in judged]
@@ -362,6 +403,21 @@ async def _add_same_headline(
     return members + added
 
 
+def _worth_review(seed: Document, candidate: Candidate, cfg: ScoringConfig) -> bool:
+    """Отдать ли кандидата на решение LLM: близкий — всегда, умеренно близкий — если рядом
+    по времени (длинный пост со справкой далёк от коротких новостей того же события)."""
+    c = cfg.clustering
+    sim = candidate.similarity
+    if sim is None:
+        return False
+    if sim >= c.llm_review_from:
+        return True
+    seed_time = seed.published_at or seed.first_seen_at
+    doc = candidate.document
+    gap = abs((doc.published_at or doc.first_seen_at) - seed_time)
+    return gap <= timedelta(hours=c.near_hours) and sim >= c.wide_review_from
+
+
 def is_same_event(
     seed: Document, candidate: Candidate, cfg: ScoringConfig, official: bool = False
 ) -> bool:
@@ -400,10 +456,14 @@ async def build_story(
     *,
     persist: bool = True,
     judge: "EventJudge | None" = None,
+    headline_vector: list[float] | None = None,
 ) -> StoryResult:
-    """persist=False — только посчитать (проверка устойчивости), без записи в БД."""
+    """persist=False — только посчитать (проверка устойчивости), без записи в БД.
+
+    headline_vector — вектор заголовка (story_headline), если он отличается от текста.
+    """
     cfg = cfg or get_scoring()
-    candidates = await find_candidates(session, seed, cfg)
+    candidates = await find_candidates(session, seed, cfg, headline_vector)
     all_sources = {s.id: _source_info(s) for s in await session.scalars(select(Source))}
 
     def is_official(c: Candidate) -> bool:
@@ -416,10 +476,7 @@ async def build_story(
         c
         for c in candidates
         if c.document.id not in member_ids
-        and (
-            c.by_name is not None
-            or (c.similarity is not None and c.similarity >= cfg.clustering.llm_review_from)
-        )
+        and (c.by_name is not None or _worth_review(seed, c, cfg))
     ]
     if judge is not None:
         members, borderline = await _apply_judge(judge, seed, members, borderline, cfg)

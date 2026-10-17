@@ -15,6 +15,11 @@ class ClusteringConfig(BaseModel):
     include_threshold: float = 0.80
     near_hours: float = 12
     llm_review_from: float = 0.75
+    # Рядом по времени (near_hours) на решение LLM — с более низкой близости: пост с длинной
+    # справкой («ратуша построена в 1876–1883…») далёк от коротких новостей того же события
+    # (Лимож 17.10.2026: РИА 0.65, Euronews 0.65 при пороге 0.75).
+    wide_review_from: float = 0.60
+    max_judged: int = 40  # сколько пограничных кандидатов отдавать LLM (копии — один раз)
     candidates_top_k: int = 50
     title_trgm_threshold: float = 0.5
     crosslingual_offset: float = 0.08  # прибавка к близости пар на разных языках

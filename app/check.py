@@ -36,7 +36,7 @@ from app.models.enums import CheckStatus, InputType
 from app.pipeline.analysis import analyze, make_judge
 from app.pipeline.graph import USER_TEXT_PREFIX
 from app.pipeline.report import build_report
-from app.pipeline.story import build_story
+from app.pipeline.story import build_story, story_headline
 
 MSK = ZoneInfo("Europe/Moscow")
 SATIRE_STATUS = {
@@ -380,7 +380,10 @@ async def run_check(
     scoring = get_scoring()
     use_llm = llm is not None and llm.available()
     judge = make_judge(llm, session, check.id) if use_llm else None
-    result = await build_story(session, seed, judge=judge)
+    headline_vector = None
+    if judge is not None and embedder is not None and (headline := story_headline(seed)):
+        [headline_vector] = await asyncio.to_thread(embedder.embed, [headline])
+    result = await build_story(session, seed, judge=judge, headline_vector=headline_vector)
     report = build_report(result, scoring.graph)
     satire = report.get("satire")
     if satire:
