@@ -60,6 +60,7 @@ class Plan(BaseModel):
     pdf: bool = False  # выгрузка отчёта в PDF
     priority: bool = False  # проверки встают в начало очереди
     schedule: bool = False  # повторная проверка по расписанию (app/watches.py)
+    ocr: bool = False  # проверка скриншотов: текст с картинки (app/ocr.py)
     constructor: Constructor | None = None
 
     @property
@@ -163,6 +164,10 @@ def can_export_pdf(user: User | None, membership=None) -> bool:
 
 def can_schedule(user: User | None, membership=None) -> bool:
     return _entitled(user, membership, "schedule")
+
+
+def can_ocr(user: User | None, membership=None) -> bool:
+    return _entitled(user, membership, "ocr")
 
 
 def has_priority(user: User | None, membership=None) -> bool:

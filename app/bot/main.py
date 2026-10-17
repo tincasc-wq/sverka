@@ -9,6 +9,7 @@
 import asyncio
 import logging
 from datetime import timedelta
+from html import escape
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandObject, CommandStart
@@ -203,18 +204,72 @@ async def save_feedback(message: Message, state: FSMContext) -> None:
     await message.answer(texts.FEEDBACK_THANKS)
 
 
+def _channel_post(message: Message) -> tuple[str | None, int | None, str | None]:
+    origin = message.forward_origin
+    if isinstance(origin, MessageOriginChannel) and origin.chat.username:
+        return origin.chat.username, origin.message_id, origin.date.isoformat()
+    return None, None, None
+
+
+IMAGE_CAPTION_ENOUGH = 40  # подпись длиннее — проверяем её, картинку не распознаём
+
+
+@router.message(F.photo | F.document.mime_type.startswith("image/"))
+async def check_image(message: Message, arq: ArqRedis) -> None:
+    """Скриншот или пост-картинка: распознаём текст (тарифы с ocr) и проверяем его."""
+    from app import ocr
+    from app.plans import can_ocr
+
+    caption = (message.caption or "").strip()
+    channel, message_id, forward_date = _channel_post(message)
+    if len(caption) >= IMAGE_CAPTION_ENOUGH:
+        await check(message, arq)
+        return
+    async with SessionLocal() as session:
+        user = await get_or_create_user(session, message.from_user.id)
+        await session.commit()
+        allowed = can_ocr(user, await membership_of(session, user))
+    if not allowed:
+        if channel:  # пересланный пост — проверим хотя бы по ссылке
+            await check(message, arq)
+        else:
+            await message.answer(texts.OCR_PAID)
+        return
+    file = message.photo[-1] if message.photo else message.document
+    if (file.file_size or 0) > ocr.MAX_BYTES:
+        await message.answer(texts.OCR_FAILED.format(reason="картинка больше 8 МБ"))
+        return
+    await message.answer(texts.OCR_READING)
+    buffer = await message.bot.download(file)
+    try:
+        recognized = await ocr.recognize_async(buffer.read())
+    except ocr.OcrError as exc:
+        await message.answer(texts.OCR_FAILED.format(reason=exc))
+        return
+    if len(recognized) < ocr.MIN_CHARS:
+        await message.answer(texts.OCR_NO_TEXT)
+        return
+    body = "\n".join(x for x in (caption, recognized) if x)
+    shown = recognized if len(recognized) <= 400 else recognized[:399] + "…"
+    await message.answer(texts.OCR_RECOGNIZED.format(text=escape(shown)))
+    user_input = extract_input(body, channel, message_id, forward_date)
+    if user_input is None:
+        await message.answer(texts.NOT_UNDERSTOOD)
+        return
+    await _enqueue(message, arq, user_input)
+
+
 @router.message(F.text | F.caption | F.forward_origin)
 async def check(message: Message, arq: ArqRedis) -> None:
-    origin = message.forward_origin
-    channel = message_id = forward_date = None
-    if isinstance(origin, MessageOriginChannel) and origin.chat.username:
-        channel, message_id = origin.chat.username, origin.message_id
-        forward_date = origin.date.isoformat()
+    channel, message_id, forward_date = _channel_post(message)
     user_input = extract_input(message.text or message.caption, channel, message_id, forward_date)
     if user_input is None:
         await message.answer(texts.NOT_UNDERSTOOD)
         return
+    await _enqueue(message, arq, user_input)
 
+
+async def _enqueue(message: Message, arq: ArqRedis, user_input) -> None:
     async with SessionLocal() as session:
         user = await get_or_create_user(session, message.from_user.id)
         await session.commit()

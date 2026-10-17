@@ -4,7 +4,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,6 +62,10 @@ async def page(request: Request, session: AsyncSession, name: str, **context):
         from app.plans import usage_of
 
         context["usage"] = await usage_of(session, user)  # плашка тарифа в шапке
+    if "ocr" not in context:
+        from app.plans import can_ocr
+
+        context["ocr"] = can_ocr(user, membership)  # проверка скриншотов — на главной
     if user is not None and user.plan_notice:
         context.setdefault("plan_notice", user.plan_notice)
     if "archive" not in context:
@@ -98,6 +102,44 @@ async def plan_notice_dismiss(request: Request, session: Session):
         await session.commit()
     back = request.headers.get("referer") or "/"
     return RedirectResponse(back if back.startswith(str(request.base_url)) else "/", 303)
+
+
+@router.post("/check-image")
+async def start_image_check(
+    request: Request, session: Session, image: Annotated[UploadFile, File()]
+):
+    """Проверка скриншота: распознаём текст (тарифы с ocr) и проверяем его как текст новости."""
+    from app import ocr
+    from app.plans import can_ocr
+
+    user = await current_user(request, session)
+
+    async def refuse(message: str):
+        response = await page(
+            request, session, "home.html", user=user, recent=[], value="", error=message
+        )
+        response.status_code = 422
+        return response
+
+    if user is None or not can_ocr(user, await membership_of(session, user)):
+        return await refuse("Проверка скриншотов доступна в тарифах Pro, «Команда» и «Редакция».")
+    data = await image.read(ocr.MAX_BYTES + 1)
+    try:
+        text = await ocr.recognize_async(data)
+    except ocr.OcrError as exc:
+        return await refuse(f"Не удалось распознать картинку: {exc}.")
+    if len(text) < ocr.MIN_CHARS:
+        return await refuse("На картинке не нашлось текста новости. Пришлите скриншот покрупнее.")
+    try:
+        check = await create_web_check(session, user, text)
+    except CheckRefused as exc:
+        await session.commit()
+        return await refuse(str(exc))
+    from app.plans import has_priority, queue_options
+
+    priority = has_priority(user, await membership_of(session, user))
+    await enqueue("web_check", check.id, True, **queue_options(priority))
+    return RedirectResponse(f"/c/{check.public_token}", status_code=303)
 
 
 @router.post("/check")

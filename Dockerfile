@@ -10,8 +10,10 @@ ARG EXTRAS=dev
 WORKDIR /app
 
 # PDF-отчёты (WeasyPrint): Pango для вёрстки и шрифты с кириллицей.
+# Проверка скриншотов (app/ocr.py): Tesseract с русским и английским.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core \
+       tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
 # CPU-сборка torch: без CUDA образ меньше на несколько гигабайт.

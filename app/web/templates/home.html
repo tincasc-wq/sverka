@@ -33,6 +33,12 @@
     с {{ archive.since | ru_date }} ({{ archive.documents_text }}, {{ archive.sources | plural('источник', 'источника', 'источников') }}). Более ранние события
     подтвердить по архиву не получится.</p>{% endif %}
 </form>
+<form method="post" action="/check-image" enctype="multipart/form-data" class="card" style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+  <span><b>Скриншот новости?</b> <span class="muted">Распознаем текст с картинки и проверим его.</span></span>
+  {% if ocr %}<input type="file" name="image" accept="image/png,image/jpeg,image/webp" required>
+  <button type="submit">Проверить скриншот</button>
+  {% else %}<span class="muted">В тарифах <a href="/pricing">Pro, «Команда» и «Редакция»</a>.</span>{% endif %}
+</form>
 
 {% if recent %}
 <h2>Ваши последние проверки</h2>
