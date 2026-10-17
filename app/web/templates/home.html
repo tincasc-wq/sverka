@@ -29,6 +29,8 @@
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
   <button type="submit">Проверить</button>
   <span class="muted" style="margin-left:10px">обычно 5–20 секунд</span>
+  {% if ocr %}<label class="muted" style="display:block;margin-top:8px"><input type="checkbox" name="ocr_images" {{ 'checked' if user and user.ocr_images }}>
+    Распознать текст на картинках поста <span style="font-size:12px">(скан документа, скриншот; Telegram, до 3 картинок, +3–10 с на каждую)</span></label>{% endif %}
   {% if archive and archive.since %}<p class="muted" style="margin:8px 0 0;font-size:13px">Сверяем по своему архиву: новости собираются
     с {{ archive.since | ru_date }} ({{ archive.documents_text }}, {{ archive.sources | plural('источник', 'источника', 'источников') }}). Более ранние события
     подтвердить по архиву не получится.</p>{% endif %}

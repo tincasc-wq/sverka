@@ -332,11 +332,20 @@ async def run_check(
     org_id: int | None = None,
     channel: str | None = None,
     input_raw: str | None = None,
+    ocr_images: bool = False,
 ) -> Check:
-    """existing — уже созданная запись проверки (сайт создаёт её сразу, чтобы показать ожидание)."""
+    """existing — уже созданная запись проверки (сайт создаёт её сразу, чтобы показать ожидание).
+
+    ocr_images — распознать текст на картинках поста (настройка пользователя, тарифы с ocr).
+    """
     seed = await resolve_seed(session, arg, fallback)
     if existing is not None:
         org_id = existing.org_id
+    if ocr_images:
+        from app.post_images import add_image_text
+
+        await add_image_text(seed)
+        cache_hours = 0  # прошлая проверка могла быть без текста с картинок
     if cache_hours and (cached := await recent_check(session, seed.id, cache_hours, org_id)):
         if existing is not None:
             existing.document_id = seed.id

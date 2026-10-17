@@ -115,6 +115,7 @@ async def check_for_chat(
     llm: LlmClient | None = None,
 ) -> ChatReply:
     from app.orgs.service import membership_of
+    from app.plans import can_ocr
 
     settings = get_settings()
     user = await get_or_create_user(session, tg_id)
@@ -141,6 +142,7 @@ async def check_for_chat(
             org_id=org_id,
             channel="bot",
             input_raw=value,
+            ocr_images=user.ocr_images and can_ocr(user, membership),
             fallback=DocumentIn(
                 url=value,
                 text=fallback_text,

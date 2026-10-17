@@ -214,6 +214,22 @@ def _channel_post(message: Message) -> tuple[str | None, int | None, str | None]
 IMAGE_CAPTION_ENOUGH = 40  # подпись длиннее — проверяем её, картинку не распознаём
 
 
+@router.message(Command("images"))
+async def images_setting(message: Message) -> None:
+    """/images — включить или выключить распознавание текста на картинках постов."""
+    from app.plans import can_ocr
+
+    async with SessionLocal() as session:
+        user = await get_or_create_user(session, message.from_user.id)
+        if not can_ocr(user, await membership_of(session, user)):
+            await session.commit()
+            await message.answer(texts.OCR_PAID)
+            return
+        user.ocr_images = not user.ocr_images
+        await session.commit()
+        await message.answer(texts.OCR_IMAGES_ON if user.ocr_images else texts.OCR_IMAGES_OFF)
+
+
 @router.message(F.photo | F.document.mime_type.startswith("image/"))
 async def check_image(message: Message, arq: ArqRedis) -> None:
     """Скриншот или пост-картинка: распознаём текст (тарифы с ocr) и проверяем его."""
@@ -222,13 +238,15 @@ async def check_image(message: Message, arq: ArqRedis) -> None:
 
     caption = (message.caption or "").strip()
     channel, message_id, forward_date = _channel_post(message)
-    if len(caption) >= IMAGE_CAPTION_ENOUGH:
-        await check(message, arq)
-        return
     async with SessionLocal() as session:
         user = await get_or_create_user(session, message.from_user.id)
         await session.commit()
         allowed = can_ocr(user, await membership_of(session, user))
+    if len(caption) >= IMAGE_CAPTION_ENOUGH and (channel or not (allowed and user.ocr_images)):
+        # Пост канала — проверим по ссылке (картинки распознает воркер, если включено /images);
+        # без настройки — только подпись.
+        await check(message, arq)
+        return
     if not allowed:
         if channel:  # пересланный пост — проверим хотя бы по ссылке
             await check(message, arq)
@@ -249,7 +267,9 @@ async def check_image(message: Message, arq: ArqRedis) -> None:
     if len(recognized) < ocr.MIN_CHARS:
         await message.answer(texts.OCR_NO_TEXT)
         return
-    body = "\n".join(x for x in (caption, recognized) if x)
+    from app.post_images import with_image_text
+
+    body = with_image_text(caption, [recognized]) if caption else recognized
     shown = recognized if len(recognized) <= 400 else recognized[:399] + "…"
     await message.answer(texts.OCR_RECOGNIZED.format(text=escape(shown)))
     user_input = extract_input(body, channel, message_id, forward_date)

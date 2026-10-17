@@ -37,6 +37,8 @@ class User(CreatedAtMixin, Base):
     admin_note: Mapped[str | None] = mapped_column(String(255))
     # Тариф изменили — плашка на сайте, пока пользователь её не закроет (app/plan_notices.py).
     plan_notice: Mapped[str | None] = mapped_column(Text)
+    # «Распознать текст на картинках поста» — галочка на сайте и /images в боте (тарифы с ocr).
+    ocr_images: Mapped[bool] = mapped_column(Boolean, server_default="false", default=False)
 
 
 class LoginToken(CreatedAtMixin, Base):

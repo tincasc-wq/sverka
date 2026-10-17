@@ -148,8 +148,13 @@ async def start_check(
     session: Session,
     value: Annotated[str, Form()],
     fresh: Annotated[bool, Form()] = False,
+    ocr_images: Annotated[bool, Form()] = False,
 ):
     user, new_user = await ensure_user(request, session)
+    from app.plans import can_ocr
+
+    if can_ocr(user, await membership_of(session, user)):
+        user.ocr_images = ocr_images  # галочка запоминается для следующих проверок
     try:
         check = await create_web_check(session, user, value.strip())
     except CheckRefused as exc:
@@ -159,7 +164,6 @@ async def start_check(
         )
         response.status_code = 422
     else:
-        from app.orgs.service import membership_of
         from app.plans import has_priority, queue_options
 
         priority = has_priority(user, await membership_of(session, user))
