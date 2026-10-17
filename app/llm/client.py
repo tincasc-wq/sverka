@@ -31,8 +31,18 @@ _API_KEYS = {
     "deepseek": "deepseek_api_key",
     "qwen": "qwen_api_key",
     "yandex": "yandex_ai_studio_api_key",
+    "gigachat": "gigachat_auth_key",
     "anthropic": "anthropic_api_key",
 }
+
+
+def strip_fences(content: str) -> str:
+    """Модели без JSON-режима заворачивают ответ в ```json … ``` — снимаем обёртку."""
+    text = content.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+        text = text.rsplit("```", 1)[0]
+    return text.strip()
 
 
 class LlmUnavailable(RuntimeError):
@@ -60,6 +70,8 @@ class LlmClient:
         # Сетевые запросы шагов идут параллельно, а сессия БД одна — операции с ней по очереди.
         self._db_lock = asyncio.Lock()
         self.ru_only = False
+        self._settings = settings
+        self._tokens: dict[str, tuple[str, float]] = {}  # провайдер → (токен, до какого времени)
 
     def restricted(self, ru_only: bool) -> "LlmClient":
         """Клиент для госконтура: любой шаг — только по ru_only_routes (раздел 12.5).
@@ -99,28 +111,76 @@ class LlmClient:
         )
         return float(total)
 
-    def _client(self, route: Route) -> httpx.AsyncClient:
+    def _verify(self, provider_name: str):
+        bundle = self._settings.gigachat_ca_bundle if provider_name == "gigachat" else ""
+        return bundle or True
+
+    async def _token(self, name: str) -> str:
+        """Токен доступа GigaChat: ключ авторизации → токен на 30 минут, берём с запасом."""
+        cached = self._tokens.get(name)
+        if cached and cached[1] > time.time() + 60:
+            return cached[0]
+        import uuid
+
+        provider = self.config.providers[name]
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(30, connect=10),
+            verify=self._verify(name),
+            transport=self._transport,
+        ) as client:
+            response = await client.post(
+                provider.auth_url,
+                headers={
+                    "Authorization": f"Basic {self._keys[name]}",
+                    "RqUID": str(uuid.uuid4()),
+                    "Accept": "application/json",
+                },
+                data={"scope": self._settings.gigachat_scope},
+            )
+            response.raise_for_status()
+            data = response.json()
+        expires = float(data.get("expires_at") or 0) / 1000 or time.time() + 1500
+        self._tokens[name] = (data["access_token"], expires)
+        return data["access_token"]
+
+    async def _client(self, route: Route) -> httpx.AsyncClient:
         provider = self.config.providers[route.provider]
+        if provider.auth == "gigachat":
+            token = await self._token(route.provider)
+        else:
+            token = self._keys[route.provider]
+        headers = {"Authorization": f"Bearer {token}"}
+        if route.provider == "yandex" and self._settings.yandex_folder_id:
+            headers["x-folder-id"] = self._settings.yandex_folder_id
         return httpx.AsyncClient(
             base_url=provider.base_url,
             timeout=httpx.Timeout(120, connect=10),
-            headers={"Authorization": f"Bearer {self._keys[route.provider]}"},
+            headers=headers,
             proxy=self._proxy if provider.via_gateway else None,
+            verify=self._verify(route.provider),
             transport=self._transport,
         )
 
+    def _model(self, route: Route) -> str:
+        # Yandex AI Studio ждёт полный адрес модели: gpt://<каталог>/<модель>[/latest].
+        folder = self._settings.yandex_folder_id
+        if route.provider == "yandex" and folder and not route.model.startswith("gpt://"):
+            return f"gpt://{folder}/{route.model}"
+        return route.model
+
     async def _call(self, route: Route, system: str, user: str) -> tuple[str, dict]:
         payload: dict = {
-            "model": route.model,
+            "model": self._model(route),
             "temperature": 0,
-            "response_format": {"type": "json_object"},
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         }
+        if self.config.providers[route.provider].json_mode:
+            payload["response_format"] = {"type": "json_object"}
         if route.thinking:
             payload["thinking"] = {"type": route.thinking}
         if route.reasoning_effort:
             payload["reasoning_effort"] = route.reasoning_effort
-        async with self._client(route) as client:
+        async with await self._client(route) as client:
             response = await client.post("/chat/completions", json=payload)
             response.raise_for_status()
             data = response.json()
@@ -155,7 +215,7 @@ class LlmClient:
                 usage: dict = {}
                 try:
                     content, usage = await self._call(route, system, user)
-                    result = schema.model_validate(json.loads(content))
+                    result = schema.model_validate(json.loads(strip_fences(content)))
                 except (httpx.HTTPError, KeyError) as exc:
                     error = f"{route.provider}/{route.model}: {type(exc).__name__}: {exc}"[:500]
                     await self._record(

@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     qwen_api_key: str = ""
     yandex_ai_studio_api_key: str = ""
+    yandex_folder_id: str = ""  # каталог Yandex Cloud: модель задаётся как gpt://<каталог>/<модель>
+    # GigaChat (Сбер): ключ авторизации (Basic) меняется на токен доступа на 30 минут.
+    gigachat_auth_key: str = ""
+    gigachat_scope: str = "GIGACHAT_API_PERS"  # для юрлиц — GIGACHAT_API_CORP
+    # Сертификат «Russian Trusted Root CA» (НУЦ Минцифры): без него TLS к GigaChat не проходит.
+    gigachat_ca_bundle: str = ""
     # Запасной вариант, выключен в config/llm.yaml — только при законном доступе к API.
     anthropic_api_key: str = ""
 

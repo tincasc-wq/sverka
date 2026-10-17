@@ -14,6 +14,9 @@ class Provider(BaseModel):
     enabled: bool = True
     base_url: str = ""
     via_gateway: bool = False
+    auth: str = "bearer"  # bearer | gigachat (ключ меняется на токен доступа)
+    auth_url: str = ""  # для gigachat — адрес выдачи токена
+    json_mode: bool = True  # поддерживает response_format: json_object
 
 
 class Route(BaseModel):
