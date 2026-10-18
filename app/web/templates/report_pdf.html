@@ -68,6 +68,7 @@
 
 {% if r.satire %}
 <div class="box warn"><b>{% if r.satire.origin %}Похоже на шутку{% else %}Это сатирическое издание{% endif %}.</b>
+  {% if r.satire.reason %}<br>Канала нет в реестре; в его описании: «{{ r.satire.reason }}».<br>{% endif %}
   {% if r.satire.origin %}Первоисточник истории — {{ r.satire.source }}: такие издания публикуют вымышленные «новости» намеренно.
   {% else %}Материал опубликован в сатирическом издании ({{ r.satire.source }}): это вымысел по замыслу.{% endif %}</div>
 {% endif %}

@@ -395,6 +395,7 @@ async def run_check(
         [headline_vector] = await asyncio.to_thread(embedder.embed, [headline])
     result = await build_story(session, seed, judge=judge, headline_vector=headline_vector)
     report = build_report(result, scoring.graph)
+    await check_unregistered_channels(result, report)
     satire = report.get("satire")
     if satire:
         # Первоисточник или сама публикация — сатира: сверять вымысел незачем, индекс не считаем.
@@ -425,6 +426,42 @@ async def run_check(
     check.finished_at = datetime.now(UTC)
     await session.commit()
     return check
+
+
+async def check_unregistered_channels(result, report: dict) -> None:
+    """Канал не из реестра: описание «пародийный канал» → сатира; чужое название → предупреждение.
+
+    Смотрим первоисточник истории и саму присланную публикацию (если это посты Telegram).
+    """
+    from app.collectors.channel_profile import channel_profile, imitated, parody_marker
+
+    nodes = {n.id: n for n in result.nodes}
+    seed = nodes.get(result.seed.id)
+    primary = nodes.get(result.graph.primary_id) if result.graph.primary_id else None
+    seen: set[str] = set()
+    for node in (primary, seed):
+        if node is None or node.source is not None or domain_of(node.url) != "t.me":
+            continue
+        handle = node.url.split("/")[3].lower() if len(node.url.split("/")) > 3 else ""
+        if not handle or handle in seen:
+            continue
+        seen.add(handle)
+        profile = await channel_profile(handle)
+        if profile is None:
+            continue
+        copies = imitated(profile, result.sources.values())
+        if copies and node is seed:
+            report["imitates"] = {"channel": f"{profile.title} (@{handle})", "original": copies}
+        marker = parody_marker(profile)
+        if marker and not report.get("satire"):
+            is_origin = node is primary and (seed is None or primary.id != seed.id)
+            report["satire"] = {
+                "source": f"{profile.title} (@{handle})",
+                "url": node.url,
+                "origin": is_origin,
+                "seed": node is seed or not is_origin,
+                "reason": marker,
+            }
 
 
 def retelling_outside_archive(report: dict) -> None:

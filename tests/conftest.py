@@ -36,3 +36,14 @@ async def session() -> AsyncIterator[AsyncSession]:
         # После ошибки БД сессия уже сама откатила транзакцию.
         if trans.is_active:
             await trans.rollback()
+
+
+@pytest.fixture(autouse=True)
+def no_channel_lookups(monkeypatch) -> None:
+    """Описание канала Telegram в тестах не скачиваем (сеть); нужный тест подменит сам."""
+    from app.collectors import channel_profile
+
+    async def none(handle: str):
+        return None
+
+    monkeypatch.setattr(channel_profile, "channel_profile", none)

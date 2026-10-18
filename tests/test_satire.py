@@ -71,3 +71,50 @@ async def test_admin_stats_page(db, queued) -> None:  # noqa: F811
         page = await c.get("/admin/stats?days=7")
     assert page.status_code == 200
     assert "По дням" in page.text and "Пользователей всего" in page.text
+
+
+def test_parody_channel_description_and_lookalike_name() -> None:
+    from app.collectors.channel_profile import (
+        ChannelProfile,
+        imitated,
+        parody_marker,
+        parse_profile,
+    )
+    from app.pipeline.graph import SourceInfo
+
+    html = (
+        '<div class="tgme_page_title"><span dir="auto">Раньше всех? Ну почти.</span></div>'
+        '<div class="tgme_page_description">Все что написано здесь неправда, вас '
+        "наебунькали. Ну почти. Пародийный канал.</div>"
+    )
+    profile = parse_profile("vas_naebali_news", html)
+    assert profile.title == "Раньше всех? Ну почти."
+    assert "Пародийный канал" in parody_marker(profile)
+    real = SourceInfo(
+        9, "Раньше всех. Ну почти", "@bbbreaking", "aggregator", aliases=("Раньше всех",)
+    )
+    assert imitated(profile, [real]) == "Раньше всех. Ну почти (@bbbreaking)"
+    assert imitated(ChannelProfile("bbbreaking", "Раньше всех. Ну почти", ""), [real]) is None
+
+    news = ChannelProfile("rian_ru", "РИА Новости", "Главные новости России и мира. Оперативно.")
+    assert parody_marker(news) is None
+    assert parody_marker(ChannelProfile("x", "Fake Daily", "Satirical news, nothing here is real."))
+    assert parody_marker(ChannelProfile("y", "Новости", "Всё, что мы публикуем, — вымысел."))
+
+
+async def test_unregistered_parody_channel_becomes_satire(session, monkeypatch) -> None:
+    from app.collectors import channel_profile as cp
+
+    async def fake_profile(handle: str):
+        return cp.ChannelProfile(handle, "Раньше всех? Ну почти.", "Пародийный канал.")
+
+    monkeypatch.setattr(cp, "channel_profile", fake_profile)
+    seed = await _doc(
+        session, "https://t.me/vas_naebali_news/353", 1.0, text="Трамп отправит «Патриоты»"
+    )
+    check = await run_check(
+        session, f"doc:{seed.id}", FakeEmbedder(), llm=llm_client(_no_llm_calls)
+    )
+    report = json.loads(check.summary)
+    assert report["satire"]["seed"] and "Пародийный канал" in report["satire"]["reason"]
+    assert report["analysis"]["status"] == "satire_seed"

@@ -29,6 +29,13 @@
   {% if r.satire.origin %}Первоисточник этой истории — <a href="{{ r.satire.url }}" target="_blank" rel="noopener">{{ r.satire.source }}</a>.
   Такие издания публикуют вымышленные «новости» намеренно. Если другие СМИ пересказали это, они, скорее всего, приняли шутку за правду.
   {% else %}Материал опубликован в сатирическом издании ({{ r.satire.source }}): это вымысел по замыслу, а не сообщение о реальном событии.{% endif %}
+  {% if r.satire.reason %}<br><span class="muted">Канала нет в нашем реестре; в его описании сказано: «{{ r.satire.reason }}»</span>{% endif %}
+</div>
+{% endif %}
+{% if r.imitates %}
+<div class="card" style="border-color:#C96A33">
+  ⚠️ <b>Название канала копирует другой источник.</b> Публикация из канала {{ r.imitates.channel }},
+  а в реестре под тем же названием — {{ r.imitates.original }}. Это разные каналы.
 </div>
 {% endif %}
 {% set a = r.analysis %}

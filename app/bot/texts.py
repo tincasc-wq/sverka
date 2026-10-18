@@ -128,8 +128,15 @@ def format_check(
                 "его материалы — вымысел по замыслу.",
                 "",
             ]
+        if satire.get("reason"):  # канал не из реестра: пародия по его же описанию
+            lines[-1:-1] = [f"В описании канала: «{escape(satire['reason'])}»"]
     else:
         lines += _analysis_lines(report.get("analysis"))
+    if copies := report.get("imitates"):
+        lines += [
+            f"⚠️ Название канала копирует {escape(copies['original'])} — это другой канал.",
+            "",
+        ]
     primary = report.get("primary")
     seed_entry = next((t for t in report["timeline"] if t.get("is_seed")), None)
 
