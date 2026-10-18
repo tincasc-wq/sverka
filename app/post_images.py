@@ -34,11 +34,11 @@ def with_image_text(text: str | None, recognized: list[str]) -> str:
 
 
 async def _download_image(url: str) -> bytes:
-    """Картинки лежат на CDN Telegram (telesco.pe): у него нет IPv6, а страница поста — только
-    по IPv6 (с сервера в РФ). Поэтому картинку — по IPv4, а не вышло — через шлюз сборщика."""
+    """Картинки лежат на CDN Telegram (telesco.pe): IPv6 у него нет, а по IPv4 с сервера в РФ
+    он не отвечает (таймаут, 18.10.2026), как и сам t.me. Через шлюз сборщика — 0.4 с."""
     proxies = [None]
     if get_settings().collector_proxy:
-        proxies.append(get_settings().collector_proxy)
+        proxies.insert(0, get_settings().collector_proxy)
     error: Exception | None = None
     for proxy in proxies:
         try:
