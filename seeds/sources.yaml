@@ -586,3 +586,16 @@ sources:
      lang: fr, rss: "https://www.20minutes.fr/feeds/rss-une.xml", aliases: [20 Minutes]}
   - {name: RFI, type: media, handle_or_domain: rfi.fr, owner: France Medias Monde,
      lang: fr, rss: "https://www.rfi.fr/fr/rss", aliases: [RFI]}
+
+  # ---- США: погода и запад Техаса (18.10.2026): ленты проверены с сервера ----
+  # Паводок на западе Техаса 15.10.2026 (пост RT) освещали CNN, Fox Weather и местные издания;
+  # у CNN открытых RSS больше нет (ленты заморожены в 2022–2024), weather.com и AccuWeather —
+  # 403, El Paso Times — платный доступ.
+  - {name: Fox Weather, type: media, handle_or_domain: foxweather.com, owner: Fox Corporation,
+     lang: en, rss: "https://www.foxweather.com/rss.xml", aliases: [Fox Weather, FOX Weather]}
+  - {name: KFOX14 (Эль-Пасо), type: media, handle_or_domain: kfoxtv.com, owner: Sinclair,
+     lang: en, rss: "https://kfoxtv.com/news/local.rss", aliases: [KFOX14, KFOX]}
+  - {name: KTSM (Эль-Пасо), type: media, handle_or_domain: ktsm.com, owner: Nexstar,
+     lang: en, rss: "https://www.ktsm.com/news/feed/", aliases: [KTSM]}
+  - {name: KCBD (Лаббок), type: media, handle_or_domain: kcbd.com, owner: Gray Media,
+     lang: en, rss: "https://www.kcbd.com/arc/outboundfeeds/rss/?outputType=xml", aliases: [KCBD]}
