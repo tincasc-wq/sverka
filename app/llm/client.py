@@ -32,6 +32,7 @@ _API_KEYS = {
     "qwen": "qwen_api_key",
     "yandex": "yandex_ai_studio_api_key",
     "gigachat": "gigachat_auth_key",
+    "kilo": "kilo_api_key",
     "anthropic": "anthropic_api_key",
 }
 
@@ -98,7 +99,7 @@ class LlmClient:
             for r in routes
             if (p := self.config.providers.get(r.provider))
             and p.enabled
-            and self._keys.get(r.provider)
+            and (self._keys.get(r.provider) or p.auth == "none")
         ]
 
     @staticmethod
@@ -148,8 +149,8 @@ class LlmClient:
         if provider.auth == "gigachat":
             token = await self._token(route.provider)
         else:
-            token = self._keys[route.provider]
-        headers = {"Authorization": f"Bearer {token}"}
+            token = self._keys.get(route.provider) or ""
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
         if route.provider == "yandex" and self._settings.yandex_folder_id:
             headers["x-folder-id"] = self._settings.yandex_folder_id
         return httpx.AsyncClient(

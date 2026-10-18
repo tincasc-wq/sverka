@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     yandex_folder_id: str = ""  # каталог Yandex Cloud: модель задаётся как gpt://<каталог>/<модель>
     # GigaChat (Сбер): ключ авторизации (Basic) меняется на токен доступа на 30 минут.
     gigachat_auth_key: str = ""
+    kilo_api_key: str = ""  # Kilo Gateway: необязателен (без него — 200 запросов в час)
     gigachat_scope: str = "GIGACHAT_API_PERS"  # для юрлиц — GIGACHAT_API_CORP
     # Сертификат «Russian Trusted Root CA» (НУЦ Минцифры): без него TLS к GigaChat не проходит.
     gigachat_ca_bundle: str = ""

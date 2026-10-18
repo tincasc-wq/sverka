@@ -11,7 +11,9 @@
 - сбои: не ответила, ответила не JSON-ом; время и токены (цена — если задана в llm.yaml).
 
     python -m app.quality.models yandex:yandexgpt/latest gigachat:GigaChat-2-Max \\
-        [--checks 30] [--json]
+        [--checks 30] [--pace 18] [--json]
+
+--pace — пауза между запросами к модели, с (кроме DeepSeek): у бесплатных шлюзов лимит частоты.
 
 Модель задаётся как провайдер:модель из config/llm.yaml (deepseek, qwen, yandex, gigachat).
 DeepSeek (deepseek:deepseek-flash, без рассуждений) добавляется сам, если его нет в списке.
@@ -157,14 +159,33 @@ def score(stats: ModelStats, pair: Pair, results, rejected: int) -> None:
             stats.agree_sourcing += r.sourcing == base[1]
 
 
-async def run_model(session: AsyncSession, spec: str, pairs: list[Pair]) -> ModelStats:
+async def _verify_paced(client, session, pair: Pair, pace: float):
+    """Бесплатные шлюзы ограничивают частоту (Kilo без ключа — 200 в час): пауза между
+    запросами и повтор, если шлюз ответил «слишком много запросов»."""
+    for attempt in range(4):
+        try:
+            return await verify_document(client, session, pair.claims, pair.document)
+        except LlmUnavailable as exc:
+            if "429" not in str(exc) or attempt == 3:
+                raise
+            await asyncio.sleep(max(pace, 30) * (attempt + 2))
+        finally:
+            if pace:
+                await asyncio.sleep(pace)
+
+
+async def run_model(
+    session: AsyncSession, spec: str, pairs: list[Pair], pace: float = 0
+) -> ModelStats:
     route = parse_model(spec)
     client = client_for(route)
     stats = ModelStats(spec)
     for pair in pairs:
         started = time.monotonic()
         try:
-            results, rejected = await verify_document(client, session, pair.claims, pair.document)
+            results, rejected = await _verify_paced(
+                client, session, pair, pace if route.provider != "deepseek" else 0
+            )
         except LlmUnavailable as exc:
             stats.failed += 1
             if stats.failed <= 3:
@@ -201,11 +222,14 @@ async def run_model(session: AsyncSession, spec: str, pairs: list[Pair]) -> Mode
 async def main(argv: list[str]) -> None:
     as_json = "--json" in argv
     checks = 30
+    pace = 0.0
     specs: list[str] = []
     args = iter(a for a in argv if a != "--json")
     for a in args:
         if a == "--checks":
             checks = int(next(args))
+        elif a == "--pace":  # секунд между запросами: у бесплатных шлюзов лимит частоты
+            pace = float(next(args))
         else:
             specs.append(a)
     if BASELINE not in specs:
@@ -216,7 +240,7 @@ async def main(argv: list[str]) -> None:
         results = []
         for spec in specs:
             print(f"→ {spec}", file=sys.stderr)
-            results.append(await run_model(session, spec, pairs))
+            results.append(await run_model(session, spec, pairs, pace))
         await session.rollback()  # учёт вызовов не сохраняем: это замер, не работа сервиса
     if as_json:
         print(

@@ -99,3 +99,25 @@ def test_comparison_metrics() -> None:
     )
     assert parse_model("deepseek:deepseek-flash").thinking == "disabled"
     assert parse_model("gigachat:GigaChat-2-Max").provider == "gigachat"
+
+
+async def test_keyless_provider_sends_no_authorization(session) -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"ok": true}'}}]})
+
+    config = get_llm_config().model_copy(deep=True)
+    config.routes = {"verify": [Route(provider="kilo", model="nvidia/nemotron-3-super:free")]}
+    config.daily_budget_usd = {}
+    client = LlmClient(config=config, transport=httpx.MockTransport(handler), api_keys={})
+    answer = await client.complete_json(session, "verify", "sys", "user", Answer)
+    assert answer.ok and "authorization" not in seen[0].headers
+    assert str(seen[0].url).startswith("https://ai-gateway.kilo.ai/api/v1/")
+
+
+def test_kilo_is_not_in_production_routes() -> None:
+    config = get_llm_config()
+    for routes in (*config.routes.values(), *config.ru_only_routes.values()):
+        assert all(r.provider not in ("kilo", "gigachat") for r in routes)
