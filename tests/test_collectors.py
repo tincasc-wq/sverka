@@ -187,3 +187,29 @@ def test_full_text_must_match_title() -> None:
     assert not text_matches_title(title, other)  # ВЗГЛЯД 15.10.2026: соседняя статья со страницы
     assert text_matches_title("Молния", other)  # слишком короткий заголовок не проверяем
     assert text_matches_title(None, other) and text_matches_title(title, None)
+
+
+def test_news_sitemap_is_read_like_a_feed() -> None:
+    from datetime import UTC, datetime
+
+    from app.collectors.rss import parse_feed
+
+    raw = b"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+  <url>
+    <loc>https://www.cnn.com/2026/10/15/weather/west-texas-flooding</loc>
+    <news:news>
+      <news:publication><news:name>CNN</news:name><news:language>en</news:language></news:publication>
+      <news:publication_date>2026-10-15T21:04:11.120Z</news:publication_date>
+      <news:title>Flash flooding turns West Texas roads to rivers</news:title>
+    </news:news>
+  </url>
+  <url><loc>https://www.cnn.com/2026/10/15/us/no-date</loc></url>
+</urlset>"""
+    docs = parse_feed(raw, 7)
+    assert [d.url for d in docs][0] == "https://www.cnn.com/2026/10/15/weather/west-texas-flooding"
+    assert docs[0].title == "Flash flooding turns West Texas roads to rivers"
+    assert docs[0].published_at == datetime(2026, 10, 15, 21, 4, 11, 120000, tzinfo=UTC)
+    assert docs[0].source_id == 7 and docs[0].text is None
+    assert docs[1].title is None and docs[1].published_at is None

@@ -599,3 +599,7 @@ sources:
      lang: en, rss: "https://www.ktsm.com/news/feed/", aliases: [KTSM]}
   - {name: KCBD (Лаббок), type: media, handle_or_domain: kcbd.com, owner: Gray Media,
      lang: en, rss: "https://www.kcbd.com/arc/outboundfeeds/rss/?outputType=xml", aliases: [KCBD]}
+  # CNN: открытые RSS заморожены (последние записи 2022–2024), вместо ленты — карта сайта
+  # для Google News (≈150 материалов за двое суток); сборщик понимает её как ленту.
+  - {name: CNN, type: media, handle_or_domain: cnn.com, owner: Warner Bros. Discovery,
+     lang: en, rss: "https://www.cnn.com/sitemap/news.xml", aliases: [CNN, Си-эн-эн, Си-Эн-Эн]}

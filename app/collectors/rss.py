@@ -30,7 +30,51 @@ def _strip_html(html: str) -> str:
     return HTMLParser(html).text(separator=" ").strip() if html else ""
 
 
+_SITEMAP_NS = {
+    "s": "http://www.sitemaps.org/schemas/sitemap/0.9",
+    "n": "http://www.google.com/schemas/sitemap-news/0.9",
+}
+
+
+def is_news_sitemap(raw: bytes) -> bool:
+    head = raw[:2000]
+    return b"<urlset" in head and b"sitemap-news" in head
+
+
+def parse_news_sitemap(raw: bytes, source_id: int | None) -> list[DocumentIn]:
+    """Карта сайта для Google News: у кого нет RSS (CNN закрыл ленты в 2022–2024), есть она —
+    свежие материалы за двое суток с заголовком и временем публикации. Текст докачивается
+    так же, как для RSS (enrich_full_text)."""
+    import xml.etree.ElementTree as ET
+
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError as exc:
+        raise ValueError(f"unparseable news sitemap: {exc}") from exc
+    docs = []
+    for url in root.findall("s:url", _SITEMAP_NS):
+        loc = (url.findtext("s:loc", default="", namespaces=_SITEMAP_NS) or "").strip()
+        title = url.findtext("n:news/n:title", default="", namespaces=_SITEMAP_NS).strip()
+        when = url.findtext("n:news/n:publication_date", default="", namespaces=_SITEMAP_NS)
+        if not loc:
+            continue
+        try:
+            published = (
+                datetime.fromisoformat(when.strip().replace("Z", "+00:00")) if when else None
+            )
+        except ValueError:
+            published = None
+        if published is not None and published.tzinfo is None:
+            published = published.replace(tzinfo=UTC)
+        docs.append(
+            DocumentIn(url=loc, source_id=source_id, title=title or None, published_at=published)
+        )
+    return docs
+
+
 def parse_feed(raw: bytes, source_id: int | None) -> list[DocumentIn]:
+    if is_news_sitemap(raw):
+        return parse_news_sitemap(raw, source_id)
     feed = feedparser.parse(raw)
     if feed.bozo and not feed.entries:
         raise ValueError(f"unparseable feed: {feed.bozo_exception!r}")
