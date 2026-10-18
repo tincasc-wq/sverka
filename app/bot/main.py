@@ -230,6 +230,22 @@ async def images_setting(message: Message) -> None:
         await message.answer(texts.OCR_IMAGES_ON if user.ocr_images else texts.OCR_IMAGES_OFF)
 
 
+@router.message(Command("langs"))
+async def rare_langs_setting(message: Message) -> None:
+    """/langs — нестандартные языки распознавания: китайский и японский по иероглифам."""
+    from app.plans import can_ocr
+
+    async with SessionLocal() as session:
+        user = await get_or_create_user(session, message.from_user.id)
+        if not can_ocr(user, await membership_of(session, user)):
+            await session.commit()
+            await message.answer(texts.OCR_PAID)
+            return
+        user.ocr_rare_langs = not user.ocr_rare_langs
+        await session.commit()
+        await message.answer(texts.OCR_RARE_ON if user.ocr_rare_langs else texts.OCR_RARE_OFF)
+
+
 @router.message(F.photo | F.document.mime_type.startswith("image/"))
 async def check_image(message: Message, arq: ArqRedis) -> None:
     """Скриншот или пост-картинка: распознаём текст (тарифы с ocr) и проверяем его."""
@@ -260,11 +276,11 @@ async def check_image(message: Message, arq: ArqRedis) -> None:
     await message.answer(texts.OCR_READING)
     buffer = await message.bot.download(file)
     try:
-        recognized = await ocr.recognize_async(buffer.read())
+        recognized = await ocr.recognize_async(buffer.read(), user.ocr_rare_langs)
     except ocr.OcrError as exc:
         await message.answer(texts.OCR_FAILED.format(reason=exc))
         return
-    if len(recognized) < ocr.MIN_CHARS:
+    if not ocr.enough(recognized):
         await message.answer(texts.OCR_NO_TEXT)
         return
     from app.post_images import with_image_text

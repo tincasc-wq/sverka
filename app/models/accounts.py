@@ -39,6 +39,8 @@ class User(CreatedAtMixin, Base):
     plan_notice: Mapped[str | None] = mapped_column(Text)
     # «Распознать текст на картинках поста» — галочка на сайте и /images в боте (тарифы с ocr).
     ocr_images: Mapped[bool] = mapped_column(Boolean, server_default="false", default=False)
+    # «Нестандартные языки»: иероглифы на картинке → китайский или японский (app/ocr.py).
+    ocr_rare_langs: Mapped[bool] = mapped_column(Boolean, server_default="false", default=False)
 
 
 class LoginToken(CreatedAtMixin, Base):

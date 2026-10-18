@@ -106,7 +106,10 @@ async def plan_notice_dismiss(request: Request, session: Session):
 
 @router.post("/check-image")
 async def start_image_check(
-    request: Request, session: Session, image: Annotated[UploadFile, File()]
+    request: Request,
+    session: Session,
+    image: Annotated[UploadFile, File()],
+    ocr_rare_langs: Annotated[bool, Form()] = False,
 ):
     """Проверка скриншота: распознаём текст (тарифы с ocr) и проверяем его как текст новости."""
     from app import ocr
@@ -123,12 +126,15 @@ async def start_image_check(
 
     if user is None or not can_ocr(user, await membership_of(session, user)):
         return await refuse("Проверка скриншотов доступна в тарифах Pro, «Команда» и «Редакция».")
+    user.ocr_rare_langs = ocr_rare_langs  # галочка запоминается
     data = await image.read(ocr.MAX_BYTES + 1)
     try:
-        text = await ocr.recognize_async(data)
+        text = await ocr.recognize_async(data, ocr_rare_langs)
     except ocr.OcrError as exc:
+        await session.commit()
         return await refuse(f"Не удалось распознать картинку: {exc}.")
-    if len(text) < ocr.MIN_CHARS:
+    if not ocr.enough(text):
+        await session.commit()
         return await refuse("На картинке не нашлось текста новости. Пришлите скриншот покрупнее.")
     try:
         check = await create_web_check(session, user, text)
@@ -149,12 +155,14 @@ async def start_check(
     value: Annotated[str, Form()],
     fresh: Annotated[bool, Form()] = False,
     ocr_images: Annotated[bool, Form()] = False,
+    ocr_rare_langs: Annotated[bool, Form()] = False,
 ):
     user, new_user = await ensure_user(request, session)
     from app.plans import can_ocr
 
     if can_ocr(user, await membership_of(session, user)):
-        user.ocr_images = ocr_images  # галочка запоминается для следующих проверок
+        user.ocr_images = ocr_images  # галочки запоминаются для следующих проверок
+        user.ocr_rare_langs = ocr_rare_langs
     try:
         check = await create_web_check(session, user, value.strip())
     except CheckRefused as exc:

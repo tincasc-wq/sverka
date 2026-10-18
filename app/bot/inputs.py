@@ -56,6 +56,8 @@ def extract_input(
         url = match.group(0).rstrip(".,;:!?)]")
         if not _NOT_A_PUBLICATION.search(url):
             return UserInput(InputType.URL, url)
-    if len(text) >= MIN_TEXT_CHARS:
+    from app.ocr import enough  # тот же порог: 40 знаков или 15 иероглифов
+
+    if len(text) >= MIN_TEXT_CHARS or enough(text):
         return UserInput(InputType.TEXT, text[:MAX_TEXT_CHARS])
     return None

@@ -333,6 +333,7 @@ async def run_check(
     channel: str | None = None,
     input_raw: str | None = None,
     ocr_images: bool = False,
+    ocr_rare_langs: bool = False,
 ) -> Check:
     """existing — уже созданная запись проверки (сайт создаёт её сразу, чтобы показать ожидание).
 
@@ -344,7 +345,7 @@ async def run_check(
     if ocr_images:
         from app.post_images import add_image_text
 
-        await add_image_text(seed)
+        await add_image_text(seed, ocr_rare_langs)
         cache_hours = 0  # прошлая проверка могла быть без текста с картинок
     if cache_hours and (cached := await recent_check(session, seed.id, cache_hours, org_id)):
         if existing is not None:

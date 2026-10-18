@@ -86,14 +86,14 @@ async def run_web_check(
 
         org = await session.get(Organization, check.org_id)
         llm = llm.restricted(org.ru_only)
-    ocr_images = False
+    ocr_images = ocr_rare_langs = False
     if check.user_id is not None:
         from app.plans import can_ocr
 
         user = await session.get(User, check.user_id)
-        ocr_images = bool(
-            user and user.ocr_images and can_ocr(user, await membership_of(session, user))
-        )
+        allowed = bool(user and can_ocr(user, await membership_of(session, user)))
+        ocr_images = allowed and user.ocr_images
+        ocr_rare_langs = allowed and user.ocr_rare_langs
     check.status = CheckStatus.RUNNING
     await session.commit()
     try:
@@ -113,6 +113,7 @@ async def run_web_check(
             llm=llm,
             existing=check,
             ocr_images=ocr_images,
+            ocr_rare_langs=ocr_rare_langs,
         )
     except (UnsafeUrl, httpx.HTTPError, ValueError) as exc:
         await session.rollback()

@@ -31,7 +31,9 @@
   <span class="muted" style="margin-left:10px">обычно 5–20 секунд</span>
   {% if ocr %}<label class="muted" style="display:block;margin-top:8px"><input type="checkbox" name="ocr_images" {{ 'checked' if user and user.ocr_images }}>
     Распознать текст на картинках поста — <b>только для постов из Telegram</b>
-    <span style="font-size:12px">(скан документа, скриншот; до 3 картинок, +3–10 с на каждую; русский и английский текст)</span></label>{% endif %}
+    <span style="font-size:12px">(скан документа, скриншот; до 3 картинок, +3–10 с на каждую)</span></label>
+  <label class="muted" style="display:block;margin-top:4px"><input type="checkbox" name="ocr_rare_langs" {{ 'checked' if user and user.ocr_rare_langs }}>
+    Нестандартные языки на картинках <span style="font-size:12px">(китайский и японский — если на картинке иероглифы; русский, английский, украинский и белорусский читаются всегда)</span></label>{% endif %}
   {% if archive and archive.since %}<p class="muted" style="margin:8px 0 0;font-size:13px">Сверяем по своему архиву: новости собираются
     с {{ archive.since | ru_date }} ({{ archive.documents_text }}, {{ archive.sources | plural('источник', 'источника', 'источников') }}). Более ранние события
     подтвердить по архиву не получится.</p>{% endif %}
@@ -39,6 +41,7 @@
 <form method="post" action="/check-image" enctype="multipart/form-data" class="card" style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
   <span><b>Скриншот новости?</b> <span class="muted">Распознаем текст с картинки и проверим его.</span></span>
   {% if ocr %}<input type="file" name="image" accept="image/png,image/jpeg,image/webp" required>
+  <label class="muted"><input type="checkbox" name="ocr_rare_langs" {{ 'checked' if user and user.ocr_rare_langs }}> китайский / японский</label>
   <button type="submit">Проверить скриншот</button>
   {% else %}<span class="muted">В тарифах <a href="/pricing">Pro, «Команда» и «Редакция»</a>.</span>{% endif %}
 </form>

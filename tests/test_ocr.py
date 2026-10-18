@@ -50,7 +50,7 @@ async def test_site_screenshot_check_for_paid_plans_only(db, monkeypatch) -> Non
     async def fake_enqueue(job: str, *args, **options) -> None:
         jobs.append((job, *args))
 
-    async def fake_recognize(data: bytes) -> str:
+    async def fake_recognize(data: bytes, rare_langs: bool = False) -> str:
         return NEWS + ". Колокольня обрушилась вечером, пострадавших нет."
 
     monkeypatch.setattr(site, "enqueue", fake_enqueue)
@@ -122,3 +122,79 @@ async def test_ocr_images_checkbox_is_remembered_for_paid_only(db, monkeypatch) 
         assert (await s.get(User, free.id)).ocr_images is False
     assert 'name="ocr_images" checked' in home.text
     assert 'name="ocr_images"' not in free_home.text
+
+
+CJK_FONT = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
+
+
+def _png_font(text: str, font: str) -> bytes:
+    from PIL import Image, ImageDraw, ImageFont
+
+    image = Image.new("RGB", (1400, 100 + 70 * text.count("\n") + 60), "white")
+    ImageDraw.Draw(image).multiline_text(
+        (20, 50), text, fill="black", font=ImageFont.truetype(font, 40), spacing=30
+    )
+    out = io.BytesIO()
+    image.save(out, format="PNG")
+    return out.getvalue()
+
+
+def test_enough_counts_hieroglyphs() -> None:
+    assert ocr.enough("中国外交部发言人表示双方将继续加强合作")  # 19 иероглифов
+    assert not ocr.enough("短文本") and not ocr.enough("Короткая подпись")
+    assert (
+        ocr.clean("中国外交部发言人表示，双方将继续加强合作")
+        == "中国外交部发言人表示，双方将继续加强合作"
+    )
+
+
+@pytest.mark.skipif(not ocr.available(), reason="Tesseract не установлен")
+def test_ukrainian_by_default_and_hieroglyphs_only_on_request() -> None:
+    uk = ocr.recognize(_png("Міністерство оборони України повідомило"))
+    assert "України" in uk and "повідомило" in uk
+    import os
+
+    if not os.path.exists(CJK_FONT):
+        pytest.skip("нет шрифта с иероглифами")
+    zh = _png_font("中国外交部发言人表示，双方将继续加强合作", CJK_FONT)
+    ja = _png_font("東京都は十八日、新型の地震警報システムを発表した", CJK_FONT)
+    assert "外交部" not in ocr.recognize(zh)  # без галочки иероглифы не читаем
+    assert "外交部" in ocr.recognize(zh, rare_langs=True)
+    assert "地震" in ocr.recognize(ja, rare_langs=True) and "は" in ocr.recognize(
+        ja, rare_langs=True
+    )
+    # Письменность определяется, когда текста хотя бы на пару строк; одна строка — запасной путь.
+    assert ocr.detect_script(ja) is None
+    two_lines = _png_font(
+        "東京都は十八日、新型の地震警報システムを発表した\n共同通信によると", CJK_FONT
+    )
+    assert ocr.detect_script(two_lines) == "Japanese"
+
+
+async def test_rare_langs_checkbox_is_remembered(db, monkeypatch) -> None:  # noqa: F811
+    from app.web import site
+
+    async def fake_enqueue(job: str, *args, **options) -> None:
+        return None
+
+    seen: list[bool] = []
+
+    async def fake_recognize(data: bytes, rare_langs: bool = False) -> str:
+        seen.append(rare_langs)
+        return "中国外交部发言人表示，双方将继续加强合作，新华社北京十月十八日电"
+
+    monkeypatch.setattr(site, "enqueue", fake_enqueue)
+    monkeypatch.setattr(ocr, "recognize_async", fake_recognize)
+    async with db() as s:
+        pro = User(email="rare-pro@site.test", plan="pro")
+        s.add(pro)
+        await s.commit()
+    upload = {"image": ("shot.png", b"\x89PNG\r\n\x1a\n", "image/png")}
+    async with client() as c:
+        c.cookies.set(COOKIE, sign(pro.id))
+        done = await c.post("/check-image", files=upload, data={"ocr_rare_langs": "on"})
+        home = await c.get("/")
+    async with db() as s:
+        assert (await s.get(User, pro.id)).ocr_rare_langs is True
+    assert seen == [True] and done.status_code == 303
+    assert 'name="ocr_rare_langs" checked' in home.text
