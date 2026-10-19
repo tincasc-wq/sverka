@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.db import engine
-from app.web import admin, api, api_v1, org, report, site
+from app.web import admin, api, api_v1, org, report, site, topics
 
 API_DESCRIPTION = """
 API «Сверки» для организаций на тарифах «Команда» и «Редакция».
@@ -42,7 +42,15 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 app.include_router(api_v1.router)
 # Остальное — сайт и служебные методы бота: в документацию API не выносим.
-for internal in (api.router, report.router, site.router, org.router, admin.router, admin.protected):
+for internal in (
+    api.router,
+    report.router,
+    site.router,
+    org.router,
+    topics.router,
+    admin.router,
+    admin.protected,
+):
     app.include_router(internal, include_in_schema=False)
 
 

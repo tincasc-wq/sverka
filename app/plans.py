@@ -61,6 +61,7 @@ class Plan(BaseModel):
     priority: bool = False  # проверки встают в начало очереди
     schedule: bool = False  # повторная проверка по расписанию (app/watches.py)
     ocr: bool = False  # проверка скриншотов: текст с картинки (app/ocr.py)
+    topics: int = 0  # сколько тем мониторинга у организации (app/topics.py)
     constructor: Constructor | None = None
 
     @property

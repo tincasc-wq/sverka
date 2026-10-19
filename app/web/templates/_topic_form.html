@@ -1,0 +1,20 @@
+<form method="post" action="{{ '/org/topics/%d' % t.id if t else '/org/topics' }}" style="margin-top:10px">
+  <label>Название<br><input name="name" value="{{ t.name if t }}" required maxlength="255" style="width:100%" placeholder="Например: Газпром"></label>
+  <label style="display:block;margin-top:8px">Ключевые слова и фразы — через запятую<br>
+    <textarea name="keywords" rows="2" style="width:100%" placeholder="Газпром, Алексей Миллер, Газпром нефть">{{ t.keywords | join(', ') if t }}</textarea>
+    <span class="muted">Окончания учитываем: «Москва» найдёт и «Москве», и «Москвы». Регистр не важен.</span></label>
+  <label style="display:block;margin-top:8px">Исключения — публикации с этими словами не попадут в тему<br>
+    <textarea name="exclude" rows="1" style="width:100%" placeholder="Зенит, футбол">{{ t.exclude | join(', ') if t }}</textarea></label>
+  <label style="display:block;margin-top:8px">Описание по смыслу — необязательно<br>
+    <textarea name="description" rows="2" style="width:100%" placeholder="Поставки российского газа в Европу и Китай: контракты, трубопроводы, цены">{{ (t.description or '') if t }}</textarea>
+    <span class="muted">Найдём публикации о том же, даже если ключевых слов в них нет, в том числе на других языках.</span></label>
+  <div class="row" style="gap:12px;align-items:end;margin-top:8px">
+    <label>Оповещения<br><select name="mode">
+      {% for code, title in modes.items() %}<option value="{{ code }}" {{ 'selected' if (t.mode if t else 'instant') == code }}>{{ title }}</option>{% endfor %}
+    </select></label>
+    <label>Час сводки (МСК)<br><input type="number" name="digest_hour" min="0" max="23" value="{{ t.digest_hour if t else 9 }}" style="width:70px"></label>
+    {% if t %}<label><input type="checkbox" name="active" {{ 'checked' if t.active }}> тема работает</label>{% endif %}
+    <button type="submit">{{ 'Сохранить' if t else 'Создать тему' }}</button>
+  </div>
+  <p class="muted" style="margin-top:6px">О всплеске — втрое больше публикаций за час, чем обычно, — сообщим в любом режиме.</p>
+</form>

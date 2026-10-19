@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% set page = 'org' %}
+{% block title %}Сверка — {{ topic.name }}{% endblock %}
+{% block content %}
+<p class="muted"><a href="/org/topics">← все темы</a></p>
+<h1>{{ topic.name }}</h1>
+{% if created %}<div class="note">Тема создана. Ниже — находки за последние сутки; дальше новые публикации будут появляться
+каждые 10 минут, оповещения — {{ modes[topic.mode] }}.</div>{% endif %}
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% if not working %}<div class="error">Тариф организации не включает мониторинг — тема сохранена, но не обновляется.</div>{% endif %}
+{% if not topic.active %}<div class="note">Тема на паузе.</div>{% endif %}
+{% if topic.note %}<div class="error">{{ topic.note }}</div>{% endif %}
+<p class="muted">Ищем: {{ topic.keywords | join(', ') or '—' }}{% if topic.exclude %} · кроме: {{ topic.exclude | join(', ') }}{% endif %}
+  {% if topic.description %}<br>По смыслу: «{{ topic.description }}»{% endif %}
+  <br>Оповещения: {{ modes[topic.mode] }}{% if topic.mode == 'digest' %} в {{ topic.digest_hour }}:00 МСК{% endif %}
+  {% if topic.scanned_until %} · просмотрено до {{ topic.scanned_until | msk }}{% endif %}</p>
+<form method="post" action="/org/topics/{{ topic.id }}/subscribe" style="display:inline">
+  <button type="submit">{{ 'Отписаться от оповещений' if subscribed else 'Получать оповещения' }}</button>
+</form>
+{% if subscribed %}<span class="muted"> — вы получаете оповещения{% if user.tg_id %} в Telegram{% elif user.email %} на почту{% endif %}</span>{% endif %}
+
+<h2>Сюжеты за двое суток</h2>
+{% if not groups %}<p class="muted">Пока ничего. Новые публикации появятся здесь в течение 10–30 минут.</p>{% endif %}
+{% for g in groups %}
+{% set f = g.first %}
+<div class="card" style="margin-top:8px">
+  <b><a href="{{ f.doc.url }}" rel="noopener" target="_blank">{{ (f.doc.title or f.doc.text or f.doc.url) | truncate(160) }}</a></b>
+  <div class="muted">первым: {{ f.source }}, {{ f.when | msk }}{% if g.sources | length > 1 %} · изданий: {{ g.sources | length }} — {{ g.sources | join(', ') | truncate(200) }}{% endif %}</div>
+  {% if g.items | length > 1 %}<details><summary class="muted">все публикации ({{ g.items | length }})</summary>
+    <ul>{% for i in g.items | sort(attribute='when') %}<li>{{ i.when | msk }} · {{ i.source }} — <a href="{{ i.doc.url }}" rel="noopener" target="_blank">{{ (i.doc.title or i.doc.url) | truncate(120) }}</a></li>{% endfor %}</ul>
+  </details>{% endif %}
+  <form method="post" action="/check" style="margin-top:6px"><input type="hidden" name="value" value="{{ f.doc.url }}"><button type="submit">Проверить</button></form>
+</div>
+{% endfor %}
+
+{% if can_edit %}
+<details class="card" style="margin-top:16px">
+  <summary><b>Настройки темы</b></summary>
+  {% set t = topic %}
+  {% include "_topic_form.html" %}
+  <form method="post" action="/org/topics/{{ topic.id }}/delete" style="margin-top:10px" onsubmit="return confirm('Удалить тему и все её находки?')">
+    <button type="submit">Удалить тему</button>
+  </form>
+</details>
+{% endif %}
+{% endblock %}

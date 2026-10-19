@@ -159,6 +159,17 @@ async def collect_telegram(ctx: dict) -> str:
 
 
 @single_flight
+async def monitor_topics(ctx: dict) -> str:
+    """Мониторинг тем организаций (app/topics.py): находки и оповещения."""
+    from app.topics import run_topics
+
+    result = await run_topics(SessionLocal, ctx["embedder"], ctx.get("bot"))
+    if result["hits"] or result["sent"]:
+        log.info("topics: %s", result)
+    return str(result)
+
+
+@single_flight
 async def source_health_digest(ctx: dict) -> str:
     """Раз в день администратору: какие источники сломались и какие починились (health.py)."""
     import json
@@ -291,6 +302,7 @@ class WorkerSettings:
         follow_up_checks,
         org_quota_alerts,
         source_health_digest,
+        monitor_topics,
     ]
     cron_jobs = [
         # Таймаут с запасом: полные тексты после простоя качаются долго; single_flight не даёт
@@ -307,6 +319,8 @@ class WorkerSettings:
         cron(org_quota_alerts, minute=25, unique=True, timeout=300),
         # Сводка по источникам администратору; 09:00 по Москве, только если что-то изменилось.
         cron(source_health_digest, hour=6, minute=0, unique=True, timeout=300),
+        # Мониторинг тем: каждые 10 минут, со сдвигом от сбора лент (0, 5, 10…).
+        cron(monitor_topics, minute=set(range(7, 60, 10)), unique=True, timeout=540),
     ]
     on_startup = startup
     on_shutdown = shutdown

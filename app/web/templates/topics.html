@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% set page = 'org' %}
+{% block title %}Сверка — мониторинг тем{% endblock %}
+{% block content %}
+<p class="muted"><a href="/org">← {{ org.name }}</a></p>
+<h1>Мониторинг тем</h1>
+<p class="muted">Бренды, персоны, ведомства, сюжеты: каждые 10 минут смотрим новые публикации всех источников реестра,
+группируем их в сюжеты и сообщаем, кто написал первым. Квоту проверок мониторинг не тратит.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+{% if topics %}
+<table>
+  <tr><th>Тема</th><th>Ищем</th><th>Оповещения</th><th>За сутки</th></tr>
+  {% for t in topics %}
+  <tr>
+    <td><a href="/org/topics/{{ t.id }}"><b>{{ t.name }}</b></a>{% if not t.active %} <span class="tag">на паузе</span>{% endif %}
+      {% if t.note %}<br><span class="tag bad">{{ t.note }}</span>{% endif %}</td>
+    <td class="muted">{{ t.keywords | join(', ') }}{% if t.description %}{% if t.keywords %} · {% endif %}по смыслу: «{{ t.description | truncate(60) }}»{% endif %}</td>
+    <td class="muted">{{ modes[t.mode] }}{% if t.mode == 'digest' %} в {{ t.digest_hour }}:00{% endif %}</td>
+    <td>{{ counts.get(t.id, 0) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+{% if limit == 0 %}
+<div class="note">Мониторинг тем входит в тариф «Мониторинг». Владелец кабинета может запросить его в разделе
+  <a href="/org#plan">«Изменить тариф»</a>.</div>
+{% elif topics | length < limit %}
+<details class="card" style="margin-top:12px" {{ 'open' if not topics }}>
+  <summary><b>Новая тема</b> <span class="muted">— использовано {{ topics | length }} из {{ limit }}</span></summary>
+  {% set t = none %}
+  {% include "_topic_form.html" %}
+</details>
+{% else %}
+<p class="muted">Использованы все {{ limit }} тем тарифа.</p>
+{% endif %}
+{% endblock %}

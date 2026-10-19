@@ -7,6 +7,7 @@ from app.models.checks import Check, Claim, ClaimEvidence, Watch, WatchSubscribe
 from app.models.llm import LlmCall
 from app.models.orgs import ApiKey, Organization, OrgInvite, OrgMember
 from app.models.registry import Outcome, Source, SourceScore
+from app.models.topics import Topic, TopicHit, TopicSubscriber
 
 __all__ = [
     "ApiKey",
@@ -29,6 +30,9 @@ __all__ = [
     "SourceScore",
     "Story",
     "StoryDocument",
+    "Topic",
+    "TopicHit",
+    "TopicSubscriber",
     "User",
     "Watch",
     "WatchSubscriber",
