@@ -23,15 +23,14 @@ def make_bot() -> Bot:
 WATCH_DEFAULT = (6, 3)  # кнопка в боте: каждые 6 ч в течение 3 дней
 
 
+SOON_RECHECK_HOURS = 1  # платные тарифы (со слежением): «Проверить через час»
+
+
 def check_keyboard(check_id: int, pdf: bool = False, watch: bool = False) -> InlineKeyboardMarkup:
-    hours = get_settings().recheck_hours
+    hours = SOON_RECHECK_HOURS if watch else get_settings().recheck_hours
+    label = "🔁 Проверить через час" if watch else f"🔁 Проверить снова через {hours:g} ч"
     rows = [
-        [
-            InlineKeyboardButton(
-                text=f"🔁 Проверить снова через {hours:g} ч",
-                callback_data=f"recheck:{check_id}",
-            )
-        ],
+        [InlineKeyboardButton(text=label, callback_data=f"recheck:{check_id}:{hours:g}")],
         [InlineKeyboardButton(text="⚠️ Сообщить об ошибке", callback_data=f"report:{check_id}")],
     ]
     top = []

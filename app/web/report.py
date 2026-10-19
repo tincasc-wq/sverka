@@ -105,6 +105,8 @@ async def report_page(request: Request, token: str, session: Session):
         "schedule": can_schedule(user, membership),
         "watch": await active_watch(session, user, check) if user else None,
         "watch_error": request.query_params.get("watch_error"),
+        "recheck": json.loads(check.summary or "{}").get("recheck"),
+        "recheck_error": request.query_params.get("recheck_error"),
         "thanks": request.query_params.get("thanks") == "1",
     }
     template = "text_report.html" if "matches" in report else "report.html"
@@ -171,6 +173,27 @@ async def report_watch(
     except WatchRefused as exc:
         return RedirectResponse(f"/r/{token}?watch_error={quote(str(exc))}#watch", 303)
     return RedirectResponse(f"/r/{token}#watch", status_code=303)
+
+
+@router.post("/r/{token}/recheck")
+async def report_recheck(request: Request, token: str, session: Session):
+    """«Проверить через час»: результат придёт в Telegram или на почту (app/rechecks.py)."""
+    from urllib.parse import quote
+
+    from app.rechecks import RecheckRefused, schedule_recheck
+    from app.web.queue import enqueue
+
+    check = await check_by_token(session, token)
+    user = await current_user(request, session)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    if not await can_view_check(session, check, user):
+        raise HTTPException(404, "Отчёт не найден")
+    try:
+        await schedule_recheck(session, check, user, enqueue)
+    except RecheckRefused as exc:
+        return RedirectResponse(f"/r/{token}?recheck_error={quote(str(exc))}#recheck", 303)
+    return RedirectResponse(f"/r/{token}#recheck", status_code=303)
 
 
 @router.post("/watches/{watch_id}/stop")

@@ -95,6 +95,14 @@ async def web_check(ctx: dict, check_id: int, use_cache: bool = True) -> str:
     return f"check={check.id} {check.status}"
 
 
+async def hour_recheck(ctx: dict, check_id: int) -> str:
+    """«Проверить через час» с сайта: проверка заново и результат человеку (app/rechecks.py)."""
+    from app.rechecks import run_recheck
+
+    async with SessionLocal() as session:
+        return await run_recheck(session, check_id, ctx["embedder"], ctx.get("llm"), ctx.get("bot"))
+
+
 async def clear_stale_in_progress(redis) -> int:
     """Воркер один: после перезапуска ни одна прежняя задача на самом деле не выполняется.
 
@@ -251,6 +259,7 @@ class WorkerSettings:
         recompute_source_ratings,
         bot_check,
         web_check,
+        hour_recheck,
         purge_personal_data,
         run_watches,
         follow_up_checks,

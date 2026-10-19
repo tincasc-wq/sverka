@@ -82,13 +82,23 @@ async def source(message: Message, command: CommandObject) -> None:
 
 @router.callback_query(F.data.startswith("recheck:"))
 async def recheck(callback: CallbackQuery, arq: ArqRedis) -> None:
-    check_id = int(callback.data.split(":")[1])
+    from app.bot.telegram import SOON_RECHECK_HOURS
+    from app.plans import can_schedule
+
+    parts = callback.data.split(":")
+    check_id = int(parts[1])
     async with SessionLocal() as session:
         check = await session.get(Check, check_id)
+        user = await get_or_create_user(session, callback.from_user.id)
+        await session.commit()
+        soon_allowed = can_schedule(user, await membership_of(session, user))
     if check is None:
         await callback.answer("Проверка не найдена")
         return
     hours = get_settings().recheck_hours
+    # «Через час» — для платных тарифов; старые кнопки без срока — как раньше, через 6 ч.
+    if len(parts) > 2 and float(parts[2]) == SOON_RECHECK_HOURS and soon_allowed:
+        hours = SOON_RECHECK_HOURS
     await arq.enqueue_job(
         "bot_check",
         callback.message.chat.id,

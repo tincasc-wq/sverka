@@ -5,6 +5,22 @@
   {% else %}<a href="/pricing?need=pdf" class="muted">PDF-отчёт — в тарифе Pro</a>{% endif %}
 </div>
 {% if "matches" not in report %}
+<div id="recheck" class="card" style="margin-top:16px">
+  {% if recheck_error %}<div class="error">{{ recheck_error }}</div>{% endif %}
+  {% if recheck and recheck.token %}
+    <b>⏰ Проверка через час:</b> {% if recheck.index is not none %}<b>{{ "%g"|format(recheck.index) }}</b> · {% endif %}{{ recheck.status_text or 'готово' }}{% if recheck.publications %}, публикаций об этом: {{ recheck.publications }}{% endif %}.
+    <a href="/r/{{ recheck.token }}">Новый отчёт →</a>
+  {% elif recheck %}
+    <b>⏰ Проверю ещё раз в {{ recheck.at | msk }}</b> и пришлю результат{% if user and user.tg_id %} в Telegram{% elif user and user.email %} на почту{% endif %}; ссылка на новый отчёт появится здесь.
+  {% elif schedule %}
+    <form method="post" action="/r/{{ check.public_token }}/recheck" class="row" style="gap:10px;align-items:center">
+      <button>⏰ Проверить через час</button>
+      <span class="muted" style="font-size:13px">Свежую новость другие источники часто подхватывают позже. Проверим заново и пришлём результат{% if user and user.tg_id %} в Telegram{% elif user and user.email %} на почту{% endif %}. Проверка идёт в лимит тарифа.</span>
+    </form>
+  {% else %}
+    <span class="muted">⏰ Проверка через час с уведомлением — <a href="/pricing">в тарифе Pro</a>.</span>
+  {% endif %}
+</div>
 <div id="watch" class="card" style="margin-top:16px">
   {% if watch_error %}<div class="error">{{ watch_error }}</div>{% endif %}
   {% if watch %}
