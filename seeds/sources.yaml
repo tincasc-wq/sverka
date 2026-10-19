@@ -615,12 +615,11 @@ sources:
   - {name: Росбалт (TG), type: tg, handle_or_domain: "@rosbalt", owner: Росбалт,
      aliases: [Росбалт, Росбалта, «Росбалт»]}
 
-  # Reuters: статьи роботам закрыты (401), но карта сайта для Google News открыта — заголовок и
-  # точное время публикации. Для вопроса «кто написал первым» этого хватает. AP (apnews.com)
-  # закрыт целиком (403, 20.10.2026) — не подключаем.
+  # Reuters: robots.txt прямо запрещает автоматический сбор без письменного согласия и закрывает
+  # сайт всем ботам, кроме перечисленных (проверено 20.10.2026). Не собираем — источник только в
+  # реестре для атрибуции. AP (apnews.com) отвечает нашему боту 403 — тоже не собираем.
   - {name: Reuters, type: agency, handle_or_domain: reuters.com, owner: Thomson Reuters, lang: en,
-     rss: "https://www.reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml",
-     aliases: [Reuters, Рейтер, Рейтерс, Reuters agency]}
+     is_tracked: false, aliases: [Reuters, Рейтер, Рейтерс, Reuters agency]}
 
   # Европа на национальных языках (20.10.2026). С российского адреса часть сайтов не отвечает
   # (таймаут) — их собираем через шлюз. Zeit и El País отдают роботам только аннотации.
