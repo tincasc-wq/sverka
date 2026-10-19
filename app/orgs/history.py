@@ -26,6 +26,7 @@ CATEGORIES = {
         "archive_gap",
         "before_archive",
         "retelling_outside",
+        "claim_absent",
         "no_checkable_claims",
     ),
     "bad": ("disputed", "refuted", "questioned", "satire_origin", "satire_seed"),

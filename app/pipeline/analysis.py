@@ -32,6 +32,7 @@ STATUS_RU = {
     "too_early": "слишком рано: независимых сообщений ещё нет",
     "no_checkable_claims": "нет проверяемых утверждений",
     "no_independent": "не подтверждено: независимых сообщений в архиве нет",
+    "claim_absent": "не подтверждено: о событии пишут, но этого утверждения в публикациях нет",
     "archive_gap": "мало данных: архив за это время неполный",
     "retelling_outside": "пересказ публикации, которой нет в архиве «Сверки»",
     "before_archive": "публикация старше архива «Сверки»: подтвердить её по архиву нельзя",
@@ -308,7 +309,17 @@ async def analyze(
         # Есть только дата со страницы: её хватает, чтобы понять, что статья старше архива.
         stated = datetime.combine(seed.stated_date, time(12), tzinfo=MSK)
         seed_time = min(seed_time, stated)
-    hours = (datetime.now(UTC) - seed_time).total_seconds() / 3600
+    # «Слишком рано» — по возрасту самой истории, а не присланного поста: пост «Банкста» о
+    # погромах во Франции вышел через двое суток после France 24 (19.10.2026).
+    story_start = min(
+        [seed_time]
+        + [
+            c.document.published_at or c.document.first_seen_at
+            for c in result.members
+            if c.membership == "core"
+        ]
+    )
+    hours = (datetime.now(UTC) - story_start).total_seconds() / 3600
     news = score_news(
         evidence, [c.checkable for c in claims_out], primary_rating, hours, cfg.confirmation_index
     )
@@ -332,6 +343,12 @@ async def analyze(
                     f"публикация от {seed_time.astimezone(MSK):%d.%m.%Y} старше архива "
                     "«Сверки»: подтвердить её по архиву нельзя"
                 )
+    verified_others = sum(1 for doc_id in verified if doc_id != seed.id)
+    if status in ("no_independent", "too_early") and verified_others and not any(evidence):
+        # Публикации о событии есть и сверены, но об этом утверждении в них ни слова:
+        # «громят всё, кроме полок со свининой» — о погромах пишут, о свинине — никто.
+        status = "claim_absent"
+        status_text = f"{STATUS_RU[status]} (сверено публикаций о событии: {verified_others})"
 
     cost = await session.scalar(
         select(func.coalesce(func.sum(LlmCall.cost_usd), 0)).where(LlmCall.check_id == check_id)

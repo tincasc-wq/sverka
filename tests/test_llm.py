@@ -401,3 +401,30 @@ async def test_dated_page_older_than_archive_says_so(session: AsyncSession) -> N
 
     assert analysis["status"] == "before_archive" and analysis["index"] is None
     assert "от 23.03.2023 старше архива" in analysis["status_text"]
+
+
+async def test_event_reported_but_claim_absent(session: AsyncSession) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    sources = [Source(type="media", name=f"fr{i}", handle_or_domain=f"fr{i}.com") for i in range(2)]
+    session.add_all(sources)
+    await session.flush()
+    seed = await _doc(
+        session, "https://t.me/bankrollo/1", 1.0, text="Громят всё, кроме полок со свининой"
+    )
+    seed.published_at = datetime.now(UTC)  # пост свежий, а история — двухдневная
+    for i, s in enumerate(sources):
+        d = await _doc(
+            session, f"https://{s.handle_or_domain}/riots", 0.95, 0, s, "Погромы во Франции"
+        )
+        d.published_at = datetime.now(UTC) - timedelta(hours=48 - i)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "<claims>" in json.loads(request.content)["messages"][1]["content"]:
+            return answer({"results": [{"claim": 1, "stance": "unrelated"}]})
+        return fake_model(request)
+
+    check = await run_check(session, f"doc:{seed.id}", FakeEmbedder(), llm=client(handler))
+    analysis = json.loads(check.summary)["analysis"]
+    assert analysis["status"] == "claim_absent" and analysis["index"] is None
+    assert "о событии пишут, но этого утверждения в публикациях нет" in analysis["status_text"]
