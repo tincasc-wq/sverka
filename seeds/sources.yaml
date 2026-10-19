@@ -636,8 +636,14 @@ sources:
      via_gateway: true, rss: "https://newsfeed.zeit.de/index", aliases: [Die Zeit, Zeit]}
   - {name: ANSA, type: agency, handle_or_domain: ansa.it, owner: ANSA, lang: it,
      rss: "https://www.ansa.it/sito/notizie/topnews/topnews_rss.xml", aliases: [ANSA, АНСА]}
+  # Corriere: общая лента заморожена в мае 2024, живые только ленты разделов — источник
+  # остаётся в реестре для атрибуции, общие новости Италии берём у Rai и Il Sole 24 Ore.
   - {name: Corriere della Sera, type: media, handle_or_domain: corriere.it, owner: RCS MediaGroup, lang: it,
-     rss: "https://xml2.corriereobjects.it/rss/homepage.xml", aliases: [Corriere della Sera, Corriere]}
+     aliases: [Corriere della Sera, Corriere]}
+  - {name: Rai News, type: media, handle_or_domain: rainews.it, owner: RAI, lang: it,
+     rss: "https://www.rainews.it/rss/ultimora", aliases: [Rai News, RaiNews, RAI]}
+  - {name: Il Sole 24 Ore, type: media, handle_or_domain: ilsole24ore.com, owner: Confindustria, lang: it,
+     rss: "https://www.ilsole24ore.com/rss/italia.xml", aliases: [Il Sole 24 Ore, Sole 24 Ore]}
   - {name: El Mundo, type: media, handle_or_domain: elmundo.es, owner: Unidad Editorial, lang: es,
      via_gateway: true, rss: "https://e00-elmundo.uecdn.es/elmundo/rss/portada.xml", aliases: [El Mundo]}
   - {name: El País, type: media, handle_or_domain: elpais.com, owner: PRISA, lang: es,
@@ -667,6 +673,6 @@ sources:
   - {name: Folha de S.Paulo, type: media, handle_or_domain: folha.uol.com.br, owner: Grupo Folha, lang: pt,
      rss: "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml", aliases: [Folha de S.Paulo, Folha]}
   - {name: Infobae, type: media, handle_or_domain: infobae.com, owner: Infobae, lang: es,
-     rss: "https://www.infobae.com/arc/outboundfeeds/rss/", aliases: [Infobae]}
+     via_gateway: true, rss: "https://www.infobae.com/arc/outboundfeeds/rss/", aliases: [Infobae]}
   - {name: Clarín, type: media, handle_or_domain: clarin.com, owner: Grupo Clarín, lang: es,
      via_gateway: true, rss: "https://www.clarin.com/rss/lo-ultimo/", aliases: [Clarín, Clarin, Кларин]}
