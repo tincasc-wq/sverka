@@ -69,3 +69,16 @@ def test_stated_date_and_page_lang() -> None:
     assert stated_date(future) is None and stated_date("<html></html>") is None
     assert page_lang(llnl) == "en" and page_lang(ru) == "ru"
     assert page_lang('<html lang="de-DE">') == "de"
+
+
+def test_bot_wall_detection() -> None:
+    from app.check import looks_like_bot_wall
+
+    wall = (
+        b'<html><head><meta name="robots" content="noindex, noarchive" /></head><body>'
+        b"<script>function get_jhash(b){}</script></body></html>"
+    )
+    article = (
+        b"<html><head><title>Atak BPLA</title></head><body>" + b"x" * 30000 + b"</body></html>"
+    )
+    assert looks_like_bot_wall(wall) and not looks_like_bot_wall(article)

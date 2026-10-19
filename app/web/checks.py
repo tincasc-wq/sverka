@@ -61,9 +61,19 @@ async def create_web_check(
     return check
 
 
+BOT_WALL_REASON = (
+    "сайт закрыт от автоматических запросов (защита от роботов). Скопируйте текст статьи "
+    "и вставьте его в поле проверки — проверим так же полно."
+)
+
+
 def _failure_reason(exc: Exception) -> str:
+    from app.check import BotProtected
+
     if isinstance(exc, MaxStub):
         return MAX_STUB_REASON
+    if isinstance(exc, BotProtected):
+        return BOT_WALL_REASON
     if isinstance(exc, UnsafeUrl):
         return "ссылка ведёт на недоступный адрес."
     if isinstance(exc, httpx.HTTPStatusError):

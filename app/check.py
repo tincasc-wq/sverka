@@ -85,6 +85,10 @@ async def _download(url: str, source_id: int | None) -> DocumentIn:
     if not rss.text_matches_title(title, text):
         # Со страницы извлеклась соседняя статья — берём описание страницы, а не чужой текст.
         text = (meta.description if meta else None) or None
+    if not title and not text:
+        # Пустая страница — обычно заглушка защиты от роботов (Росбалт 18.10.2026: проверка
+        # браузера на JavaScript). В архив такое не кладём: иначе пустой «документ» навсегда.
+        raise BotProtected(url) if looks_like_bot_wall(raw) else ValueError(f"no text: {url}")
     return DocumentIn(
         url=url,
         source_id=source_id,
@@ -223,6 +227,20 @@ def page_lang(html: bytes | str) -> str | None:
     return value[:2] if len(value) >= 2 and value[:2].isalpha() else "ru"
 
 
+class BotProtected(ValueError):
+    """Сайт не пустил робота: заглушка с проверкой браузера вместо статьи."""
+
+
+def looks_like_bot_wall(html: bytes) -> bool:
+    head = html[:20000].lower()
+    no_title = b"<title" not in head or b"<title></title>" in head
+    challenge = any(
+        marker in head
+        for marker in (b"noindex", b"captcha", b"challenge", b"__js_p_", b"get_jhash", b"ddos")
+    )
+    return no_title and (challenge or len(html) < 20000)
+
+
 async def resolve_seed(
     session: AsyncSession, arg: str, fallback: DocumentIn | None = None
 ) -> Document:
@@ -234,10 +252,13 @@ async def resolve_seed(
     url = normalize_url(arg)
     # Сначала точный адрес, потом тот же путь без параметров: в ссылках из соцсетей и
     # рекомендательных виджетов бывают метки, которых нет в нашем списке.
+    empty: Document | None = None
     for candidate in dict.fromkeys((url, without_query(url))):
         doc = await session.scalar(select(Document).where(Document.url == candidate))
-        if doc is not None:
+        if doc is not None and (doc.title or doc.text):
             return doc
+        # Пустой документ (раньше сохранялась заглушка защиты от роботов) — скачиваем заново.
+        empty = empty or doc
     source_id = await _source_for(session, url)
     try:
         incoming = await _download(arg, source_id)
@@ -249,6 +270,12 @@ async def resolve_seed(
         incoming = fallback
         incoming.url = url
         incoming.source_id = source_id
+    if empty is not None:
+        empty.title, empty.text = incoming.title, incoming.text
+        empty.published_at = empty.published_at or incoming.published_at
+        empty.embedding = None
+        await session.flush()
+        return empty
     result = await save_document(session, incoming)
     if result == SaveResult.DUPLICATE:
         # Тот же текст у того же источника уже в архиве под другим адресом — берём его.

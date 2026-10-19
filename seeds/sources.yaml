@@ -603,3 +603,8 @@ sources:
   # для Google News (≈150 материалов за двое суток); сборщик понимает её как ленту.
   - {name: CNN, type: media, handle_or_domain: cnn.com, owner: Warner Bros. Discovery,
      lang: en, rss: "https://www.cnn.com/sitemap/news.xml", aliases: [CNN, Си-эн-эн, Си-Эн-Эн]}
+
+  # Росбалт: сайт и его RSS закрыты защитой от роботов (проверка браузера на JavaScript,
+  # 19.10.2026) — обходить не будем; новости берём из открытого канала.
+  - {name: Росбалт (TG), type: tg, handle_or_domain: "@rosbalt", owner: Росбалт,
+     aliases: [Росбалт, Росбалта, «Росбалт»]}

@@ -321,3 +321,20 @@ async def test_same_headline_joins_story_despite_low_similarity(session: AsyncSe
 
     assert flash.id in {c.document.id for c in result.members}
     assert same_headline(headline, headline + "!") and not same_headline("Взрыв в Киеве", "Взрыв")
+
+
+async def test_empty_document_in_archive_is_downloaded_again(session, monkeypatch) -> None:
+    from app import check as check_module
+    from app.check import resolve_seed
+    from app.collectors.store import DocumentIn
+
+    empty = Document(url="https://rosbalt.ru/news/1", title=None, text=None)
+    session.add(empty)
+    await session.flush()
+
+    async def fake_download(url, source_id):
+        return DocumentIn(url=url, title="Атака БПЛА на Петербург", text="Более 120 дронов…")
+
+    monkeypatch.setattr(check_module, "_download", fake_download)
+    doc = await resolve_seed(session, "https://rosbalt.ru/news/1?utm_source=yandex.ru")
+    assert doc.id == empty.id and doc.title == "Атака БПЛА на Петербург"

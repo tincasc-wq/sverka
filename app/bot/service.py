@@ -164,8 +164,14 @@ async def check_for_chat(
         )
     except (httpx.HTTPError, ValueError) as exc:
         await session.rollback()
+        from app.check import BotProtected
+
         reason = "страница не открылась или на ней нет текста."
-        if isinstance(exc, httpx.HTTPStatusError):
+        if isinstance(exc, BotProtected):
+            from app.web.checks import BOT_WALL_REASON
+
+            reason = BOT_WALL_REASON.replace("в поле проверки", "сюда сообщением")
+        elif isinstance(exc, httpx.HTTPStatusError):
             reason = f"сайт ответил ошибкой {exc.response.status_code}."
         return ChatReply(texts.FAILED.format(reason=reason))
 
