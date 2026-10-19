@@ -82,6 +82,8 @@ async def _download(url: str, source_id: int | None) -> DocumentIn:
     meta = trafilatura.extract_metadata(raw)
     title = meta.title if meta else None
     text = rss.extract_article_text(raw, url)
+    if rss.is_wall_text(text):
+        raise BotProtected(url)
     if not rss.text_matches_title(title, text):
         # Со страницы извлеклась соседняя статья — берём описание страницы, а не чужой текст.
         text = (meta.description if meta else None) or None

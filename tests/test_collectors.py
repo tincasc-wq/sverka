@@ -239,3 +239,16 @@ def test_unsupported_telegram_post_is_read_from_link_preview() -> None:
     )
     assert og_text(post_page) == 'Влиятельного бизнесмена обвиняют "в насилии"'
     assert og_text("<html></html>") is None
+
+
+def test_wall_text_is_not_an_article():
+    from app.collectors.rss import is_wall_text
+
+    wall = (
+        "JavaScript is disabled in your browser. Please enable JavaScript to proceed. "
+        "A required part of this site couldn't load."
+    )
+    assert is_wall_text(wall)
+    assert not is_wall_text("Президент поручил включите JavaScript-инженеров в программу. " * 40)
+    assert not is_wall_text("Ronaldo gets 30-day suspension for Portugal walkout")
+    assert not is_wall_text(None)

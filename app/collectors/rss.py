@@ -120,6 +120,19 @@ def text_matches_title(title: str | None, text: str | None) -> bool:
     return len(found) / len(wanted) >= TITLE_MATCH_MIN
 
 
+# Текст заглушки защиты от роботов вместо статьи (Le Monde 12–16.10.2026: 103 «публикации»
+# с текстом «JavaScript is disabled in your browser…»). Такой текст статьёй не считаем.
+_WALL_TEXT = re.compile(
+    r"javascript is disabled|enable javascript|please enable (?:js|cookies)|checking your browser"
+    r"|just a moment\.\.\.|включите javascript|проверка браузера|are you a robot",
+    re.IGNORECASE,
+)
+
+
+def is_wall_text(text: str | None) -> bool:
+    return bool(text) and len(text) < 1500 and bool(_WALL_TEXT.search(text[:500]))
+
+
 def extract_article_text(html: bytes | str, url: str) -> str | None:
     return trafilatura.extract(html, url=url, include_comments=False, include_tables=False)
 
@@ -146,6 +159,9 @@ async def enrich_full_text(client: httpx.AsyncClient, docs: list[DocumentIn]) ->
             except (httpx.HTTPError, ValueError):
                 return  # остаётся аннотация из ленты
             text = await asyncio.to_thread(extract_article_text, html, doc.url)
+            if is_wall_text(text):
+                log.info("заглушка защиты от роботов на %s — оставляем аннотацию из ленты", doc.url)
+                return
             if not text_matches_title(doc.title, text):
                 log.info("чужой текст на странице %s — оставляем аннотацию из ленты", doc.url)
                 return
