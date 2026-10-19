@@ -15,12 +15,13 @@
     <td>{{ counts.get(s.id, 0) }}</td>
     {% set h = health[s.id] %}
     <td><span class="tag {{ 'bad' if h.status == 'red' else 'good' if h.status == 'ok' else '' }}">{{ h.label }}</span>
-        {% if h.reason %}<br><span class="muted">{{ h.reason }}</span>{% endif %}</td>
+        {% if h.reason %}<br><span class="muted">{{ h.reason }}</span>{% endif %}
+        {% if s.robots_note %}<br><span class="tag">{{ s.robots_note }}</span>{% endif %}</td>
     <td>{{ h.last_doc | msk if h.last_doc else '—' }}</td>
     <td>{{ '%d%%' % (h.full_share * 100) if h.full_share is not none else '—' }}</td>
   </tr>
   {% endfor %}
 </table>
-<p class="muted">«Сломан»: три ошибки подряд, молчание дольше четырёх обычных промежутков между публикациями (не меньше суток) или ни одной публикации. «Внимание»: доля публикаций с полным текстом упала вдвое. Выключить сбор можно на странице источника.</p>
+<p class="muted">«Сломан»: три ошибки подряд, молчание дольше четырёх обычных промежутков между публикациями (не меньше суток) или ни одной публикации. «Внимание»: доля публикаций с полным текстом упала вдвое. Выключить сбор можно на странице источника. Отметка robots.txt сбор не останавливает: решение по источнику — за администратором (явные письменные запреты, как у Reuters, соблюдаем).</p>
 <p class="muted">Рейтинг пересчитывается ночью (03:00). Число показывается пользователям только после {{ 10 }} исходов.</p>
 {% endblock %}

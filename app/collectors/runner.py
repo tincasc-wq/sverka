@@ -10,7 +10,7 @@ import httpx
 from sqlalchemy import ColumnElement, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.collectors import rss, telegram
+from app.collectors import robots, rss, telegram
 from app.collectors.http import fetch, fetch_bytes, make_client
 from app.collectors.store import DocumentIn, SaveResult, known_urls, save_document
 from app.collectors.urls import normalize_url
@@ -80,7 +80,7 @@ async def _poll_one(
     stats: Counter = Counter()
     async with sessionmaker() as session:
         try:
-            docs = _fresh(_unique_by_url(await fetch(client, source)))
+            docs = fetched = _fresh(_unique_by_url(await fetch(client, source)))
             if full_text:
                 # Полный текст качаем только для новых ссылок: лента повторяет старые записи.
                 known = await known_urls(session, [d.url for d in docs])
@@ -90,6 +90,11 @@ async def _poll_one(
             for doc in docs:
                 stats[await save_document(session, doc)] += 1
             src = await session.get(Source, source.id)
+            if source.feed_url:
+                sample = fetched[0].url if fetched else None
+                note = await robots.note(client, source.feed_url, sample)
+                if note != "":
+                    src.robots_note = note
             src.last_polled_at = datetime.now(UTC)
             src.last_error = None
             src.consecutive_errors = 0

@@ -35,6 +35,8 @@ class Source(CreatedAtMixin, Base):
     last_polled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
     consecutive_errors: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
+    # Что robots.txt запрещает нашему роботу (сбор не блокирует — решает администратор).
+    robots_note: Mapped[str | None] = mapped_column(Text)
 
 
 class SourceScore(Base):
