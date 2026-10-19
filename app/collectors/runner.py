@@ -32,7 +32,18 @@ async def fetch_telegram_source(client: httpx.AsyncClient, source: Source) -> li
     if not final_url.path.startswith("/s/"):
         # Канал отключил веб-превью: t.me уводит на страницу без постов.
         raise telegram.PreviewDisabled(f"web preview disabled, redirected to {final_url}")
-    return telegram.parse_channel_page(raw, source.id)
+    docs = telegram.parse_channel_page(raw, source.id)
+    unsupported = telegram.unsupported_posts(raw)
+    if unsupported:
+        # Новые посты, которых ещё нет в архиве, дочитываем по мета-описанию страницы поста.
+        from app.collectors.store import known_urls
+        from app.core.db import SessionLocal
+
+        async with SessionLocal() as session:
+            known = await known_urls(session, [url for url, _ in unsupported])
+        fresh = [(url, when) for url, when in unsupported if url not in known]
+        docs += await telegram.fetch_unsupported(client, fresh, source.id)
+    return docs
 
 
 def _unique_by_url(docs: list[DocumentIn]) -> list[DocumentIn]:

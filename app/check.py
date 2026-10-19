@@ -63,6 +63,12 @@ async def _download(url: str, source_id: int | None) -> DocumentIn:
         async with make_client(proxy=proxy, public_only=True, ipv6=ipv6) as client:
             raw, _ = await fetch(client, f"{url}?embed=1")
         docs = telegram.parse_channel_page(raw, source_id)
+        if not docs and (unsupported := telegram.unsupported_posts(raw)):
+            # Пост нового формата: веб-превью его не показывает, текст — в превью ссылки.
+            async with make_client(proxy=proxy, public_only=True, ipv6=ipv6) as client:
+                docs = await telegram.fetch_unsupported(
+                    client, [(url, unsupported[0][1])], source_id
+                )
         if not docs:
             raise ValueError(f"no text found in Telegram post {url}")
         docs[0].url = url

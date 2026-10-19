@@ -213,3 +213,29 @@ def test_news_sitemap_is_read_like_a_feed() -> None:
     assert docs[0].published_at == datetime(2026, 10, 15, 21, 4, 11, 120000, tzinfo=UTC)
     assert docs[0].source_id == 7 and docs[0].text is None
     assert docs[1].title is None and docs[1].published_at is None
+
+
+def test_unsupported_telegram_post_is_read_from_link_preview() -> None:
+    from app.collectors.telegram import og_text, parse_channel_page, unsupported_posts
+
+    page = (
+        '<div class="tgme_widget_message text_not_supported_wrap js-widget_message" '
+        'data-post="rentv_news/226726"><div class="message_media_not_supported_wrap">'
+        '<div class="message_media_not_supported"><div class="message_media_not_supported_label">'
+        "Please open Telegram to view this post</div></div></div>"
+        '<time datetime="2026-10-19T10:15:55+00:00" class="time">10:15</time></div>'
+        '<div class="tgme_widget_message js-widget_message" data-post="rentv_news/226727">'
+        '<div class="tgme_widget_message_text">Обычный пост с текстом</div></div>'
+    )
+    assert [d.url for d in parse_channel_page(page, 1)] == ["https://t.me/rentv_news/226727"]
+    [(url, when)] = unsupported_posts(page)
+    assert url == "https://t.me/rentv_news/226726" and when.isoformat().startswith(
+        "2026-10-19T10:15"
+    )
+    post_page = (
+        '<meta property="og:title" content="РЕН ТВ|Новости">'
+        '<meta property="og:description" '
+        'content="Влиятельного бизнесмена обвиняют &quot;в насилии&quot;">'
+    )
+    assert og_text(post_page) == 'Влиятельного бизнесмена обвиняют "в насилии"'
+    assert og_text("<html></html>") is None
