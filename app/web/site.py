@@ -294,6 +294,8 @@ async def sources(request: Request, session: Session, lang: str = ""):
     )
     if lang in ("ru", "en"):
         query = query.where(Source.lang == lang)
+    elif lang == "other":
+        query = query.where(Source.lang.not_in(("ru", "en")))
     min_outcomes = get_scoring().source_rating.min_outcomes_to_show
     rows = [
         {
@@ -709,3 +711,27 @@ def summary_of(check: Check) -> dict:
 
 
 templates.env.globals["summary_of"] = summary_of
+templates.env.globals["LANG_SHORT"] = {
+    "en": "англ.",
+    "fr": "франц.",
+    "de": "нем.",
+    "it": "итал.",
+    "es": "исп.",
+    "pt": "португ.",
+    "fi": "финск.",
+    "sv": "шведск.",
+    "nl": "нидерл.",
+    "uk": "укр.",
+}
+templates.env.globals["LANG_FULL"] = {
+    "en": "на английском",
+    "fr": "на французском",
+    "de": "на немецком",
+    "it": "на итальянском",
+    "es": "на испанском",
+    "pt": "на португальском",
+    "fi": "на финском",
+    "sv": "на шведском",
+    "nl": "на нидерландском",
+    "uk": "на украинском",
+}

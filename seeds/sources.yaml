@@ -125,8 +125,11 @@ sources:
   - {name: Forbes Russia (TG), type: tg, handle_or_domain: "@forbesrussia", owner: Forbes Россия}
   - {name: АиФ (TG), type: tg, handle_or_domain: "@aifonline", owner: Аргументы и факты}
   - {name: Вести (TG), type: tg, handle_or_domain: "@vestiru24", owner: ВГТРК, aliases: [«Вести», Вести.ру]}
-  - {name: URA.RU (TG), type: tg, handle_or_domain: "@ura_ru", owner: URA.RU}
-  - {name: Кремлёвский пул РИА, type: tg, handle_or_domain: "@kremlinpool_ria", owner: МИА «Россия сегодня»}
+  # @ura_ru заброшен (последний пост 27.10.2025), URA.RU ведёт @uranews.
+  - {name: URA.RU (TG, старый), type: tg, handle_or_domain: "@ura_ru", owner: URA.RU, is_tracked: false}
+  - {name: URA.RU (TG), type: tg, handle_or_domain: "@uranews", owner: URA.RU}
+  # Канал заброшен: последний пост 21.11.2024; @kremlin_pool — тоже (03.12.2025).
+  - {name: Кремлёвский пул РИА, type: tg, handle_or_domain: "@kremlinpool_ria", owner: МИА «Россия сегодня», is_tracked: false}
   - {name: Mash (2), type: tg, handle_or_domain: "@mash", owner: Mash}
 
   # Telegram: новостные и авторские каналы
@@ -139,7 +142,8 @@ sources:
   - {name: "Осторожно, новости", type: aggregator, handle_or_domain: "@ostorozhno_novosti", aliases: ["«Осторожно, новости»", "Осторожно, новости"]}
   - {name: Лентач, type: tg, handle_or_domain: "@lentachold", aliases: [Лентач]}
   - {name: Новости Москвы, type: tg, handle_or_domain: "@moscowmap"}
-  - {name: Полит.Ру, type: tg, handle_or_domain: "@polit_ru", aliases: [Полит.ру, Полит.Ру]}
+  # Канал заброшен: последний пост 29.02.2024.
+  - {name: Полит.Ру, type: tg, handle_or_domain: "@polit_ru", aliases: [Полит.ру, Полит.Ру], is_tracked: false}
   - {name: Банкста, type: tg, handle_or_domain: "@banksta", aliases: [Банкста]}
   - {name: "Банки, деньги, два офшора", type: tg, handle_or_domain: "@bankrollo"}
   - {name: Сигналы РЦБ, type: tg, handle_or_domain: "@cbrstocks", aliases: [Сигналы РЦБ]}
@@ -167,8 +171,8 @@ sources:
   # ВЛАДЕЛЬЦУ: до продакшена сверить ВСЕ источники с перечнями Минюста (нежелательные
   # организации, иноагенты) — распространение материалов нежелательной организации наказуемо.
   # Особенно: украинские издания (Kyiv Independent, Kyiv Post, Украинская правда), DW.
-  # Не добавлены: AP, Reuters (нет публичных лент), CNN, WSJ, Xinhua (ленты заброшены),
-  # RT (недоступен), ООН, НАТО, Госдеп, gov.uk (ленты убраны или закрыты), Kyodo, Arab News,
+  # Не добавлены: AP (закрыт для роботов), WSJ, Xinhua (ленты заброшены), RT (недоступен),
+  # ООН, НАТО, Госдеп (ленты убраны или закрыты), Kyodo, Arab News,
   # Euractiv, The Independent, CBC (403/429/таймаут).
 
   # Информагентства
@@ -200,8 +204,10 @@ sources:
   - {name: The New York Times, type: media, handle_or_domain: nytimes.com, owner: The New York Times Company,
      lang: en, rss: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
      aliases: [The New York Times, New York Times, NYT, Нью-Йорк таймс]}
+  # The Washington Post: feeds.washingtonpost.com с 14.10.2026 отвечает 502, сайт роботам не
+  # отвечает (таймаут) — ленты нет, источник остаётся в реестре для атрибуции.
   - {name: The Washington Post, type: media, handle_or_domain: washingtonpost.com, owner: Nash Holdings,
-     lang: en, rss: "https://feeds.washingtonpost.com/rss/world",
+     lang: en,
      aliases: [The Washington Post, Washington Post, Вашингтон пост]}
   - {name: Bloomberg, type: media, handle_or_domain: bloomberg.com, owner: Bloomberg L.P., lang: en,
      rss: "https://feeds.bloomberg.com/politics/news.rss", aliases: [Bloomberg, Блумберг]}
@@ -608,3 +614,59 @@ sources:
   # 19.10.2026) — обходить не будем; новости берём из открытого канала.
   - {name: Росбалт (TG), type: tg, handle_or_domain: "@rosbalt", owner: Росбалт,
      aliases: [Росбалт, Росбалта, «Росбалт»]}
+
+  # Reuters: статьи роботам закрыты (401), но карта сайта для Google News открыта — заголовок и
+  # точное время публикации. Для вопроса «кто написал первым» этого хватает. AP (apnews.com)
+  # закрыт целиком (403, 20.10.2026) — не подключаем.
+  - {name: Reuters, type: agency, handle_or_domain: reuters.com, owner: Thomson Reuters, lang: en,
+     rss: "https://www.reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml",
+     aliases: [Reuters, Рейтер, Рейтерс, Reuters agency]}
+
+  # Европа на национальных языках (20.10.2026). С российского адреса часть сайтов не отвечает
+  # (таймаут) — их собираем через шлюз. Zeit и El País отдают роботам только аннотации.
+  - {name: Der Spiegel, type: media, handle_or_domain: spiegel.de, owner: Spiegel-Verlag, lang: de,
+     via_gateway: true, rss: "https://www.spiegel.de/schlagzeilen/index.rss", aliases: [Spiegel, Der Spiegel, Шпигель]}
+  - {name: Frankfurter Allgemeine, type: media, handle_or_domain: faz.net, owner: FAZIT-Stiftung, lang: de,
+     via_gateway: true, rss: "https://www.faz.net/rss/aktuell/", aliases: [FAZ, Frankfurter Allgemeine]}
+  - {name: Süddeutsche Zeitung, type: media, handle_or_domain: sueddeutsche.de, owner: SWMH, lang: de,
+     rss: "https://rss.sueddeutsche.de/rss/Topthemen", aliases: [Süddeutsche Zeitung, Sueddeutsche, SZ]}
+  - {name: Tagesschau, type: media, handle_or_domain: tagesschau.de, owner: ARD, lang: de,
+     rss: "https://www.tagesschau.de/index~rss2.xml", aliases: [Tagesschau, ARD]}
+  - {name: Die Zeit, type: media, handle_or_domain: zeit.de, owner: Zeitverlag, lang: de,
+     via_gateway: true, rss: "https://newsfeed.zeit.de/index", aliases: [Die Zeit, Zeit]}
+  - {name: ANSA, type: agency, handle_or_domain: ansa.it, owner: ANSA, lang: it,
+     rss: "https://www.ansa.it/sito/notizie/topnews/topnews_rss.xml", aliases: [ANSA, АНСА]}
+  - {name: Corriere della Sera, type: media, handle_or_domain: corriere.it, owner: RCS MediaGroup, lang: it,
+     rss: "https://xml2.corriereobjects.it/rss/homepage.xml", aliases: [Corriere della Sera, Corriere]}
+  - {name: El Mundo, type: media, handle_or_domain: elmundo.es, owner: Unidad Editorial, lang: es,
+     via_gateway: true, rss: "https://e00-elmundo.uecdn.es/elmundo/rss/portada.xml", aliases: [El Mundo]}
+  - {name: El País, type: media, handle_or_domain: elpais.com, owner: PRISA, lang: es,
+     via_gateway: true, rss: "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada",
+     aliases: [El País, El Pais, Эль Паис]}
+  - {name: Yle News, type: media, handle_or_domain: yle.fi, owner: Yle, lang: en,
+     rss: "https://yle.fi/rss/news", aliases: [Yle]}
+  - {name: SVT Nyheter, type: media, handle_or_domain: svt.se, owner: SVT, lang: sv,
+     rss: "https://www.svt.se/nyheter/rss.xml", aliases: [SVT]}
+  - {name: NOS, type: media, handle_or_domain: nos.nl, owner: NPO, lang: nl,
+     via_gateway: true, rss: "https://feeds.nos.nl/nosnieuwsalgemeen", aliases: [NOS]}
+
+  # Официальные первоисточники Европы и здравоохранения.
+  - {name: GOV.UK, type: official, handle_or_domain: gov.uk, owner: Правительство Великобритании, lang: en,
+     rss: "https://www.gov.uk/search/news-and-communications.atom", aliases: [GOV.UK, Downing Street, Даунинг-стрит]}
+  - {name: Правительство Германии, type: official, handle_or_domain: bundesregierung.de, owner: Правительство ФРГ,
+     lang: de, rss: "https://www.bundesregierung.de/service/rss/breg-de/1151244/feed.xml",
+     aliases: [Bundesregierung, правительство ФРГ]}
+  - {name: Елисейский дворец, type: official, handle_or_domain: elysee.fr, owner: Президент Франции, lang: fr,
+     rss: "https://www.elysee.fr/feed", aliases: [Élysée, Elysee, Елисейский дворец]}
+  - {name: ВОЗ, type: official, handle_or_domain: who.int, owner: ВОЗ, lang: en,
+     rss: "https://www.who.int/rss-feeds/news-english.xml", aliases: [WHO, ВОЗ, Всемирная организация здравоохранения]}
+  - {name: EMA, type: official, handle_or_domain: ema.europa.eu, owner: Европейский союз, lang: en,
+     rss: "https://www.ema.europa.eu/en/news.xml", aliases: [EMA, European Medicines Agency, Европейское агентство по лекарственным средствам]}
+
+  # Латинская Америка.
+  - {name: Folha de S.Paulo, type: media, handle_or_domain: folha.uol.com.br, owner: Grupo Folha, lang: pt,
+     rss: "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml", aliases: [Folha de S.Paulo, Folha]}
+  - {name: Infobae, type: media, handle_or_domain: infobae.com, owner: Infobae, lang: es,
+     rss: "https://www.infobae.com/arc/outboundfeeds/rss/", aliases: [Infobae]}
+  - {name: Clarín, type: media, handle_or_domain: clarin.com, owner: Grupo Clarín, lang: es,
+     via_gateway: true, rss: "https://www.clarin.com/rss/lo-ultimo/", aliases: [Clarín, Clarin, Кларин]}

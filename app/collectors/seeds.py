@@ -38,18 +38,20 @@ async def load_seeds(session: AsyncSession, seeds: list[SeedSource]) -> tuple[in
             select(Source).where(Source.handle_or_domain == seed.handle_or_domain)
         )
         if source is None:
-            source = Source(handle_or_domain=seed.handle_or_domain)
+            source = Source(handle_or_domain=seed.handle_or_domain, is_tracked=seed.is_tracked)
             session.add(source)
             added += 1
         else:
             updated += 1
+            if not seed.is_tracked:
+                # Включённый в реестре сбор не перебивает выключение галочкой в админке.
+                source.is_tracked = False
         source.name = seed.name
         source.type = seed.type
         source.feed_url = seed.rss
         source.owner = seed.owner
         source.affiliation = seed.affiliation
         source.aliases = seed.aliases
-        source.is_tracked = seed.is_tracked
         source.lang = seed.lang
         source.via_gateway = seed.via_gateway
         source.legal_flags = seed.legal_flags

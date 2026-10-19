@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from datetime import timedelta
 
 import httpx
 import pytest
@@ -99,7 +100,11 @@ def _transport(routes: dict[str, bytes]) -> httpx.MockTransport:
     return httpx.MockTransport(handler)
 
 
-async def test_poll_rss_saves_full_text_and_isolates_broken_feed(committed) -> None:
+OLD_FIXTURES = timedelta(days=36500)  # даты в образцах лент давно прошли
+
+
+async def test_poll_rss_saves_full_text_and_isolates_broken_feed(committed, monkeypatch) -> None:
+    monkeypatch.setattr("app.collectors.runner.MAX_ENTRY_AGE", OLD_FIXTURES)
     async with committed() as s:
         s.add_all(
             [
@@ -146,7 +151,8 @@ async def test_poll_rss_saves_full_text_and_isolates_broken_feed(committed) -> N
         assert "500" in broken.last_error
 
 
-async def test_poll_telegram_reads_channel_preview(committed) -> None:
+async def test_poll_telegram_reads_channel_preview(committed, monkeypatch) -> None:
+    monkeypatch.setattr("app.collectors.runner.MAX_ENTRY_AGE", OLD_FIXTURES)
     async with committed() as s:
         s.add(Source(type="tg", name="Тест", handle_or_domain="@testchan"))
         s.add(Source(type="tg", name="Закрытое превью", handle_or_domain="@nopreview"))
@@ -252,3 +258,18 @@ def test_wall_text_is_not_an_article():
     assert not is_wall_text("Президент поручил включите JavaScript-инженеров в программу. " * 40)
     assert not is_wall_text("Ronaldo gets 30-day suspension for Portugal walkout")
     assert not is_wall_text(None)
+
+
+def test_old_feed_entries_are_skipped():
+    from datetime import UTC, datetime
+
+    from app.collectors.runner import _fresh
+    from app.collectors.store import DocumentIn
+
+    now = datetime.now(UTC)
+    docs = [
+        DocumentIn(url="https://x.ru/new", published_at=now - timedelta(hours=5)),
+        DocumentIn(url="https://x.ru/old", published_at=now - timedelta(days=400)),
+        DocumentIn(url="https://x.ru/undated"),
+    ]
+    assert [d.url for d in _fresh(docs)] == ["https://x.ru/new", "https://x.ru/undated"]

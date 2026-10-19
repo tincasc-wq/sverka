@@ -78,8 +78,22 @@ async def sources(request: Request, session: Session):
             )
         ).all()
     )
+    from app.collectors.health import source_health
+
+    health = await source_health(session, rows)
+    order = {"red": 0, "yellow": 1, "ok": 2, "off": 3}
+    rows.sort(key=lambda s: order[health[s.id].status])
+    summary = {k: sum(h.status == k for h in health.values()) for k in order}
     return templates.TemplateResponse(
-        request, "sources.html", {"sources": rows, "scores": scores, "counts": counts}
+        request,
+        "sources.html",
+        {
+            "sources": rows,
+            "scores": scores,
+            "counts": counts,
+            "health": health,
+            "summary": summary,
+        },
     )
 
 

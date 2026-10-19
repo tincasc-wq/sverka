@@ -4,10 +4,10 @@ import asyncio
 import logging
 from collections import Counter
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import httpx
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.collectors import rss, telegram
@@ -58,6 +58,18 @@ def _unique_by_url(docs: list[DocumentIn]) -> list[DocumentIn]:
     return unique
 
 
+# Записи старше трёх дней из ленты не берём: у нового источника лента бывает архивом за годы
+# (CDC — 1844 записи), а заброшенный канал при первом опросе выглядел живым из-за постов
+# 2024 года («Кремлёвский пул РИА», 12.10.2026). Время первого появления у таких записей
+# было бы ложным — «Сверка» увидела их не тогда, когда они вышли.
+MAX_ENTRY_AGE = timedelta(days=3)
+
+
+def _fresh(docs: list[DocumentIn]) -> list[DocumentIn]:
+    since = datetime.now(UTC) - MAX_ENTRY_AGE
+    return [d for d in docs if d.published_at is None or d.published_at >= since]
+
+
 async def _poll_one(
     sessionmaker: async_sessionmaker[AsyncSession],
     client: httpx.AsyncClient,
@@ -68,7 +80,7 @@ async def _poll_one(
     stats: Counter = Counter()
     async with sessionmaker() as session:
         try:
-            docs = _unique_by_url(await fetch(client, source))
+            docs = _fresh(_unique_by_url(await fetch(client, source)))
             if full_text:
                 # Полный текст качаем только для новых ссылок: лента повторяет старые записи.
                 known = await known_urls(session, [d.url for d in docs])
@@ -94,6 +106,16 @@ async def _poll_one(
     return stats
 
 
+# Сломанный источник не дёргаем каждые 5 минут: после трёх ошибок подряд пауза растёт вдвое
+# (10, 20, 40… до 160 минут). The Washington Post с 14.10.2026 отвечал 502 — 1543 запроса впустую,
+# Phys.org отвечал 429 «слишком много запросов».
+BACKOFF = text(
+    "(sources.consecutive_errors < 3 or sources.last_polled_at is null"
+    " or sources.last_polled_at < now()"
+    " - least(160, 5 * power(2, least(sources.consecutive_errors, 7) - 2)) * interval '1 minute')"
+)
+
+
 async def poll_sources(
     sessionmaker: async_sessionmaker[AsyncSession],
     condition: ColumnElement[bool],
@@ -104,7 +126,7 @@ async def poll_sources(
 ) -> Counter:
     settings = get_settings()
     async with sessionmaker() as session:
-        query = select(Source).where(Source.is_tracked, condition).order_by(Source.id)
+        query = select(Source).where(Source.is_tracked, condition, BACKOFF).order_by(Source.id)
         sources = list(await session.scalars(query))
 
     owns_client = client is None

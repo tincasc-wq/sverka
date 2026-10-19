@@ -158,6 +158,32 @@ async def collect_telegram(ctx: dict) -> str:
     return result
 
 
+@single_flight
+async def source_health_digest(ctx: dict) -> str:
+    """Раз в день администратору: какие источники сломались и какие починились (health.py)."""
+    import json
+
+    from sqlalchemy import select
+
+    from app.collectors.health import digest, source_health
+    from app.models import Source
+    from app.web.notify import notify_admin
+
+    async with SessionLocal() as session:
+        sources = list(await session.scalars(select(Source)))
+        health = await source_health(session, sources)
+    redis = ctx.get("redis")
+    key = "sverka:health:red"
+    before = set(json.loads(await redis.get(key) or "[]")) if redis is not None else set()
+    message = digest(sources, health, before)
+    if message and not await notify_admin(message):
+        return "не доставлено"
+    if redis is not None:
+        red = [i for i, h in health.items() if h.status == "red"]
+        await redis.set(key, json.dumps(red))
+    return message or "без изменений"
+
+
 async def alert_on_backlog(ctx: dict, session) -> None:
     """Очередь на эмбеддинги растёт — сообщить владельцу, не чаще раза в 6 часов."""
     from app.embeddings import BACKLOG_ALERT, embedding_backlog
@@ -264,6 +290,7 @@ class WorkerSettings:
         run_watches,
         follow_up_checks,
         org_quota_alerts,
+        source_health_digest,
     ]
     cron_jobs = [
         # Таймаут с запасом: полные тексты после простоя качаются долго; single_flight не даёт
@@ -278,6 +305,8 @@ class WorkerSettings:
         cron(run_watches, minute=set(range(4, 60, 10)), unique=True, timeout=3000),
         cron(follow_up_checks, minute={17, 47}, unique=True, timeout=1500),
         cron(org_quota_alerts, minute=25, unique=True, timeout=300),
+        # Сводка по источникам администратору; 09:00 по Москве, только если что-то изменилось.
+        cron(source_health_digest, hour=6, minute=0, unique=True, timeout=300),
     ]
     on_startup = startup
     on_shutdown = shutdown

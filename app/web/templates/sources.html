@@ -2,8 +2,9 @@
 {% set nav = "sources" %}
 {% block content %}
 <h1>Реестр источников</h1>
+<p>Сломаны: <b>{{ summary.red }}</b> · требуют внимания: <b>{{ summary.yellow }}</b> · в порядке: {{ summary.ok }} · выключены: {{ summary.off }}</p>
 <table>
-  <tr><th>Источник</th><th>Тип</th><th>Рейтинг</th><th>Исходов</th><th>В архиве</th><th>Сборщик</th></tr>
+  <tr><th>Источник</th><th>Тип</th><th>Рейтинг</th><th>Исходов</th><th>В архиве</th><th>Сборщик</th><th>Последняя публикация</th><th>Полный текст, 3 дня</th></tr>
   {% for s in sources %}
   {% set score = scores.get(s.id) %}
   <tr>
@@ -12,11 +13,14 @@
     <td>{% if score %}{{ score.score }} <span class="muted">[{{ score.ci_low }}–{{ score.ci_high }}]</span>{% else %}<span class="muted">—</span>{% endif %}</td>
     <td>{{ score.n_observations if score else 0 }}</td>
     <td>{{ counts.get(s.id, 0) }}</td>
-    <td>{% if not s.is_tracked %}<span class="tag">выключен</span>
-        {% elif s.consecutive_errors %}<span class="tag bad">ошибок: {{ s.consecutive_errors }}</span>
-        {% else %}<span class="tag good">ок</span>{% endif %}</td>
+    {% set h = health[s.id] %}
+    <td><span class="tag {{ 'bad' if h.status == 'red' else 'good' if h.status == 'ok' else '' }}">{{ h.label }}</span>
+        {% if h.reason %}<br><span class="muted">{{ h.reason }}</span>{% endif %}</td>
+    <td>{{ h.last_doc | msk if h.last_doc else '—' }}</td>
+    <td>{{ '%d%%' % (h.full_share * 100) if h.full_share is not none else '—' }}</td>
   </tr>
   {% endfor %}
 </table>
+<p class="muted">«Сломан»: три ошибки подряд, молчание дольше четырёх обычных промежутков между публикациями (не меньше суток) или ни одной публикации. «Внимание»: доля публикаций с полным текстом упала вдвое. Выключить сбор можно на странице источника.</p>
 <p class="muted">Рейтинг пересчитывается ночью (03:00). Число показывается пользователям только после {{ 10 }} исходов.</p>
 {% endblock %}

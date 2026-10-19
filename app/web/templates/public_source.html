@@ -4,7 +4,7 @@
 {% block content %}
 <p><a href="/sources">← Реестр источников</a></p>
 <h1>{{ card.name }}</h1>
-<p class="muted">{{ type }} · {{ source.handle_or_domain }}{% if source.owner %} · владелец: {{ source.owner }}{% endif %}{% if source.lang == 'en' %} · на английском{% endif %}</p>
+<p class="muted">{{ type }} · {{ source.handle_or_domain }}{% if source.owner %} · владелец: {{ source.owner }}{% endif %}{% if source.lang in LANG_FULL %} · {{ LANG_FULL[source.lang] }}{% endif %}</p>
 {% set r = card.rating %}
 <div class="card row">
   <div><div class="muted">Рейтинг надёжности</div>
