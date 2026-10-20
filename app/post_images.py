@@ -26,6 +26,30 @@ def telegram_image_urls(html: str) -> list[str]:
     return list(dict.fromkeys(_PHOTO.findall(html)))[:MAX_IMAGES]
 
 
+SHORT_CAPTION_WORDS = 15
+
+
+def short_caption(text: str | None) -> bool:
+    """Подпись поста слишком короткая, чтобы в ней была новость: «Кляти москали!» над
+    скриншотом статьи (Шаранизм, 20.10.2026) — вся новость на картинке."""
+    return MARK not in (text or "") and len((text or "").split()) < SHORT_CAPTION_WORDS
+
+
+async def post_has_images(url: str) -> bool:
+    """Есть ли у поста Telegram картинки (без распознавания)."""
+    if domain_of(url) != "t.me":
+        return False
+    settings = get_settings()
+    try:
+        async with make_client(
+            proxy=settings.telegram_proxy, public_only=True, ipv6=settings.telegram_ipv6
+        ) as client:
+            page, _ = await fetch(client, f"{url}?embed=1")
+    except Exception:  # noqa: BLE001 — подсказка необязательна
+        return False
+    return bool(telegram_image_urls(page.decode("utf-8", errors="replace")))
+
+
 def with_image_text(text: str | None, recognized: list[str]) -> str:
     parts = [p for p in recognized if p]
     if not parts:

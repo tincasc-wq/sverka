@@ -106,6 +106,14 @@ class IndexConfig(BaseModel):
     # ±coverage_window_hours, среди источников, активных за последние сутки.
     coverage_window_hours: float = 6
     coverage_min_share: float = 0.5
+    # Поиск по каждому утверждению (амиши, 20.10.2026): длинный текст о нескольких событиях не
+    # похож целиком ни на одну публикацию, и сюжет остаётся пустым. Если независимых групп в
+    # сюжете меньше claim_search_below, для каждого утверждения ищем в архиве самые близкие
+    # публикации на любом языке и тоже сверяем их.
+    claim_search_below: int = 2
+    claim_search_min_similarity: float = 0.6
+    claim_search_per_claim: int = 2
+    claim_search_max_documents: int = 5
 
 
 class ScoringConfig(BaseModel):

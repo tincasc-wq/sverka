@@ -47,3 +47,14 @@ def no_channel_lookups(monkeypatch) -> None:
         return None
 
     monkeypatch.setattr(channel_profile, "channel_profile", none)
+
+
+@pytest.fixture(autouse=True)
+def no_post_image_lookups(monkeypatch) -> None:
+    """Есть ли у поста картинки — тоже сеть; по умолчанию считаем, что нет."""
+    from app import post_images
+
+    async def no(url: str) -> bool:
+        return False
+
+    monkeypatch.setattr(post_images, "post_has_images", no)

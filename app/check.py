@@ -369,19 +369,30 @@ async def run_check(
     input_raw: str | None = None,
     ocr_images: bool = False,
     ocr_rare_langs: bool = False,
+    ocr_allowed: bool = False,
 ) -> Check:
     """existing — уже созданная запись проверки (сайт создаёт её сразу, чтобы показать ожидание).
 
     ocr_images — распознать текст на картинках поста (настройка пользователя, тарифы с ocr).
+    ocr_allowed — тариф позволяет распознавание: тогда картинки поста с одной короткой подписью
+    распознаём и без галочки — новость в таком посте целиком на картинке.
     """
+    from app.post_images import add_image_text, post_has_images, short_caption
+
     seed = await resolve_seed(session, arg, fallback)
     if existing is not None:
         org_id = existing.org_id
-    if ocr_images:
-        from app.post_images import add_image_text
-
-        await add_image_text(seed, ocr_rare_langs)
+    image_hint = None
+    if ocr_images or (ocr_allowed and short_caption(seed.text)):
+        if await add_image_text(seed, ocr_rare_langs) and not ocr_images:
+            image_hint = "Подпись поста короткая — проверили и текст с его картинки."
         cache_hours = 0  # прошлая проверка могла быть без текста с картинок
+    elif short_caption(seed.text) and await post_has_images(seed.url):
+        image_hint = (
+            "Новость в этом посте, похоже, на картинке, а проверена только короткая подпись. "
+            "Чтение картинок — в тарифах Pro, «Команда» и «Редакция»; или пришлите текст "
+            "с картинки сообщением."
+        )
     if cache_hours and (cached := await recent_check(session, seed.id, cache_hours, org_id)):
         if existing is not None:
             existing.document_id = seed.id
@@ -448,13 +459,17 @@ async def run_check(
         report["note"] = None
     elif use_llm:
         try:
-            report["analysis"] = await analyze(session, llm, result, check.id, scoring)
+            report["analysis"] = await analyze(
+                session, llm, result, check.id, scoring, embedder=embedder
+            )
             retelling_outside_archive(report)
             report["note"] = None
             check.confirmation_index = report["analysis"]["index"]
         except LlmUnavailable as exc:
             report["analysis"] = {"error": f"LLM недоступна: {exc}"[:300]}
 
+    if image_hint:
+        report["image_hint"] = image_hint
     check.story_id = result.story_id
     check.status = CheckStatus.DONE
     check.summary = json.dumps(report, ensure_ascii=False)

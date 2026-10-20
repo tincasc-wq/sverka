@@ -38,6 +38,7 @@
   а в реестре под тем же названием — {{ r.imitates.original }}. Это разные каналы.
 </div>
 {% endif %}
+{% if r.image_hint %}<div class="note">🖼 {{ r.image_hint }}</div>{% endif %}
 {% set a = r.analysis %}
 {% if a and a.corrections %}
 <div class="card" style="border-color:#B3261E;background:#fbe7e5">

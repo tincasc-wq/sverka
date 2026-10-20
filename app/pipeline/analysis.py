@@ -11,12 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.scoring import ScoringConfig
 from app.llm import LlmClient
-from app.models import Claim, ClaimEvidence, Document, LlmCall, SourceScore
-from app.pipeline.graph import Node
+from app.models import Claim, ClaimEvidence, Document, LlmCall, Source, SourceScore
+from app.pipeline.graph import USER_TEXT_PREFIX, Node
 from app.pipeline.index import Evidence, score_news
 from app.pipeline.llm_steps import extract_claims, judge_same_event, verify_many
 from app.pipeline.sourcing import cites_own_source, own_names
-from app.pipeline.story import EventJudge, StoryResult, to_node
+from app.pipeline.story import EventJudge, StoryResult, _source_info, to_node
 
 MSK = ZoneInfo("Europe/Moscow")
 
@@ -30,6 +30,10 @@ STATUS_RU = {
     "disputed": "оспорено: позднее вышла поправка",
     "questioned": "под вопросом: есть сообщение о поправке, нужен второй источник",
     "too_early": "слишком рано: независимых сообщений ещё нет",
+    "not_found_text": (
+        "в архиве не найдено: событие могло случиться раньше начала архива "
+        "или ещё не освещалось источниками реестра"
+    ),
     "no_checkable_claims": "нет проверяемых утверждений",
     "no_independent": "не подтверждено: независимых сообщений в архиве нет",
     "claim_absent": "не подтверждено: о событии пишут, но этого утверждения в публикациях нет",
@@ -122,12 +126,50 @@ async def archive_coverage(
     return int(covered or 0), int(total or 0)
 
 
+async def claim_neighbours(
+    session: AsyncSession,
+    embedder,
+    claims: list[str],
+    exclude: set[int],
+    cfg,
+) -> list[Document]:
+    """Ближайшие к каждому утверждению публикации архива (не из сюжета), на любом языке."""
+    if embedder is None or not claims:
+        return []
+    import asyncio
+
+    vectors = await asyncio.to_thread(embedder.embed, claims)
+    picked: list[int] = []
+    for vector in vectors:
+        distance = Document.embedding.cosine_distance(vector)
+        rows = await session.scalars(
+            select(Document.id)
+            .where(
+                Document.embedding.is_not(None),
+                Document.id.not_in(exclude | set(picked)),
+                ~Document.url.startswith(USER_TEXT_PREFIX),
+                distance <= 1 - cfg.claim_search_min_similarity,
+            )
+            .order_by(distance)
+            .limit(cfg.claim_search_per_claim)
+        )
+        picked += list(rows)
+        if len(picked) >= cfg.claim_search_max_documents:
+            break
+    picked = picked[: cfg.claim_search_max_documents]
+    if not picked:
+        return []
+    docs = {d.id: d for d in await session.scalars(select(Document).where(Document.id.in_(picked)))}
+    return [docs[i] for i in picked if i in docs]
+
+
 async def analyze(
     session: AsyncSession,
     client: LlmClient,
     result: StoryResult,
     check_id: int,
     cfg: ScoringConfig,
+    embedder=None,
 ) -> dict:
     seed = result.seed
     nodes = {n.id: n for n in result.nodes}
@@ -174,6 +216,27 @@ async def analyze(
             verified[doc_id] = (kept, rej)
             docs[doc_id] = next(d for d in related_docs if d.id == doc_id)
 
+    # Поиск по каждому утверждению — когда сюжет почти пуст (см. claim_search_below).
+    icfg = cfg.confirmation_index
+    seed_group = next(n.group for n in result.nodes if n.id == seed.id)
+    groups = {n.group for n, ind in targets if ind and n.group != seed_group}
+    checkable = [c.text for c in claims_out if c.checkable][:8]
+    claim_docs: list[Document] = []
+    if texts and len(groups) < icfg.claim_search_below:
+        exclude = {seed.id} | {c.document.id for c in result.members} | set(docs)
+        claim_docs = await claim_neighbours(session, embedder, checkable, exclude, icfg)
+    if claim_docs:
+        missing = {d.source_id for d in claim_docs if d.source_id} - set(result.sources)
+        for source in await session.scalars(select(Source).where(Source.id.in_(missing))):
+            result.sources[source.id] = _source_info(source)
+        found = await verify_many(
+            client, session, texts, claim_docs, check_id=check_id, claims_from=seed
+        )
+        for doc_id, (results, rej) in found.items():
+            verified[doc_id] = (results, rej)
+            docs[doc_id] = next(d for d in claim_docs if d.id == doc_id)
+            rejected += rej
+
     # Второй контур (раздел 13): противоречия перепроверяет другая, более сильная модель со
     # своим промптом (prompts/dispute.md) — «могут ли оба быть верны одновременно».
     disputed_docs = [
@@ -210,7 +273,6 @@ async def analyze(
 
     independent = {n.id: ind for n, ind in targets}
     # Узлы соседних эпизодов: в граф истории не входят, своя группа — независимы от новости.
-    seed_group = nodes[seed.id].group
     for doc_id, doc in docs.items():
         if doc_id not in nodes:
             nodes[doc_id] = to_node(doc, result.sources)
@@ -343,8 +405,16 @@ async def analyze(
                     f"публикация от {seed_time.astimezone(MSK):%d.%m.%Y} старше архива "
                     "«Сверки»: подтвердить её по архиву нельзя"
                 )
+    if status == "too_early" and seed.url.startswith(USER_TEXT_PREFIX):
+        # У присланного текста нет даты: «рано» считалось от момента отправки. Событие могло
+        # случиться и до начала архива (амиши, 20.10.2026: суды тянутся с 2025 года).
+        status, status_text = "not_found_text", STATUS_RU["not_found_text"]
     verified_others = sum(1 for doc_id in verified if doc_id != seed.id)
-    if status in ("no_independent", "too_early") and verified_others and not any(evidence):
+    if (
+        status in ("no_independent", "too_early", "not_found_text")
+        and verified_others
+        and not any(evidence)
+    ):
         # Публикации о событии есть и сверены, но об этом утверждении в них ни слова:
         # «громят всё, кроме полок со свининой» — о погромах пишут, о свинине — никто.
         status = "claim_absent"

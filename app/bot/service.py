@@ -144,6 +144,7 @@ async def check_for_chat(
             input_raw=value,
             ocr_images=user.ocr_images and can_ocr(user, membership),
             ocr_rare_langs=user.ocr_rare_langs and can_ocr(user, membership),
+            ocr_allowed=can_ocr(user, membership),
             fallback=DocumentIn(
                 url=value,
                 text=fallback_text,

@@ -132,6 +132,8 @@ def format_check(
             lines[-1:-1] = [f"В описании канала: «{escape(satire['reason'])}»"]
     else:
         lines += _analysis_lines(report.get("analysis"))
+    if hint := report.get("image_hint"):
+        lines += [f"🖼 {escape(hint)}", ""]
     if copies := report.get("imitates"):
         lines += [
             f"⚠️ Название канала копирует {escape(copies['original'])} — это другой канал.",

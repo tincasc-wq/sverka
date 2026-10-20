@@ -96,7 +96,7 @@ async def run_web_check(
 
         org = await session.get(Organization, check.org_id)
         llm = llm.restricted(org.ru_only)
-    ocr_images = ocr_rare_langs = False
+    ocr_images = ocr_rare_langs = allowed = False
     if check.user_id is not None:
         from app.plans import can_ocr
 
@@ -124,6 +124,7 @@ async def run_web_check(
             existing=check,
             ocr_images=ocr_images,
             ocr_rare_langs=ocr_rare_langs,
+            ocr_allowed=allowed,
         )
     except (UnsafeUrl, httpx.HTTPError, ValueError) as exc:
         await session.rollback()
