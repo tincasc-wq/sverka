@@ -136,6 +136,7 @@ async def topic_page(request: Request, topic_id: int, session: Session):
         org=membership.org,
         topic=topic,
         groups=await recent_groups(session, topic),
+        mentions=await recent_groups(session, topic, prominent=False),
         subscribed=await is_subscribed(session, topic, user),
         can_edit=membership.is_owner or topic.created_by == user.id,
         modes=MODES,

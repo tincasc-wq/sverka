@@ -10,7 +10,7 @@
 
 {% if topics %}
 <table>
-  <tr><th>Тема</th><th>Ищем</th><th>Оповещения</th><th>За сутки</th></tr>
+  <tr><th>Тема</th><th>Ищем</th><th>Оповещения</th><th>Главных за сутки</th></tr>
   {% for t in topics %}
   <tr>
     <td><a href="/org/topics/{{ t.id }}"><b>{{ t.name }}</b></a>{% if not t.active %} <span class="tag">на паузе</span>{% endif %}

@@ -70,6 +70,8 @@ class TopicHit(Base):
     score: Mapped[float | None] = mapped_column(Float)  # похожесть на описание
     found_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     notified: Mapped[bool] = mapped_column(Boolean, server_default="false", default=False)
+    # Главная находка (тема в заголовке, в начале или упомянута трижды) или упоминание вскользь.
+    prominent: Mapped[bool] = mapped_column(Boolean, server_default="true", default=True)
 
 
 class TopicSubscriber(Base):

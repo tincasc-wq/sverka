@@ -115,6 +115,17 @@ async def _window_end(session: AsyncSession, since: datetime, now: datetime) -> 
     return max(until, since)
 
 
+# Главная находка — тема в заголовке, в начале поста (у постов Telegram заголовка нет) или
+# упомянута трижды и больше. Иначе это упоминание: «Газпром» в списке спонсоров фестиваля или
+# в обзоре торгов (Демо-редакция, 20.10.2026: из 77 находок за сутки по теме — две трети такие).
+# Оповещения и всплески — только по главным, упоминания видны на странице темы.
+PROMINENT_MENTIONS = 3
+_PROMINENT = (
+    "(coalesce(d.title, '') ~* :p or left(coalesce(d.text, ''), 200) ~* :p"
+    f" or regexp_count(coalesce(d.text, ''), :p, 1, 'i') >= {PROMINENT_MENTIONS}) as prominent"
+)
+
+
 def _exclude_sql(topic: Topic, params: dict) -> str:
     patterns = [p for p in map(keyword_pattern, topic.exclude or []) if p]
     if not patterns:
@@ -136,10 +147,14 @@ async def scan_topic(session: AsyncSession, topic: Topic, embedder, now: datetim
         if not pattern:
             continue
         params = {"since": since, "until": until, "p": pattern}
-        sql = f"select d.id from documents d where {_WINDOW} and ({_DOC_TEXT}) ~* :p"
+        sql = f"select d.id, {_PROMINENT} from documents d where {_WINDOW} and ({_DOC_TEXT}) ~* :p"
         sql += _exclude_sql(topic, params) + f" limit {MAX_HITS_PER_SCAN + 1}"
-        for (doc_id,) in await session.execute(text(sql), params):
-            found.setdefault(doc_id, {"matched": "keyword", "keyword": phrase, "score": None})
+        for doc_id, prominent in await session.execute(text(sql), params):
+            hit = found.setdefault(
+                doc_id,
+                {"matched": "keyword", "keyword": phrase, "score": None, "prominent": False},
+            )
+            hit["prominent"] = hit["prominent"] or bool(prominent)
     if topic.description and topic.description_vec is None and embedder is not None:
         topic.description_vec = embedder.embed([topic.description])[0]
     if topic.description and topic.description_vec is not None:
@@ -158,6 +173,7 @@ async def scan_topic(session: AsyncSession, topic: Topic, embedder, now: datetim
         for doc_id, sim in await session.execute(text(sql), params):
             hit = found.setdefault(doc_id, {"matched": "meaning", "keyword": None, "score": None})
             hit["score"] = round(float(sim), 3)
+            hit["prominent"] = True  # по смыслу публикация о теме целиком
     if len(found) > MAX_HITS_PER_SCAN:
         topic.note = (
             f"Тема слишком широкая: за {int((until - since).total_seconds() // 60)} мин "
@@ -309,7 +325,11 @@ async def _spike(session: AsyncSession, topic: Topic, now: datetime) -> list[int
         await session.execute(
             select(TopicHit.id, Document.first_seen_at)
             .join(Document, Document.id == TopicHit.document_id)
-            .where(TopicHit.topic_id == topic.id, Document.first_seen_at > week_ago)
+            .where(
+                TopicHit.topic_id == topic.id,
+                TopicHit.prominent.is_(True),
+                Document.first_seen_at > week_ago,
+            )
         )
     ).all()
     recent = [hit_id for hit_id, seen in rows if seen > hour_ago]
@@ -339,11 +359,15 @@ async def deliver(session: AsyncSession, topic: Topic, now: datetime, bot=None) 
         notice = notice_for(topic, groups, f"Всплеск по теме «{topic.name}» за последний час")
         sent += await _send(session, topic, notice, bot)
         topic.last_spike_at = now
-    pending = list(
-        await session.scalars(
-            select(TopicHit.id).where(TopicHit.topic_id == topic.id, TopicHit.notified.is_(False))
+    rows = (
+        await session.execute(
+            select(TopicHit.id, TopicHit.prominent).where(
+                TopicHit.topic_id == topic.id, TopicHit.notified.is_(False)
+            )
         )
-    )
+    ).all()
+    pending = [hit_id for hit_id, _ in rows]
+    main = [hit_id for hit_id, prominent in rows if prominent]
     if not pending:
         return sent
     due = {
@@ -353,8 +377,8 @@ async def deliver(session: AsyncSession, topic: Topic, now: datetime, bot=None) 
     }[topic.mode]
     if not due:
         return sent
-    if topic.mode != "spikes":
-        groups = group_stories(await load_items(session, pending))
+    if topic.mode != "spikes" and main:
+        groups = group_stories(await load_items(session, main))
         head = (
             f"Сводка по теме «{topic.name}» за сутки"
             if topic.mode == "digest"
@@ -407,6 +431,7 @@ async def org_topics(session: AsyncSession, org_id: int) -> list[Topic]:
 
 
 async def hit_counts(session: AsyncSession, topic_ids: list[int], hours: int = 24) -> dict:
+    """Главные находки темы за сутки (упоминания не считаем)."""
     if not topic_ids:
         return {}
     rows = await session.execute(
@@ -414,6 +439,7 @@ async def hit_counts(session: AsyncSession, topic_ids: list[int], hours: int = 2
         .join(Document, Document.id == TopicHit.document_id)
         .where(
             TopicHit.topic_id.in_(topic_ids),
+            TopicHit.prominent.is_(True),
             Document.first_seen_at > datetime.now(UTC) - timedelta(hours=hours),
         )
         .group_by(TopicHit.topic_id)
@@ -421,13 +447,17 @@ async def hit_counts(session: AsyncSession, topic_ids: list[int], hours: int = 2
     return dict(rows.all())
 
 
-async def recent_groups(session: AsyncSession, topic: Topic, hours: int = 48) -> list[StoryGroup]:
+async def recent_groups(
+    session: AsyncSession, topic: Topic, hours: int = 48, prominent: bool = True
+) -> list[StoryGroup]:
+    """Сюжеты темы: главные находки или (prominent=False) упоминания."""
     ids = list(
         await session.scalars(
             select(TopicHit.id)
             .join(Document, Document.id == TopicHit.document_id)
             .where(
                 TopicHit.topic_id == topic.id,
+                TopicHit.prominent.is_(prominent),
                 Document.first_seen_at > datetime.now(UTC) - timedelta(hours=hours),
             )
             .order_by(Document.first_seen_at.desc())

@@ -237,3 +237,31 @@ async def test_cabinet_creates_topic_within_plan(db) -> None:  # noqa: F811
     assert "error=" in refused.headers["location"]
     async with db() as s:
         assert await s.scalar(select(func.count()).select_from(Topic)) == 2
+
+
+async def test_passing_mention_is_not_notified(db) -> None:  # noqa: F811
+    _, _, topic_id = await _org_with_topic(
+        db, keywords=["Газпром"], scanned_until=NOW - timedelta(hours=1)
+    )
+    filler = "Фестиваль собрал тысячи зрителей. " * 20
+    async with db() as s:
+        src = Source(type="media", name="Тульские новости", handle_or_domain="tula.ru")
+        s.add(src)
+        await s.flush()
+        s.add(
+            Document(
+                url="https://tula.ru/1",
+                source_id=src.id,
+                title="«Ночь искусств» в Туле",
+                text=filler + "Спонсор — Газпром.",
+                first_seen_at=NOW - timedelta(minutes=30),
+                embedding=_vec(0, 1),
+            )
+        )
+        await s.commit()
+    bot = FakeBot()
+    stats = await run_topics(db, None, bot, now=NOW)
+    assert stats["hits"] == 1 and stats["sent"] == 0  # упоминание вскользь — без оповещения
+    async with db() as s:
+        hit = await s.scalar(select(TopicHit).where(TopicHit.topic_id == topic_id))
+        assert hit.prominent is False and hit.notified is True

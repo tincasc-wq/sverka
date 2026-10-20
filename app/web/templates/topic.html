@@ -20,6 +20,7 @@
 {% if subscribed %}<span class="muted"> — вы получаете оповещения{% if user.tg_id %} в Telegram{% elif user.email %} на почту{% endif %}</span>{% endif %}
 
 <h2>Сюжеты за двое суток</h2>
+<p class="muted">Главные находки: тема в заголовке или в начале публикации либо упомянута трижды и больше.</p>
 {% if not groups %}<p class="muted">Пока ничего. Новые публикации появятся здесь в течение 10–30 минут.</p>{% endif %}
 {% for g in groups %}
 {% set f = g.first %}
@@ -32,6 +33,13 @@
   <form method="post" action="/check" style="margin-top:6px"><input type="hidden" name="value" value="{{ f.doc.url }}"><button type="submit">Проверить</button></form>
 </div>
 {% endfor %}
+
+{% if mentions %}
+<details class="card" style="margin-top:16px">
+  <summary><b>Упоминания вскользь</b> <span class="muted">— тема названа один-два раза в глубине текста ({{ mentions | map(attribute='items') | map('length') | sum }} публикаций); оповещений по ним не присылаем</span></summary>
+  <ul>{% for g in mentions %}{% set f = g.first %}<li>{{ f.when | msk }} · {{ f.source }} — <a href="{{ f.doc.url }}" rel="noopener" target="_blank">{{ (f.doc.title or f.doc.text or f.doc.url) | truncate(120) }}</a>{% if g.sources | length > 1 %} <span class="muted">(изданий: {{ g.sources | length }})</span>{% endif %}</li>{% endfor %}</ul>
+</details>
+{% endif %}
 
 {% if can_edit %}
 <details class="card" style="margin-top:16px">
