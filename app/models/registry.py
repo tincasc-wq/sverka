@@ -37,6 +37,8 @@ class Source(CreatedAtMixin, Base):
     consecutive_errors: Mapped[int] = mapped_column(Integer, server_default="0", default=0)
     # Что robots.txt запрещает нашему роботу (сбор не блокирует — решает администратор).
     robots_note: Mapped[str | None] = mapped_column(Text)
+    # Опрашивать не чаще, чем раз в столько минут (None — каждый цикл сбора, 5–10 минут).
+    poll_minutes: Mapped[int | None] = mapped_column(Integer)
 
 
 class SourceScore(Base):

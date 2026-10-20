@@ -120,6 +120,12 @@ BACKOFF = text(
     " - least(160, 5 * power(2, least(sources.consecutive_errors, 7) - 2)) * interval '1 minute')"
 )
 
+# Редкий опрос по просьбе сайта: Phys.org отвечал 429 «слишком много запросов» (20.10.2026).
+DUE = text(
+    "(sources.poll_minutes is null or sources.last_polled_at is null"
+    " or sources.last_polled_at < now() - sources.poll_minutes * interval '1 minute')"
+)
+
 
 async def poll_sources(
     sessionmaker: async_sessionmaker[AsyncSession],
@@ -131,7 +137,7 @@ async def poll_sources(
 ) -> Counter:
     settings = get_settings()
     async with sessionmaker() as session:
-        query = select(Source).where(Source.is_tracked, condition, BACKOFF).order_by(Source.id)
+        query = select(Source).where(Source.is_tracked, condition, BACKOFF, DUE).order_by(Source.id)
         sources = list(await session.scalars(query))
 
     owns_client = client is None

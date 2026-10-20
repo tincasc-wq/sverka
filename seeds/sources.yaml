@@ -516,8 +516,11 @@ sources:
   # перепечатывают ScienceDaily и Phys.org.
   - {name: ScienceDaily, type: media, handle_or_domain: sciencedaily.com, owner: ScienceDaily,
      lang: en, rss: "https://www.sciencedaily.com/rss/all.xml", aliases: [ScienceDaily]}
+  # Phys.org отвечает 429 «слишком много запросов» (20.10.2026): опрашиваем раз в 6 часов и
+  # через шлюз. В ленте 30 записей, в день выходит 20–70 — за 6 часов лента почти не
+  # переполняется.
   - {name: Phys.org, type: media, handle_or_domain: phys.org, owner: Science X,
-     lang: en, rss: "https://phys.org/rss-feed/", aliases: [Phys.org]}
+     lang: en, via_gateway: true, poll_minutes: 360, rss: "https://phys.org/rss-feed/", aliases: [Phys.org]}
   - {name: Nature, type: media, handle_or_domain: nature.com, owner: Springer Nature,
      lang: en, rss: "https://www.nature.com/nature.rss", aliases: [Nature, журнал Nature, журнале Nature]}
   - {name: Science, type: media, handle_or_domain: science.org, owner: AAAS,

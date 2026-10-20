@@ -273,3 +273,29 @@ def test_old_feed_entries_are_skipped():
         DocumentIn(url="https://x.ru/undated"),
     ]
     assert [d.url for d in _fresh(docs)] == ["https://x.ru/new", "https://x.ru/undated"]
+
+
+async def test_rare_source_is_polled_once_per_interval(committed, monkeypatch) -> None:
+    from datetime import UTC, datetime
+
+    monkeypatch.setattr("app.collectors.runner.MAX_ENTRY_AGE", OLD_FIXTURES)
+    async with committed() as s:
+        s.add(
+            Source(
+                type="media",
+                name="Phys",
+                handle_or_domain="example.ru",
+                feed_url="https://example.ru/rss",
+                poll_minutes=360,
+                last_polled_at=datetime.now(UTC) - timedelta(hours=1),
+            )
+        )
+        await s.commit()
+    async with httpx.AsyncClient(transport=_transport({})) as client:
+        assert (await poll_rss(committed, client=client))["sources"] == 0  # ещё рано
+    async with committed() as s:
+        src = await s.scalar(select(Source))
+        src.last_polled_at = datetime.now(UTC) - timedelta(hours=7)
+        await s.commit()
+    async with httpx.AsyncClient(transport=_transport({})) as client:
+        assert (await poll_rss(committed, client=client))["sources"] == 1

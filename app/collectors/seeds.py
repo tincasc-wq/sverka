@@ -22,6 +22,7 @@ class SeedSource(BaseModel):
     is_tracked: bool = True
     lang: str = "ru"
     via_gateway: bool = False
+    poll_minutes: int | None = None
     legal_flags: dict[str, str] = {}
 
 
@@ -54,6 +55,7 @@ async def load_seeds(session: AsyncSession, seeds: list[SeedSource]) -> tuple[in
         source.aliases = seed.aliases
         source.lang = seed.lang
         source.via_gateway = seed.via_gateway
+        source.poll_minutes = seed.poll_minutes
         source.legal_flags = seed.legal_flags
     await session.commit()
     return added, updated
