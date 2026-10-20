@@ -111,7 +111,9 @@ class IndexConfig(BaseModel):
     # сюжете меньше claim_search_below, для каждого утверждения ищем в архиве самые близкие
     # публикации на любом языке и тоже сверяем их.
     claim_search_below: int = 2
-    claim_search_min_similarity: float = 0.6
+    # Короткое утверждение всегда менее похоже на статью, чем статья на статью: ЧП из-за кори
+    # в Нью-Йорке — The Hindu на первом месте во всём архиве, но с близостью 0.589.
+    claim_search_min_similarity: float = 0.55
     claim_search_per_claim: int = 2
     claim_search_max_documents: int = 5
 
