@@ -678,3 +678,28 @@ sources:
      via_gateway: true, rss: "https://www.infobae.com/arc/outboundfeeds/rss/", aliases: [Infobae]}
   - {name: Clarín, type: media, handle_or_domain: clarin.com, owner: Grupo Clarín, lang: es,
      via_gateway: true, rss: "https://www.clarin.com/rss/lo-ultimo/", aliases: [Clarín, Clarin, Кларин]}
+
+  # Русскоязычные издания Прибалтики (21.10.2026, решение владельца). Сначала без правовых
+  # вопросов — LRT и «Бизнес & Балтия»; ERR, Postimees, LSM и TVNET заблокированы в РФ (сбор
+  # через шлюз). Статус в перечнях Минюста поиском не подтверждён — needs_legal_review.
+  # Delfi не подключён: рабочих лент нет (404 или пустые).
+  - {name: LRT по-русски, type: media, handle_or_domain: lrt.lt, owner: LRT (гостелерадио Литвы),
+     rss: "https://www.lrt.lt/ru/novosti?rss", aliases: [LRT, Литовское радио и телевидение]}
+  - {name: Бизнес & Балтия, type: media, handle_or_domain: bb.lv, owner: «Бизнес & Балтия»,
+     rss: "https://bb.lv/rss", aliases: [Бизнес & Балтия, bb.lv]}
+  - {name: ERR Новости, type: media, handle_or_domain: rus.err.ee, owner: ERR (гостелерадио Эстонии),
+     via_gateway: true, rss: "https://rus.err.ee/rss",
+     legal_flags: {blocked_in_ru: "заблокирован РКН в 2022", needs_legal_review: "сверить с перечнями Минюста"},
+     aliases: [ERR, Эстонская общественная телерадиовещательная корпорация, rus.err.ee]}
+  - {name: Postimees по-русски, type: media, handle_or_domain: rus.postimees.ee, owner: Postimees Grupp,
+     via_gateway: true, rss: "https://rus.postimees.ee/rss",
+     legal_flags: {blocked_in_ru: "заблокирован РКН 16.03.2022", needs_legal_review: "сверить с перечнями Минюста"},
+     aliases: [Postimees, Постимеэс]}
+  - {name: LSM по-русски, type: media, handle_or_domain: rus.lsm.lv, owner: LSM (общественные СМИ Латвии),
+     via_gateway: true, rss: "https://rus.lsm.lv/rss/",
+     legal_flags: {blocked_in_ru: "таймаут из РФ, 21.10.2026", needs_legal_review: "сверить с перечнями Минюста"},
+     aliases: [LSM, rus.lsm.lv, Латвийское общественное телевидение]}
+  - {name: TVNET по-русски, type: media, handle_or_domain: rus.tvnet.lv, owner: TVNET Grupa,
+     via_gateway: true, rss: "https://rus.tvnet.lv/rss",
+     legal_flags: {blocked_in_ru: "таймаут из РФ, 21.10.2026", needs_legal_review: "сверить с перечнями Минюста"},
+     aliases: [TVNET]}
