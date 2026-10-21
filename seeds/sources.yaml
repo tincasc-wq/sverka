@@ -533,8 +533,10 @@ sources:
   - {name: ESA, type: official, handle_or_domain: esa.int, owner: ESA,
      lang: en, rss: "https://www.esa.int/rssfeed/Newsroom",
      aliases: [ESA, ЕКА, Европейское космическое агентство, Европейского космического агентства]}
+  # CERN: с 19.10.2026 лента отвечает 404, хотя сайт сам ссылается на неё — поломка у CERN.
+  # Опрашиваем раз в 12 часов, чтобы заметить, когда починят.
   - {name: CERN, type: official, handle_or_domain: home.cern, owner: CERN,
-     lang: en, rss: "https://home.cern/feed/", aliases: [CERN, ЦЕРН]}
+     lang: en, poll_minutes: 720, rss: "https://home.cern/feed/", aliases: [CERN, ЦЕРН]}
   - {name: US Department of Energy, type: official, handle_or_domain: energy.gov, owner: Администрация США,
      lang: en, rss: "https://www.energy.gov/newsroom/rss.xml",
      aliases: [Department of Energy, Минэнерго США, Министерство энергетики США]}
@@ -643,7 +645,7 @@ sources:
   - {name: Corriere della Sera, type: media, handle_or_domain: corriere.it, owner: RCS MediaGroup, lang: it,
      aliases: [Corriere della Sera, Corriere]}
   - {name: Rai News, type: media, handle_or_domain: rainews.it, owner: RAI, lang: it,
-     rss: "https://www.rainews.it/rss/ultimora", aliases: [Rai News, RaiNews, RAI]}
+     via_gateway: true, rss: "https://www.rainews.it/rss/ultimora", aliases: [Rai News, RaiNews, RAI]}
   - {name: Il Sole 24 Ore, type: media, handle_or_domain: ilsole24ore.com, owner: Confindustria, lang: it,
      rss: "https://www.ilsole24ore.com/rss/italia.xml", aliases: [Il Sole 24 Ore, Sole 24 Ore]}
   - {name: El Mundo, type: media, handle_or_domain: elmundo.es, owner: Unidad Editorial, lang: es,
@@ -666,6 +668,7 @@ sources:
      aliases: [Bundesregierung, правительство ФРГ]}
   - {name: Елисейский дворец, type: official, handle_or_domain: elysee.fr, owner: Президент Франции, lang: fr,
      rss: "https://www.elysee.fr/feed", aliases: [Élysée, Elysee, Елисейский дворец]}
+  # ВОЗ: официальная лента новостей отвечает, но последняя запись в ней от 10.10.2026 (на 22.10).
   - {name: ВОЗ, type: official, handle_or_domain: who.int, owner: ВОЗ, lang: en,
      rss: "https://www.who.int/rss-feeds/news-english.xml", aliases: [WHO, ВОЗ, Всемирная организация здравоохранения]}
   - {name: EMA, type: official, handle_or_domain: ema.europa.eu, owner: Европейский союз, lang: en,

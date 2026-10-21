@@ -65,3 +65,16 @@ def test_digest_reports_changes_only():
 def test_source_without_feed_is_not_silent():
     # The Washington Post: ленты нет, источник только в реестре — молчание не поломка.
     assert classify(src(type="media", feed_url=None), row(24 * 6), NOW).status == "ok"
+
+
+def test_new_rare_source_and_registry_only_source_are_not_alarms():
+    fresh = src(type="official")
+    fresh.created_at = NOW - timedelta(days=2)
+    h = classify(fresh, None, NOW)
+    assert h.status == "ok" and "свежих записей" in h.reason  # ВОЗ, EMA: добавлены 20.10.2026
+    old = src(type="official")
+    old.created_at = NOW - timedelta(days=30)
+    assert classify(old, None, NOW).status == "red"
+    # The Washington Post: ленту убрали, а старый счётчик ошибок остался.
+    wapo = src(type="media", feed_url=None, consecutive_errors=1547, last_error="502")
+    assert classify(wapo, row(24 * 8), NOW).status == "ok"

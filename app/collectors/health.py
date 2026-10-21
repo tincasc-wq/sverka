@@ -21,6 +21,7 @@ SILENT_FACTOR = 4  # «молчит» — дольше четырёх обычн
 FULL_TEXT_CHARS = 500  # публикация «с текстом» — не короче этого
 THIN_MIN_DOCS = 10  # долю текста оцениваем, только если публикаций достаточно
 NOT_COLLECTED = {"max"}  # MAX не собирается (заглушка), его молчание — не поломка
+NEW_SOURCE_GRACE = timedelta(days=14)  # новому источнику без публикаций даём две недели
 
 STATS = text(f"""
 select source_id,
@@ -66,14 +67,21 @@ def classify(source: Source, row: dict | None, now: datetime) -> Health:
     if not source.is_tracked:
         health.status, health.reason = "off", "сбор выключен"
         return health
+    if source.type in NOT_COLLECTED or (source.type != "tg" and not source.feed_url):
+        # Не собирается, только в реестре. Старый счётчик ошибок не в счёт: у The Washington
+        # Post ленту убрали, а 1547 ошибок с прошлых опросов остались (22.10.2026).
+        return health
     if source.consecutive_errors >= ERRORS_RED:
         health.status = "red"
         health.reason = f"ошибок подряд: {source.consecutive_errors} ({source.last_error or '—'})"
         return health
-    if source.type in NOT_COLLECTED or (source.type != "tg" and not source.feed_url):
-        return health  # не собирается: только в реестре
     if last_doc is None:
-        if source.last_polled_at is not None:
+        created = source.created_at
+        if created is not None and now - created < NEW_SOURCE_GRACE:
+            # Новый редкий источник: записи старше трёх дней сборщик не берёт, а свежих ещё не
+            # было (ВОЗ, EMA — добавлены 20.10.2026, ложная тревога в сводке).
+            health.reason = "свежих записей ещё не было"
+        elif source.last_polled_at is not None:
             health.status, health.reason = "red", "ни одной публикации"
         return health
     docs_14d = row.get("docs_14d", 0)
