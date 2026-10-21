@@ -674,8 +674,11 @@ sources:
   # Латинская Америка.
   - {name: Folha de S.Paulo, type: media, handle_or_domain: folha.uol.com.br, owner: Grupo Folha, lang: pt,
      rss: "https://feeds.folha.uol.com.br/emcimadahora/rss091.xml", aliases: [Folha de S.Paulo, Folha]}
+  # Infobae: общая лента — около 2 700 публикаций в сутки (вся повестка Аргентины, спорт,
+  # развлечения), больше любого источника архива; берём только раздел «Мир» (~40 в сутки).
   - {name: Infobae, type: media, handle_or_domain: infobae.com, owner: Infobae, lang: es,
-     via_gateway: true, rss: "https://www.infobae.com/arc/outboundfeeds/rss/", aliases: [Infobae]}
+     via_gateway: true, rss: "https://www.infobae.com/arc/outboundfeeds/rss/category/america/mundo/",
+     aliases: [Infobae]}
   - {name: Clarín, type: media, handle_or_domain: clarin.com, owner: Grupo Clarín, lang: es,
      via_gateway: true, rss: "https://www.clarin.com/rss/lo-ultimo/", aliases: [Clarín, Clarin, Кларин]}
 
