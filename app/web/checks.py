@@ -68,8 +68,10 @@ BOT_WALL_REASON = (
 
 
 def _failure_reason(exc: Exception) -> str:
-    from app.check import BotProtected
+    from app.check import BotProtected, NotAnArticle
 
+    if isinstance(exc, NotAnArticle):
+        return exc.reason[0].upper() + exc.reason[1:]
     if isinstance(exc, MaxStub):
         return MAX_STUB_REASON
     if isinstance(exc, BotProtected):

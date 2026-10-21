@@ -233,6 +233,45 @@ class BotProtected(ValueError):
     """Сайт не пустил робота: заглушка с проверкой браузера вместо статьи."""
 
 
+class NotAnArticle(ValueError):
+    """Ссылка на канал или главную страницу сайта, а не на конкретную публикацию."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+_TG_SERVICE = {"joinchat", "addlist", "share", "proxy", "socks", "addstickers", "addemoji"}
+
+
+def not_an_article(url: str) -> str | None:
+    """Почему по ссылке нечего проверять; None — похоже на публикацию.
+
+    Пользователь 91 прислал t.me/FeedbackFormEU (22.10.2026) — ссылку на канал, а получил
+    «страница не открылась». Подсказываем, какая ссылка нужна.
+    """
+    from urllib.parse import urlsplit
+
+    parts = urlsplit(url if "://" in url else f"https://{url}")
+    host = (parts.hostname or "").lower().removeprefix("www.")
+    path = [p for p in parts.path.split("/") if p]
+    if host in ("t.me", "telegram.me"):
+        if path and path[0] == "s":
+            path = path[1:]
+        if not path or path[0].startswith("+") or path[0] in _TG_SERVICE or len(path) == 1:
+            return (
+                "это ссылка на канал Telegram, а не на пост. Откройте нужный пост, нажмите "
+                "«Копировать ссылку» и пришлите её — она выглядит как t.me/канал/12345."
+            )
+        return None
+    if not path and not parts.query:
+        return (
+            "это ссылка на главную страницу сайта, а не на публикацию. Откройте нужную "
+            "новость и пришлите ссылку на неё — или вставьте текст новости."
+        )
+    return None
+
+
 def looks_like_bot_wall(html: bytes) -> bool:
     head = html[:20000].lower()
     no_title = b"<title" not in head or b"<title></title>" in head
@@ -251,6 +290,8 @@ async def resolve_seed(
         if doc is None:
             raise ValueError(f"no document {arg}")
         return doc
+    if reason := not_an_article(arg):
+        raise NotAnArticle(reason)
     url = normalize_url(arg)
     # Сначала точный адрес, потом тот же путь без параметров: в ссылках из соцсетей и
     # рекомендательных виджетов бывают метки, которых нет в нашем списке.

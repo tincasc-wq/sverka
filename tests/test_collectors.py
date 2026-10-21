@@ -299,3 +299,25 @@ async def test_rare_source_is_polled_once_per_interval(committed, monkeypatch) -
         await s.commit()
     async with httpx.AsyncClient(transport=_transport({})) as client:
         assert (await poll_rss(committed, client=client))["sources"] == 1
+
+
+def test_channel_and_homepage_links_are_not_articles():
+    from app.check import not_an_article
+
+    for url in (
+        "https://t.me/FeedbackFormEU",  # пользователь 91, 22.10.2026
+        "t.me/s/rian_ru",
+        "https://t.me/+AbCdEf123",
+        "https://t.me/joinchat/AAAA",
+    ):
+        assert "канал Telegram" in not_an_article(url), url
+    for url in ("https://ria.ru", "https://www.rbc.ru/", "lenta.ru"):
+        assert "главную страницу" in not_an_article(url), url
+    for url in (
+        "https://t.me/rian_ru/123",
+        "https://t.me/s/rian_ru/123",
+        "https://t.me/c/123456/789",
+        "https://ria.ru/20261022/news.html",
+        "https://example.com/?p=123",
+    ):
+        assert not_an_article(url) is None, url
