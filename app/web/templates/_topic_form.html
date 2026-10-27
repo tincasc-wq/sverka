@@ -2,7 +2,8 @@
   <label>Название<br><input name="name" value="{{ t.name if t }}" required maxlength="255" style="width:100%" placeholder="Например: Газпром"></label>
   <label style="display:block;margin-top:8px">Ключевые слова и фразы — через запятую<br>
     <textarea name="keywords" rows="2" style="width:100%" placeholder="Газпром, Алексей Миллер, Газпром нефть">{{ t.keywords | join(', ') if t }}</textarea>
-    <span class="muted">Окончания учитываем: «Москва» найдёт и «Москве», и «Москвы». Регистр не важен.</span></label>
+    <span class="muted">Окончания учитываем: «Москва» найдёт и «Москве», и «Москвы». Регистр не важен.
+      Нужны оба условия сразу — соедините плюсом: «Северный поток + суд».</span></label>
   <label style="display:block;margin-top:8px">Исключения — публикации с этими словами не попадут в тему<br>
     <textarea name="exclude" rows="1" style="width:100%" placeholder="Зенит, футбол">{{ t.exclude | join(', ') if t }}</textarea></label>
   <label style="display:block;margin-top:8px">Описание по смыслу — необязательно<br>

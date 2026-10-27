@@ -10,6 +10,7 @@ from app.topics import (
     deliver,
     group_stories,
     keyword_pattern,
+    keyword_patterns,
     parse_list,
     py_pattern,
     run_topics,
@@ -265,3 +266,13 @@ async def test_passing_mention_is_not_notified(db) -> None:  # noqa: F811
     async with db() as s:
         hit = await s.scalar(select(TopicHit).where(TopicHit.topic_id == topic_id))
         assert hit.prominent is False and hit.notified is True
+
+
+def test_plus_requires_all_parts() -> None:
+    # Демо-редакция, 27.10.2026: «Суд» отдельным словом ловил любую новость о суде.
+    assert parse_list("Северный поток+суд, Газпром") == ["Северный поток + суд", "Газпром"]
+    parts = [py_pattern(p) for p in keyword_patterns("Северный поток + суд")]
+    both = "Суд в Стокгольме рассмотрит иск по «Северному потоку»"
+    assert all(p.search(both) for p in parts)
+    assert not all(p.search("Суд арестовал мэра") for p in parts)
+    assert keyword_patterns("Газпром + ") == []

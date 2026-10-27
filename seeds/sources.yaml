@@ -37,7 +37,9 @@ sources:
      aliases: [Коммерсантъ, Коммерсант, Коммерсанта, Коммерсанту, Ъ]}
   - {name: Ведомости, type: media, handle_or_domain: vedomosti.ru, owner: Ведомости,
      rss: "https://www.vedomosti.ru/rss/news", aliases: [Ведомости, Ведомостей, Ведомостям]}
-  - {name: Forbes Россия, type: media, handle_or_domain: forbes.ru, owner: Forbes Россия,
+  # Forbes: с 26.10.2026 весь сайт (и лента, и robots.txt) отдаёт роботам заглушку защиты —
+  # обходить не будем, остаётся канал @forbesrussia.
+  - {name: Forbes Россия, type: media, handle_or_domain: forbes.ru, owner: Forbes Россия, is_tracked: false,
      rss: "https://www.forbes.ru/newrss.xml", aliases: [Forbes]}
   - {name: Лента.ру, type: media, handle_or_domain: lenta.ru, owner: Лента.ру,
      rss: "https://lenta.ru/rss/news", aliases: [Лента.ру, Ленты.ру, Lenta.ru]}
@@ -520,7 +522,7 @@ sources:
   # через шлюз. В ленте 30 записей, в день выходит 20–70 — за 6 часов лента почти не
   # переполняется.
   - {name: Phys.org, type: media, handle_or_domain: phys.org, owner: Science X,
-     lang: en, via_gateway: true, poll_minutes: 360, rss: "https://phys.org/rss-feed/", aliases: [Phys.org]}
+     lang: en, poll_minutes: 360, rss: "https://phys.org/rss-feed/", aliases: [Phys.org]}  # 27.10.2026: напрямую открывается, через шлюз — нет
   - {name: Nature, type: media, handle_or_domain: nature.com, owner: Springer Nature,
      lang: en, rss: "https://www.nature.com/nature.rss", aliases: [Nature, журнал Nature, журнале Nature]}
   - {name: Science, type: media, handle_or_domain: science.org, owner: AAAS,
@@ -535,7 +537,8 @@ sources:
      aliases: [ESA, ЕКА, Европейское космическое агентство, Европейского космического агентства]}
   # CERN: с 19.10.2026 лента отвечает 404, хотя сайт сам ссылается на неё — поломка у CERN.
   # Опрашиваем раз в 12 часов, чтобы заметить, когда починят.
-  - {name: CERN, type: official, handle_or_domain: home.cern, owner: CERN,
+  # CERN: лента /feed/ отдаёт 404 с 21.10.2026, другой ленты на сайте нет.
+  - {name: CERN, type: official, handle_or_domain: home.cern, owner: CERN, is_tracked: false,
      lang: en, poll_minutes: 720, rss: "https://home.cern/feed/", aliases: [CERN, ЦЕРН]}
   - {name: US Department of Energy, type: official, handle_or_domain: energy.gov, owner: Администрация США,
      lang: en, rss: "https://www.energy.gov/newsroom/rss.xml",
@@ -690,7 +693,7 @@ sources:
   # через шлюз). Статус в перечнях Минюста поиском не подтверждён — needs_legal_review.
   # Delfi не подключён: рабочих лент нет (404 или пустые).
   - {name: LRT по-русски, type: media, handle_or_domain: lrt.lt, owner: LRT (гостелерадио Литвы),
-     rss: "https://www.lrt.lt/ru/novosti?rss", aliases: [LRT, Литовское радио и телевидение]}
+     via_gateway: true, rss: "https://www.lrt.lt/ru/novosti?rss", aliases: [LRT, Литовское радио и телевидение]}  # с адреса в РФ не отвечает
   - {name: Бизнес & Балтия, type: media, handle_or_domain: bb.lv, owner: «Бизнес & Балтия»,
      rss: "https://bb.lv/rss", aliases: [Бизнес & Балтия, bb.lv]}
   - {name: ERR Новости, type: media, handle_or_domain: rus.err.ee, owner: ERR (гостелерадио Эстонии),

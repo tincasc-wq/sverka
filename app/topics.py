@@ -66,6 +66,16 @@ def keyword_pattern(phrase: str) -> str | None:
     return r"\m" + r"\W+".join(_word(w) for w in words)
 
 
+def keyword_patterns(phrase: str) -> list[str]:
+    """«Северный поток + суд» → выражения для каждой части: публикация должна содержать все.
+
+    Демо-редакция, 27.10.2026: «Суд» и «Северный поток» отдельными словами ловили каждую новость
+    о любом суде — 2,5 тыс. находок в сутки. Нужны были оба условия сразу.
+    """
+    patterns = [keyword_pattern(part) for part in phrase.split("+")]
+    return patterns if all(patterns) else []
+
+
 def py_pattern(pattern: str) -> re.Pattern:
     """То же выражение для Python (тесты и подсветка): \\m в PostgreSQL — начало слова."""
     return re.compile(pattern.replace(r"\m", r"\b"), re.IGNORECASE)
@@ -76,7 +86,8 @@ def parse_list(raw: str) -> list[str]:
     seen, out = set(), []
     for part in re.split(r"[,;\n]", raw or ""):
         phrase = " ".join(part.split())[:100]
-        if phrase and phrase.lower() not in seen and keyword_pattern(phrase):
+        phrase = " + ".join(p.strip() for p in phrase.split("+"))
+        if phrase and phrase.lower() not in seen and keyword_patterns(phrase):
             seen.add(phrase.lower())
             out.append(phrase)
     return out[:30]
@@ -143,11 +154,15 @@ async def scan_topic(session: AsyncSession, topic: Topic, embedder, now: datetim
         return 0
     found: dict[int, dict] = {}
     for phrase in topic.keywords or []:
-        pattern = keyword_pattern(phrase)
-        if not pattern:
+        patterns = keyword_patterns(phrase)
+        if not patterns:
             continue
-        params = {"since": since, "until": until, "p": pattern}
+        # Главная находка — по первой части фразы: это предмет темы, остальное — уточнения.
+        params = {"since": since, "until": until, "p": patterns[0]}
         sql = f"select d.id, {_PROMINENT} from documents d where {_WINDOW} and ({_DOC_TEXT}) ~* :p"
+        for i, extra in enumerate(patterns[1:]):
+            params[f"p{i}"] = extra
+            sql += f" and ({_DOC_TEXT}) ~* :p{i}"
         sql += _exclude_sql(topic, params) + f" limit {MAX_HITS_PER_SCAN + 1}"
         for doc_id, prominent in await session.execute(text(sql), params):
             hit = found.setdefault(

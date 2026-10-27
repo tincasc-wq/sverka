@@ -13,7 +13,7 @@ from app.topics import (
     MODES,
     hit_counts,
     is_subscribed,
-    keyword_pattern,
+    keyword_patterns,
     org_topics,
     parse_list,
     py_pattern,
@@ -121,7 +121,7 @@ async def topic_create(
 
 def _highlight(topic: Topic):
     """Какие слова подсветить в заголовках находок."""
-    return [py_pattern(p) for p in map(keyword_pattern, topic.keywords or []) if p]
+    return [py_pattern(p) for phrase in topic.keywords or [] for p in keyword_patterns(phrase)]
 
 
 @router.get("/org/topics/{topic_id}", response_class=HTMLResponse)
