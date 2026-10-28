@@ -60,8 +60,20 @@ async def _download(url: str, source_id: int | None) -> DocumentIn:
     if domain_of(url) == "t.me":
         proxy = get_settings().telegram_proxy
         ipv6 = get_settings().telegram_ipv6
+        # Без параметров: из «t.me/rt_russian/296875?single» выходило «…?single?embed=1» — Telegram
+        # отдавал не пост (пользователь 97, 27.10.2026).
+        post = without_query(url)
         async with make_client(proxy=proxy, public_only=True, ipv6=ipv6) as client:
-            raw, _ = await fetch(client, f"{url}?embed=1")
+            for attempt in range(2):
+                try:
+                    raw, _ = await fetch(client, f"{post}?embed=1")
+                    break
+                except httpx.HTTPError:
+                    # Связь с Telegram рвётся на секунды (t.me/bankrollo/69050, 28.10.2026:
+                    # пост открывался, а проверка упала) — одна повторная попытка.
+                    if attempt:
+                        raise
+                    await asyncio.sleep(2)
         docs = telegram.parse_channel_page(raw, source_id)
         if not docs and (unsupported := telegram.unsupported_posts(raw)):
             # Пост нового формата: веб-превью его не показывает, текст — в превью ссылки.

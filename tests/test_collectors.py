@@ -321,3 +321,12 @@ def test_channel_and_homepage_links_are_not_articles():
         "https://example.com/?p=123",
     ):
         assert not_an_article(url) is None, url
+
+
+def test_telegram_post_link_drops_query():
+    from app.check import without_query
+
+    # Пользователь 97, 27.10.2026: «?single» ломал адрес превью поста.
+    assert (
+        without_query("https://t.me/rt_russian/296875?single") == "https://t.me/rt_russian/296875"
+    )
