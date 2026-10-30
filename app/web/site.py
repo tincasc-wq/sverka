@@ -1,6 +1,7 @@
 """Публичный сайт (этап 6): проверка с сайта, история, поиск по архиву, реестр, методика, вход."""
 
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
@@ -23,7 +24,9 @@ from app.web.checks import CheckRefused, create_web_check, failure_text
 from app.web.email_auth import (
     LoginError,
     confirm_link,
+    form_stamp,
     login_by_token,
+    looks_like_bot,
     request_login,
     valid_token,
 )
@@ -38,6 +41,7 @@ from app.web.session import (
     telegram_login_valid,
 )
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 Session = Annotated[AsyncSession, Depends(get_session)]
 CONSENT_ERROR = "Чтобы продолжить, отметьте согласие на обработку персональных данных."
@@ -512,6 +516,7 @@ async def _login_page(request: Request, session: AsyncSession, **context):
         widget=widget,
         bot=settings.telegram_bot_username,
         auth_url=settings.public_base_url.rstrip("/") + "/auth/telegram",
+        form_stamp=form_stamp(),
         **context,
     )
 
@@ -532,12 +537,20 @@ async def login_email(
     session: Session,
     email: Annotated[str, Form()],
     consent: Annotated[str, Form()] = "",
+    ft: Annotated[str, Form()] = "",
+    website: Annotated[str, Form()] = "",
 ):
     if consent != "on":
         response = await _login_page(request, session, email=email, error=CONSENT_ERROR)
         response.status_code = 422
         return response
     ip = request.client.host if request.client else None
+    if looks_like_bot(ft, website):
+        # Боту отвечаем как обычно, чтобы он не подбирал обход, но письмо не отправляем.
+        log.info("login form: bot suspected, ip=%s", ip)
+        return await _login_page(
+            request, session, email_sent=email.strip().lower(), mail_ready=True
+        )
     try:
         sent = await request_login(session, email, ip)
     except LoginError as exc:

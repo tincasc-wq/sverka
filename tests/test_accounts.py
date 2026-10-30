@@ -6,7 +6,7 @@ from app.bot.service import get_or_create_user
 from app.core.config import get_settings
 from app.models import Check, Organization, OrgMember, User
 from app.web.session import COOKIE, sign
-from tests.test_email_login import _token, outbox  # noqa: F401 — фикстура
+from tests.test_email_login import HUMAN, _token, outbox  # noqa: F401 — фикстура
 from tests.test_site import _telegram_payload, client, db  # noqa: F401
 
 
@@ -120,7 +120,7 @@ async def test_plain_email_login_does_not_merge_into_telegram_user(db, outbox) -
         await s.commit()
     async with client() as c:
         c.cookies.set(COOKIE, sign(tg_user.id))
-        await c.post("/login/email", data={"email": "other@example.ru", "consent": "on"})
+        await c.post("/login/email", data={"email": "other@example.ru", "consent": "on", **HUMAN})
         await c.post(f"/auth/email/{_token(outbox[0])}")
     async with db() as s:
         assert (await s.get(User, tg_user.id)).email is None  # не слилось молча

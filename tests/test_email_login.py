@@ -1,5 +1,6 @@
 """Вход по почте одноразовой ссылкой."""
 
+import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -11,6 +12,8 @@ from app.orgs.service import create_invite
 from app.plans import plan_for
 from app.web import email_auth
 from tests.test_site import client, db, queued  # noqa: F401 — фикстуры
+
+HUMAN = {"ft": email_auth.form_stamp(time.time() - 10)}  # форму заполняли 10 секунд
 
 
 @pytest.fixture
@@ -33,7 +36,9 @@ def _token(mail: dict) -> str:
 async def test_email_login_creates_user_and_keeps_browser_history(db, queued, outbox) -> None:  # noqa: F811
     async with client() as c:
         await c.post("/check", data={"value": "https://bbc.com/news/1"})
-        sent = await c.post("/login/email", data={"email": "  Reader@Example.RU ", "consent": "on"})
+        sent = await c.post(
+            "/login/email", data={"email": "  Reader@Example.RU ", "consent": "on", **HUMAN}
+        )
         token = _token(outbox[0])
         confirm = await c.get(f"/auth/email/{token}")
         again_page = await c.get(f"/auth/email/{token}")  # почтовый сканер: GET ничего не тратит
@@ -61,7 +66,7 @@ async def test_existing_email_logs_into_same_account(db, outbox) -> None:  # noq
         s.add(User(email="owner@example.ru", daily_quota=20))
         await s.commit()
     async with client() as c:
-        await c.post("/login/email", data={"email": "owner@example.ru", "consent": "on"})
+        await c.post("/login/email", data={"email": "owner@example.ru", "consent": "on", **HUMAN})
         await c.post(f"/auth/email/{_token(outbox[0])}")
     async with db() as s:
         users = (await s.scalars(select(User).where(User.email == "owner@example.ru"))).all()
@@ -70,10 +75,14 @@ async def test_existing_email_logs_into_same_account(db, outbox) -> None:  # noq
 
 async def test_invalid_rate_limited_and_expired(db, outbox) -> None:  # noqa: F811
     async with client() as c:
-        bad = await c.post("/login/email", data={"email": "not-an-email", "consent": "on"})
+        bad = await c.post("/login/email", data={"email": "not-an-email", "consent": "on", **HUMAN})
         for _ in range(3):
-            await c.post("/login/email", data={"email": "spam@example.ru", "consent": "on"})
-        limited = await c.post("/login/email", data={"email": "spam@example.ru", "consent": "on"})
+            await c.post(
+                "/login/email", data={"email": "spam@example.ru", "consent": "on", **HUMAN}
+            )
+        limited = await c.post(
+            "/login/email", data={"email": "spam@example.ru", "consent": "on", **HUMAN}
+        )
     assert bad.status_code == 422 and "опечатка" in bad.text
     assert limited.status_code == 422 and len(outbox) == 3
 
@@ -94,7 +103,7 @@ async def test_org_membership_follows_login(db, outbox) -> None:  # noqa: F811
         invite = await create_invite(s, org, OrgRole.MEMBER)
     async with client() as c:
         await c.post(f"/join/{invite.token}")  # вступил до входа — из браузера
-        await c.post("/login/email", data={"email": "member@example.ru", "consent": "on"})
+        await c.post("/login/email", data={"email": "member@example.ru", "consent": "on", **HUMAN})
         await c.post(f"/auth/email/{_token(outbox[0])}")
         cabinet = await c.get("/org")
     async with db() as s:
@@ -109,7 +118,7 @@ async def test_consent_required_and_recorded(db, outbox) -> None:  # noqa: F811
 
     async with client() as c:
         refused = await c.post("/login/email", data={"email": "c@example.ru"})
-        await c.post("/login/email", data={"email": "c@example.ru", "consent": "on"})
+        await c.post("/login/email", data={"email": "c@example.ru", "consent": "on", **HUMAN})
         await c.post(f"/auth/email/{_token(outbox[0])}")
         privacy = await c.get("/privacy")
     async with client() as fresh:
@@ -129,3 +138,20 @@ async def test_consent_required_and_recorded(db, outbox) -> None:  # noqa: F811
     assert privacy.status_code == 200 and "Политика обработки персональных данных" in privacy.text
     assert 'name="consent"' in login.text and "/privacy" in login.text
     assert "login_tokens=1" in purged and left == []
+
+
+async def test_bot_gets_no_mail(db, outbox) -> None:  # noqa: F811
+    form = {"email": "victim@example.ru", "consent": "on"}
+    async with client() as c:
+        trap = await c.post("/login/email", data={**form, **HUMAN, "website": "http://spam"})
+        instant = await c.post("/login/email", data={**form, "ft": email_auth.form_stamp()})
+        forged = await c.post("/login/email", data={**form, "ft": f"{int(time.time()) - 10}.x"})
+        bare = await c.post("/login/email", data=form)
+        page = await c.get("/login")
+    for response in (trap, instant, forged, bare):
+        assert response.status_code == 200
+        assert "victim@example.ru" in response.text  # бот видит обычное «письмо отправлено»
+    assert outbox == []
+    assert 'name="ft"' in page.text and 'name="website"' in page.text
+    async with db() as s:
+        assert await s.scalar(select(LoginToken.id)) is None

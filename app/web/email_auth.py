@@ -6,8 +6,10 @@
 """
 
 import hashlib
+import hmac
 import re
 import secrets
+import time
 from datetime import UTC, datetime, timedelta
 from html import escape
 
@@ -24,8 +26,38 @@ PER_IP = (10, timedelta(hours=1))  # и 10 писем с одного IP за ч
 _EMAIL = re.compile(r"^[^@\s<>\"']{1,64}@[^@\s<>\"']+\.[a-zа-яё0-9-]{2,}$", re.IGNORECASE)
 
 
+FORM_MIN_SECONDS = 3  # человек не успевает ввести адрес и поставить галочку быстрее
+FORM_MAX_AGE = 24 * 3600
+
+
 class LoginError(Exception):
     pass
+
+
+def _stamp_mac(ts: str) -> str:
+    key = (get_settings().secret_key or "dev").encode()
+    return hmac.new(key, f"login-form:{ts}".encode(), hashlib.sha256).hexdigest()[:24]
+
+
+def form_stamp(now: float | None = None) -> str:
+    """Подписанное время показа формы: по нему отличаем ботов, отправляющих форму мгновенно."""
+    ts = str(int(now if now is not None else time.time()))
+    return f"{ts}.{_stamp_mac(ts)}"
+
+
+def looks_like_bot(stamp: str, trap: str) -> bool:
+    """Боты-рассыльщики заполняют все поля (и невидимое поле-ловушку) и не ждут ни секунды.
+
+    С 29.10.2026 такой бот с разных IP просил ссылки входа на чужие адреса — лимиты по IP
+    его не ловили, а письма с нашего домена портили репутацию у почтовиков.
+    """
+    if trap.strip():
+        return True
+    ts, _, mac = stamp.partition(".")
+    if not ts.isdigit() or not hmac.compare_digest(mac, _stamp_mac(ts)):
+        return True
+    age = time.time() - int(ts)
+    return not FORM_MIN_SECONDS <= age <= FORM_MAX_AGE
 
 
 def normalize_email(raw: str) -> str | None:
