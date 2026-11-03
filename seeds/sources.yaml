@@ -163,8 +163,12 @@ sources:
   - {name: Вячеслав Володин, type: official, handle_or_domain: "@vv_volodin", owner: Госдума}
   - {name: Сергей Собянин, type: official, handle_or_domain: "@mos_sobyanin", owner: Правительство Москвы}
 
-  # Не собираются из ЕС-прокси (превью скрыто): @izvestia, @rt_russian, @ria_novosti, @ntvnews, @kpru,
-  # @life, @znakcom, @business_gazeta, @rbc_breaking — добавить после Telethon или шлюза в Казахстане.
+  # @rt_russian: превью скрыто каналом (проверено и через шлюз, 03.11.2026) — в реестре для
+  # объединения с сайтом в группу владения RT, сбор постов — после Telethon.
+  - {name: RT на русском (TG), type: tg, handle_or_domain: "@rt_russian", owner: RT, is_tracked: false}
+
+  # Не собираются из ЕС-прокси (превью скрыто): @izvestia, @ria_novosti, @ntvnews, @kpru,
+  # @life, @znakcom, @business_gazeta, @rbc_breaking — добавить после Telethon.
 
   # ---------------------------------------------------------------------------------------
   # Англоязычные источники (13.10.2026). Ленты проверены пробой: напрямую из РФ и через шлюз.
