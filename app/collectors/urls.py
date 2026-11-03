@@ -28,6 +28,9 @@ _TRACKING_PARAMS = {
     "ref_src",
     "ref_url",
     "share",
+    "xmt",  # метка шерилки Threads
+    "slof",
+    "hl",  # язык интерфейса (Google/Threads), не содержимого
 }
 _AMP_PATH = re.compile(r"/amp/?$|^/amp(?=/)")
 

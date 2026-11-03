@@ -42,3 +42,34 @@ TELEGRAM_PAGE = """<html><body><section class="tgme_channel_history">
 </div></div>
 </section></body></html>
 """.encode()
+
+# Threads отдаёт пост серверно только «известным краулерам» (facebookexternalhit и т.п.):
+# og:description содержит текст одного поста, og:title — «Автор (@handle) on Threads».
+# Время публикации в разметке нет. Образец — реальный пост @newslabenzo/DfP_J88Dbbz (03.11.2026).
+# HTML-сущности как в оригинале: og:description приходит в &#xNN; и декодируется парсером.
+_THREADS_TEXT = (
+    "&#x41f;&#x43e;&#x434;&#x43f;&#x438;&#x441;&#x44b;"
+    "&#x432;&#x430;&#x439;&#x441;&#x44f; "
+    "&#x43d;&#x430; LABENZO NEWS, "
+    "&#x447;&#x442;&#x43e;&#x431;&#x44b; "
+    "&#x431;&#x44b;&#x442;&#x44c; &#x432; "
+    "&#x43a;&#x443;&#x440;&#x441;&#x435; "
+    "&#x433;&#x43b;&#x430;&#x432;&#x43d;&#x43e;&#x433;&#x43e;: "
+    "https://t.me/labenzonews/4445"
+)
+THREADS_POST_PAGE = (
+    b'<!doctype html><html lang="en" dir="ltr"><head>'
+    b'<meta property="og:site_name" content="Threads" />'
+    b'<meta property="og:type" content="article" />'
+    b'<meta property="og:title" content="LABENZO NEWS (&#064;newslabenzo) on Threads" />'
+    + f'<meta property="og:description" content="{_THREADS_TEXT}" />'.encode()
+    + f'<meta name="twitter:description" content="{_THREADS_TEXT}" />'.encode()
+    + f"<title>{_THREADS_TEXT}</title>".encode()
+    + b'</head><body><div id="root"></div></body></html>'
+)
+
+# То, что Threads отдаёт обычным клиентам (включая наш дефолтный UA): пустая JS-заглушка.
+THREADS_SHELL_PAGE = b"""<!doctype html><html lang="en" dir="ltr"><head>
+<title>Threads</title>
+</head><body><div id="root"></div></body></html>
+"""

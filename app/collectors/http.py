@@ -50,9 +50,11 @@ def make_client(
     )
 
 
-async def fetch(client: httpx.AsyncClient, url: str) -> tuple[bytes, httpx.URL]:
+async def fetch(
+    client: httpx.AsyncClient, url: str, headers: dict[str, str] | None = None
+) -> tuple[bytes, httpx.URL]:
     """GET с лимитом размера ответа (раздел 9). Возвращает тело и итоговый URL после редиректов."""
-    async with client.stream("GET", url) as response:
+    async with client.stream("GET", url, headers=headers) as response:
         response.raise_for_status()
         chunks, size = [], 0
         async for chunk in response.aiter_bytes():

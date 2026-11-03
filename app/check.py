@@ -21,7 +21,7 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.collectors import maxru, rss, telegram
+from app.collectors import maxru, rss, telegram, threads
 from app.collectors.fingerprint import content_hash
 from app.collectors.http import fetch, make_client
 from app.collectors.store import DocumentIn, SaveResult, save_document
@@ -46,17 +46,22 @@ SATIRE_STATUS = {
 
 
 async def _source_for(session: AsyncSession, url: str) -> int | None:
-    if domain_of(url) == "t.me":
+    handle = domain_of(url)
+    if handle == "t.me":
         handle = "@" + url.split("/")[3]
-    elif domain_of(url) == maxru.MAX_HOST:
+    elif threads.is_threads(url):
+        # Аккаунт Threads — источник, как TG-канал: @newslabenzo, а не весь threads.com.
+        handle = threads.post_handle(url) or handle
+    elif handle == maxru.MAX_HOST:
         handle = maxru.channel_handle(url)
-    else:
-        handle = domain_of(url)
     return await session.scalar(select(Source.id).where(Source.handle_or_domain == handle))
 
 
 async def _download(url: str, source_id: int | None) -> DocumentIn:
     """Скачивает публикацию, которой ещё нет в архиве."""
+    if threads.is_threads(url):
+        return await threads.download(url, source_id)
+
     if domain_of(url) == "t.me":
         proxy = get_settings().telegram_proxy
         ipv6 = get_settings().telegram_ipv6
@@ -276,6 +281,17 @@ def not_an_article(url: str) -> str | None:
                 "«Копировать ссылку» и пришлите её — она выглядит как t.me/канал/12345."
             )
         return None
+    if host in ("threads.com", "threads.net"):
+        if path and path[0] == "share":
+            return None  # шерилку резолвим в пост
+        if path and path[0] == "t":
+            return None  # короткая форма ссылки на пост
+        if len(path) != 3 or not path[0].startswith("@") or path[1] != "post":
+            return (
+                "это ссылка на профиль в Threads, а не на пост. Откройте нужный пост, "
+                "нажмите «Поделиться» → «Скопировать ссылку» и пришлите её."
+            )
+        return None
     if not path and not parts.query:
         return (
             "это ссылка на главную страницу сайта, а не на публикацию. Откройте нужную "
@@ -304,6 +320,10 @@ async def resolve_seed(
         return doc
     if reason := not_an_article(arg):
         raise NotAnArticle(reason)
+    if threads.is_share_link(arg):
+        # Шерилку резолвим в канонический пост: иначе архив и источник работали бы
+        # по /share/… и плодили дубли одного поста.
+        arg = await threads.resolve_share(arg)
     url = normalize_url(arg)
     # Сначала точный адрес, потом тот же путь без параметров: в ссылках из соцсетей и
     # рекомендательных виджетов бывают метки, которых нет в нашем списке.
