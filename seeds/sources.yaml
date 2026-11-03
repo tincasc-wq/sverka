@@ -167,8 +167,19 @@ sources:
   # объединения с сайтом в группу владения RT, сбор постов — после Telethon.
   - {name: RT на русском (TG), type: tg, handle_or_domain: "@rt_russian", owner: RT, is_tracked: false}
 
-  # Не собираются из ЕС-прокси (превью скрыто): @izvestia, @ria_novosti, @ntvnews, @kpru,
-  # @life, @znakcom, @business_gazeta, @rbc_breaking — добавить после Telethon.
+  # Каналы с превью, скрытым самим каналом (проверено через шлюз, 03.11.2026): в реестре для
+  # объединения с сайтами в группы владения, сбор постов — после Telethon.
+  - {name: Известия (TG), type: tg, handle_or_domain: "@izvestia", owner: Известия, is_tracked: false}
+  - {name: РИА Новости (TG), type: tg, handle_or_domain: "@ria_novosti", owner: МИА «Россия сегодня»,
+     aliases: [РИА], is_tracked: false}
+  - {name: НТВ (TG), type: tg, handle_or_domain: "@ntvnews", is_tracked: false}  # сайта нет в реестре
+  - {name: Комсомольская правда (TG), type: tg, handle_or_domain: "@kpru", owner: Комсомольская правда,
+     aliases: [КП], is_tracked: false}
+  - {name: LIFE (TG), type: tg, handle_or_domain: "@life", owner: Life, is_tracked: false}
+  - {name: Znak.com (TG), type: tg, handle_or_domain: "@znakcom", is_tracked: false}  # сайта нет в реестре
+  - {name: БИЗНЕС Online (TG), type: tg, handle_or_domain: "@business_gazeta", owner: БИЗНЕС Online,
+     is_tracked: false}
+  - {name: РБК (TG), type: tg, handle_or_domain: "@rbc_breaking", owner: РБК, is_tracked: false}
 
   # ---------------------------------------------------------------------------------------
   # Англоязычные источники (13.10.2026). Ленты проверены пробой: напрямую из РФ и через шлюз.
