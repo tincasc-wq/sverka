@@ -13,6 +13,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -38,6 +39,11 @@ class Document(Base):
             "text",
             postgresql_using="gin",
             postgresql_ops={"text": "gin_trgm_ops"},
+        ),
+        # Время события для оконного фильтра кандидатов — bitmap-AND с trigram.
+        Index(
+            "ix_documents_event_time",
+            text("coalesce(published_at, first_seen_at)"),
         ),
         Index(
             "ix_documents_embedding_hnsw",
