@@ -32,6 +32,13 @@ class Document(Base):
             postgresql_using="gin",
             postgresql_ops={"title": "gin_trgm_ops"},
         ),
+        # ILIKE '%имя%' по тексту — поиск соседних эпизодов по редким именам.
+        Index(
+            "ix_documents_text_trgm",
+            "text",
+            postgresql_using="gin",
+            postgresql_ops={"text": "gin_trgm_ops"},
+        ),
         Index(
             "ix_documents_embedding_hnsw",
             "embedding",
