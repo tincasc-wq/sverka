@@ -338,3 +338,33 @@ async def test_empty_document_in_archive_is_downloaded_again(session, monkeypatc
     monkeypatch.setattr(check_module, "_download", fake_download)
     doc = await resolve_seed(session, "https://rosbalt.ru/news/1?utm_source=yandex.ru")
     assert doc.id == empty.id and doc.title == "Атака БПЛА на Петербург"
+
+
+async def test_by_name_finds_rare_name_and_skips_common(session) -> None:
+    """Поиск по редким именам: редкое имя — кандидат, частое (больше порога) — пропуск."""
+    from app.core.scoring import get_scoring
+    from app.pipeline.story import find_candidates
+
+    cfg = get_scoring().model_copy(deep=True)
+    cfg.clustering.name_max_docs = 2  # «слишком частое имя» — больше двух публикаций окна
+
+    seed = await _doc(
+        session,
+        "https://example.ru/seed",
+        0.99,
+        text="Завод Minerva Zen и Минерва Зен остановлены, Трамп уехал.",
+    )
+    await _doc(session, "https://example.ru/rare1", None, minutes=10, text="Minerva Zen снова работает")
+    await _doc(session, "https://example.ru/rare2", None, minutes=20, text="Минерва Зен отгружает металл")
+    await _doc(session, "https://example.ru/c1", None, minutes=30, text="Трамп выступил")
+    await _doc(session, "https://example.ru/c2", None, minutes=40, text="Трамп ответил")
+    await _doc(session, "https://example.ru/c3", None, minutes=50, text="Трамп уехал")
+
+    candidates = await find_candidates(session, seed, cfg)
+    by_name = {c.document.url for c in candidates if c.by_name}
+
+    # «Минерва» встречается редко — публикации найдены по имени (латиница и кириллица).
+    assert "https://example.ru/rare1" in by_name
+    assert "https://example.ru/rare2" in by_name
+    # «Трамп» в трёх публикациях окна (> name_max_docs=2) — пропущен.
+    assert not any(u.startswith("https://example.ru/c") for u in by_name)

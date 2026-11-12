@@ -159,10 +159,12 @@ async def find_candidates(
             mentions,
             ~Document.url.startswith(USER_TEXT_PREFIX),
         )
-        count = await session.scalar(select(func.count()).select_from(base.subquery()))
-        if not count or count > c.name_max_docs:
+        # Один проход вместо count+select: запрос дорогой (bitmap heap scan по окну,
+        # замер 12.11.2026), а «слишком частое имя» видно по числу пришедших строк.
+        rows = list(await session.scalars(base.limit(c.name_max_docs + 1)))
+        if not rows or len(rows) > c.name_max_docs:
             continue  # не встречается — или слишком частое имя, чтобы что-то значить
-        for doc in await session.scalars(base.limit(c.name_candidates)):
+        for doc in rows[: c.name_candidates]:
             if any(b.document.id == doc.id for b in by_name):
                 continue
             known = candidates.get(doc.id)
