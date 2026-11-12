@@ -354,8 +354,12 @@ async def test_by_name_finds_rare_name_and_skips_common(session) -> None:
         0.99,
         text="Завод Minerva Zen и Минерва Зен остановлены, Трамп уехал.",
     )
-    await _doc(session, "https://example.ru/rare1", None, minutes=10, text="Minerva Zen снова работает")
-    await _doc(session, "https://example.ru/rare2", None, minutes=20, text="Минерва Зен отгружает металл")
+    await _doc(
+        session, "https://example.ru/rare1", None, minutes=10, text="Minerva Zen снова работает"
+    )
+    await _doc(
+        session, "https://example.ru/rare2", None, minutes=20, text="Минерва Зен отгружает металл"
+    )
     await _doc(session, "https://example.ru/c1", None, minutes=30, text="Трамп выступил")
     await _doc(session, "https://example.ru/c2", None, minutes=40, text="Трамп ответил")
     await _doc(session, "https://example.ru/c3", None, minutes=50, text="Трамп уехал")
