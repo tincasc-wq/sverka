@@ -9,9 +9,11 @@
 import asyncio
 import hashlib
 import json
+import logging
 import re
 import secrets
 import sys
+import time
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -39,6 +41,7 @@ from app.pipeline.report import build_report
 from app.pipeline.story import build_story, story_headline
 
 MSK = ZoneInfo("Europe/Moscow")
+logger = logging.getLogger("sverka.check")
 SATIRE_STATUS = {
     "satire_origin": "похоже на шутку: первоисточник — {source}",
     "satire_seed": "это материал сатирического издания ({source}): вымысел по замыслу",
@@ -452,7 +455,9 @@ async def run_check(
     """
     from app.post_images import add_image_text, post_has_images, short_caption
 
+    started = time.monotonic()
     seed = await resolve_seed(session, arg, fallback)
+    mark_seed = time.monotonic()
     if existing is not None:
         org_id = existing.org_id
     image_hint = None
@@ -476,6 +481,7 @@ async def run_check(
             existing.finished_at = datetime.now(UTC)
             cached = existing
         await session.commit()  # сохранить скачанную публикацию, если её не было
+        logger.info("check %s: из кэша, total %.1fs", cached.id, time.monotonic() - started)
         return cached
     if seed.embedding is None:
         if embedder is None:
@@ -486,6 +492,7 @@ async def run_check(
         )
         seed.embedding = vector
         await session.flush()
+    mark_embed = time.monotonic()
 
     # Проверка создаётся до LLM-вызовов: к ней привязывается учёт расходов (llm_calls).
     if existing is not None:
@@ -513,6 +520,7 @@ async def run_check(
     if judge is not None and embedder is not None and (headline := story_headline(seed)):
         [headline_vector] = await asyncio.to_thread(embedder.embed, [headline])
     result = await build_story(session, seed, judge=judge, headline_vector=headline_vector)
+    mark_story = time.monotonic()
     report = build_report(result, scoring.graph)
     await check_unregistered_channels(result, report)
     satire = report.get("satire")
@@ -548,6 +556,15 @@ async def run_check(
     check.summary = json.dumps(report, ensure_ascii=False)
     check.finished_at = datetime.now(UTC)
     await session.commit()
+    logger.info(
+        "check %s: resolve %.1fs, embed %.1fs, story %.1fs, analysis %.1fs, total %.1fs",
+        check.id,
+        mark_seed - started,
+        mark_embed - mark_seed,
+        mark_story - mark_embed,
+        time.monotonic() - mark_story,
+        time.monotonic() - started,
+    )
     return check
 
 

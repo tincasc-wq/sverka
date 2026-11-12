@@ -108,11 +108,15 @@ async def judge_same_event(
     *,
     check_id: int | None = None,
 ) -> dict[int, Decision]:
-    """Решение «то же событие?» по каждому кандидату (6.2 п.3). Ключ — id документа."""
+    """Решение «то же событие?» по каждому кандидату (6.2 п.3). Ключ — id документа.
+
+    Батчи независимы и идут параллельно (замер 12.11.2026: большие истории ждали
+    4 последовательных батча по ~3 с); решения склеиваются по id документа.
+    """
     prompt = load_prompt("same_event")
-    decisions: dict[int, Decision] = {}
-    for start in range(0, len(candidates), SAME_EVENT_BATCH):
-        batch = candidates[start : start + SAME_EVENT_BATCH]
+    semaphore = asyncio.Semaphore(VERIFY_CONCURRENCY)
+
+    async def one(batch: list[Document]) -> dict[int, Decision]:
         listing = "\n".join(
             f'<document id="{i}" published="{_published(doc)}">'
             f"{snippet(doc, SNIPPET_CHARS)}</document>"
@@ -122,18 +126,24 @@ async def judge_same_event(
             f'Исходная публикация:\n<document published="{_published(seed)}">'
             f"{snippet(seed, SNIPPET_CHARS * 2)}</document>\n\nКандидаты:\n{listing}"
         )
-        answer = await client.complete_json(
-            session,
-            "same_event",
-            prompt.text,
-            user,
-            SameEventAnswer,
-            check_id=check_id,
-            prompt_version=prompt.version,
-        )
-        for d in answer.decisions:
-            if 1 <= d.id <= len(batch):
-                decisions[batch[d.id - 1].id] = d
+        async with semaphore:
+            answer = await client.complete_json(
+                session,
+                "same_event",
+                prompt.text,
+                user,
+                SameEventAnswer,
+                check_id=check_id,
+                prompt_version=prompt.version,
+            )
+        return {batch[d.id - 1].id: d for d in answer.decisions if 1 <= d.id <= len(batch)}
+
+    batches = [
+        candidates[s : s + SAME_EVENT_BATCH] for s in range(0, len(candidates), SAME_EVENT_BATCH)
+    ]
+    decisions: dict[int, Decision] = {}
+    for part in await asyncio.gather(*(one(b) for b in batches)):
+        decisions.update(part)
     return decisions
 
 

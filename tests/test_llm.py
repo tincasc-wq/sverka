@@ -428,3 +428,39 @@ async def test_event_reported_but_claim_absent(session: AsyncSession) -> None:
     analysis = json.loads(check.summary)["analysis"]
     assert analysis["status"] == "claim_absent" and analysis["index"] is None
     assert "о событии пишут, но этого утверждения в публикациях нет" in analysis["status_text"]
+
+
+# ---- параллельные батчи same_event ------------------------------------------------------
+
+
+async def test_same_event_batches_run_in_parallel(session: AsyncSession) -> None:
+    """Батчи «одно ли событие» независимы — идут параллельно, решения склеиваются по id."""
+    import asyncio as _asyncio
+    import re
+
+    from app.pipeline import llm_steps
+    from tests.test_story import _doc
+
+    in_flight = 0
+    max_in_flight = 0
+
+    class FakeClient:
+        async def complete_json(self, session, step, system, user, schema, **kw):
+            nonlocal in_flight, max_in_flight
+            in_flight += 1
+            max_in_flight = max(max_in_flight, in_flight)
+            await _asyncio.sleep(0.05)
+            in_flight -= 1
+            ids = [int(m) for m in re.findall(r'<document id="(\d+)"', user)]
+            return llm_steps.SameEventAnswer(
+                seed_event="склад",
+                decisions=[llm_steps.Decision(id=i, same_event=True, reason="") for i in ids],
+            )
+
+    seed = await _doc(session, "https://example.ru/seed", None, text="Горит склад")
+    docs = [await _doc(session, f"https://example.ru/{i}", None, minutes=i) for i in range(25)]
+    decisions = await llm_steps.judge_same_event(FakeClient(), session, seed, docs)
+
+    assert len(decisions) == 25  # 3 батча: 12 + 12 + 1
+    assert max_in_flight == 3  # батчи пошли одновременно, не друг за другом
+    assert all(d.same_event for d in decisions.values())
