@@ -9,5 +9,5 @@ target="/home/sverka/backups/sverka-$(date +%F).dump"
 docker compose -f deploy/docker-compose.prod.yml exec -T db \
   sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' > "$target.part"
 mv "$target.part" "$target"
-find /home/sverka/backups -name 'sverka-*.dump' -mtime +7 -delete
+find /home/sverka/backups -name 'sverka-*.dump' -mtime +2 -delete
 echo "$(date '+%F %T') ok $(du -h "$target" | cut -f1) $target"
